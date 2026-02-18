@@ -137,9 +137,9 @@ C4Component
 
     Container_Boundary(frontend, "Frontend SPA") {
 
-        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /settings. Layout guard checks onboarding status.")
+        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /analysis, /settings. Layout guard checks onboarding status.")
 
-        Component(layout, "Layout", "React", "Nav header with app title, dashboard and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
+        Component(layout, "Layout", "React", "Nav header with app title, dashboard, analysis, and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
 
         Component_Boundary(onboarding, "Onboarding Wizard") {
             Component(wizard, "OnboardingWizard", "React", "6-step wizard: Welcome, Oura, SleepProfile, TrackingSetup, DataStorage, Done. Per-step PATCH to settings.")
@@ -168,22 +168,35 @@ C4Component
             Component(oura_section, "OuraSection", "React", "Token input (PAT), sync button, last sync display, sync results.")
         }
 
+        Component_Boundary(analysis_view, "Analysis") {
+            Component(analysis_page, "AnalysisPage", "React", "Orchestrates sub-views based on data sufficiency. Phase-gated: correlations (14d), regression (50d), timing (30d).")
+            Component(data_status, "DataStatus", "React", "Per-variable day counts and phase unlock indicators.")
+            Component(corr_list, "CorrelationList", "React", "Ranked factor list with r-values, p-values, confidence levels.")
+            Component(corr_heatmap, "CorrelationHeatmap", "SVG", "Predictor x outcome matrix. Amber/red color scale.")
+            Component(coeff_chart, "CoefficientChart", "SVG", "Horizontal bars with 95% CI whiskers per regression model.")
+            Component(regression_summary, "RegressionSummary", "React", "R-squared, diagnostics, and model warnings.")
+            Component(timing_view, "TimingView", "React", "Chronotype label, optimal bedtime window, social jet lag.")
+            Component(nap_view, "NapImpactView", "React", "Segmented nap timing x duration grid with onset latency deltas.")
+            Component(explainer, "Explainer", "React", "Collapsible 'How to read' section with hedged language.")
+        }
+
         Component(caffeine_chart, "CaffeineChart", "SVG", "Inline SVG decay curve. Client-side exponential decay math. Bedtime marker and 100mg threshold.")
 
         Component_Boundary(api_layer, "API Client") {
             Component(api_client, "fetchJson/fetchVoid", "TypeScript", "Thin fetch wrapper with JSON parsing and ApiError handling.")
-            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, dashboard, settings, redLightPanels, oura API functions.")
+            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, dashboard, analysis, settings, redLightPanels, oura API functions.")
         }
 
         Component(shared, "Shared Components", "React", "TimePicker, NumberInput, SelectInput, SliderInput, Toggle.")
 
-        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useDashboard, useOnboarding, useDateNavigation, useCaffeineDecay.")
+        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useDashboard, useAnalysisStatus, useCorrelations, useRegression, useTiming, useNaps, useOnboarding, useDateNavigation, useCaffeineDecay.")
     }
 
     Rel(router, layout, "Renders")
     Rel(layout, wizard, "Onboarding route")
     Rel(layout, daily_log_page, "Log route")
     Rel(layout, dashboard_page, "Dashboard route")
+    Rel(layout, analysis_page, "Analysis route")
     Rel(layout, settings_pg, "Settings route")
     Rel(dashboard_page, caffeine_chart, "Renders when caffeine entries exist")
     Rel(daily_log_page, sections, "Renders")
@@ -227,12 +240,27 @@ User → Frontend (DashboardPage) → GET /api/dashboard
 
 ### Analysis Flow
 ```
-User → Frontend (Analysis tab) → GET /api/analysis/correlations
-  → Stats Engine reads from DB (only days with recorded values for each variable)
-  → Seasonal Service adds covariates (daylight hours, DST)
-  → Sleep Timing Service computes consistency (σ, δ, Δ)
-  → Outlier detection flags anomalies
-  → Returns: correlations, regression coefficients, confidence intervals, sample sizes
+User → Frontend (AnalysisPage) → GET /api/analysis/status
+  → Stats Engine builds central DataFrame (SleepRecord ⨝ DailyLog aggregates)
+  → Returns per-variable day counts and phase unlock status
+
+Phase A (≥14 days): GET /api/analysis/correlations
+  → Stats Engine filters sick days, computes pairwise Pearson/Spearman r
+  → Returns sorted by |r|, with p-values, confidence levels, sample sizes
+
+Phase B (≥50 days): GET /api/analysis/regression
+  → Stats Engine fits OLS per outcome (sleep_score, deep, rem, hrv)
+  → Standardized coefficients, 95% CIs, VIF, ADF stationarity, ACF checks
+  → Returns regression results with diagnostics
+
+Phase C (≥30 bedtimes): GET /api/analysis/timing
+  → Sleep Timing Service infers chronotype from sleep midpoint
+  → Computes social jet lag (weekday vs weekend midpoints)
+  → Optimal bedtime window from top-quartile sleep scores
+
+GET /api/analysis/naps
+  → Nap Analysis Service segments by timing × duration
+  → Compares each segment to no-nap baseline onset latency
 ```
 
 ### Caffeine Projection (Client-Side)

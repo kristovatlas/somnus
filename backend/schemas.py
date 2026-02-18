@@ -469,3 +469,97 @@ class DashboardResponse(BaseModel):
     today_caffeine_entries: list[CaffeineEntryOut] = []
     caffeine_sensitivity: CaffeineSensitivity = CaffeineSensitivity.NORMAL
     typical_bedtime: dt.time | None = None
+
+
+# --- Analysis Engine ---
+
+
+class VariableStatus(BaseModel):
+    name: str
+    label: str
+    n_days: int
+    has_correlations: bool
+    has_regression: bool
+
+
+class AnalysisStatusResponse(BaseModel):
+    total_sleep_days: int
+    phase_a_unlocked: bool
+    phase_b_unlocked: bool
+    phase_c_unlocked: bool
+    variables: list[VariableStatus]
+
+
+class CorrelationResult(BaseModel):
+    predictor: str
+    predictor_label: str
+    outcome: str
+    outcome_label: str
+    pearson_r: float
+    spearman_r: float
+    p_value: float
+    n_days: int
+    confidence: str
+
+
+class CorrelationResponse(BaseModel):
+    results: list[CorrelationResult]
+    total_days: int
+    excluded_sick_days: int
+
+
+class RegressionCoefficient(BaseModel):
+    predictor: str
+    predictor_label: str
+    coefficient: float
+    ci_lower: float | None = None
+    ci_upper: float | None = None
+    p_value: float
+    is_significant: bool
+    vif: float | None = None
+
+
+class RegressionResult(BaseModel):
+    outcome: str
+    outcome_label: str
+    n_days: int
+    r_squared: float
+    adj_r_squared: float
+    coefficients: list[RegressionCoefficient]
+    has_autocorrelation: bool
+    is_stationary: bool
+    multicollinearity_warning: bool
+    excluded_predictors: list[str]
+
+
+class RegressionResponse(BaseModel):
+    results: list[RegressionResult]
+    total_days: int
+
+
+class SleepTimingResponse(BaseModel):
+    chronotype: str | None = None
+    chronotype_confidence: str | None = None
+    sleep_midpoint_avg_hour: float | None = None
+    social_jet_lag_minutes: float | None = None
+    social_jet_lag_rating: str | None = None
+    optimal_bedtime_start: float | None = None
+    optimal_bedtime_end: float | None = None
+    n_days: int = 0
+
+
+class NapSegment(BaseModel):
+    timing_label: str
+    duration_label: str
+    n_days: int
+    avg_onset_latency: float | None = None
+    avg_efficiency: float | None = None
+    avg_total_sleep: float | None = None
+    vs_no_nap_onset: float | None = None
+
+
+class NapResponse(BaseModel):
+    no_nap_baseline: dict[str, float | None]
+    segments: list[NapSegment]
+    total_nap_days: int
+    total_no_nap_days: int

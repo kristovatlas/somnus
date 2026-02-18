@@ -3,6 +3,7 @@ import { Layout } from './components/Layout/Layout'
 import { OnboardingWizard } from './components/Onboarding/OnboardingWizard'
 import { DailyLogPage } from './components/DailyLog/DailyLogPage'
 import { DashboardPage } from './components/Dashboard/DashboardPage'
+import { AnalysisPage } from './components/Analysis/AnalysisPage'
 import { SettingsPage } from './components/Settings/SettingsPage'
 
 function todayStr(): string {
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
       { path: 'log', element: <Navigate to={`/log/${todayStr()}`} replace /> },
       { path: 'log/:date', element: <DailyLogPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'analysis', element: <AnalysisPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },
