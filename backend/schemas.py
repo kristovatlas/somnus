@@ -390,5 +390,82 @@ class UserSettingsOut(BaseModel):
     display_mode: DisplayMode
     circadian_mode_start: dt.time
     onboarding_completed: bool
+    last_oura_sync: dt.datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+# --- Oura Sync ---
+
+
+class OuraSyncResponse(BaseModel):
+    synced_count: int
+    start_date: dt.date
+    end_date: dt.date
+    errors: list[str] = []
+
+
+# --- Dashboard ---
+
+
+class StageTargets(BaseModel):
+    age_group: str
+    deep_min_minutes: int
+    deep_max_minutes: int
+    rem_min_minutes: int
+    rem_max_minutes: int
+
+
+class TrendDay(BaseModel):
+    date: dt.date
+    sleep_score: int | None = None
+    avg_hrv: float | None = None
+    deep_minutes: int | None = None
+    rem_minutes: int | None = None
+
+
+class StageAverages(BaseModel):
+    avg_deep_minutes: float
+    avg_rem_minutes: float
+    avg_light_minutes: float
+    avg_total_minutes: float
+    deep_vs_target: str
+    rem_vs_target: str
+    days_counted: int
+
+
+class BedtimeDot(BaseModel):
+    date: dt.date
+    bedtime_hour: float
+    is_weekend: bool
+
+
+class ConsistencyMetrics(BaseModel):
+    sigma_minutes: float
+    sigma_rating: str
+    delta_minutes: float | None = None
+    delta_rating: str | None = None
+    weekend_drift_minutes: float | None = None
+    drift_rating: str | None = None
+    bedtime_dots: list[BedtimeDot] = []
+    days_counted: int
+
+
+class RedLightWeeklySummary(BaseModel):
+    session_count: int
+    total_dose_joules_cm2: float
+    days_with_sessions: int
+    meets_minimum: bool
+
+
+class DashboardResponse(BaseModel):
+    sleep_record: SleepRecordOut | None = None
+    stage_targets: StageTargets | None = None
+    trends: list[TrendDay] = []
+    stage_averages: StageAverages | None = None
+    consistency: ConsistencyMetrics | None = None
+    logging_streak: int = 0
+    red_light_summary: RedLightWeeklySummary
+    today_caffeine_entries: list[CaffeineEntryOut] = []
+    caffeine_sensitivity: CaffeineSensitivity = CaffeineSensitivity.NORMAL
+    typical_bedtime: dt.time | None = None

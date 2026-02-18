@@ -381,3 +381,4 @@ class UserSettings(Base):
         Time, nullable=False, default=dt.time(20, 0)
     )
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    last_oura_sync: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
