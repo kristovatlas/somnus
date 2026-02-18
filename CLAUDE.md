@@ -1,0 +1,59 @@
+# Somnus — Project Instructions for Claude Code
+
+## Project Overview
+Somnus is a locally-run sleep optimization app. Python (FastAPI) backend + React (Vite + TypeScript) frontend + SQLite database.
+
+## Key Documents
+- `PLAN.md` — Full feature specification and build order
+- `ARCHITECTURE.md` — C4 diagrams (Mermaid), always kept current
+- `docs/adr/` — Architecture Decision Records, created for every significant choice
+
+## Critical Rules
+
+### Dependencies
+- **Audit before installing**: After any change to pyproject.toml or package.json dependency lists, run `pip-audit` (Python) or `npm audit` (Node) BEFORE running `pip install` or `npm install`. Flag vulnerabilities to the user and get approval before proceeding.
+- New dependencies must be justified. Prefer stdlib/existing deps over new ones.
+
+### Data Semantics
+- **Missing data ≠ negative data**. NULL means "not recorded," NEVER "didn't happen." See ADR 003.
+- All entry fields are optional except `date`.
+- Analysis only uses days where a variable was explicitly recorded.
+
+### Security
+- No sensitive data (Oura tokens, health data) logged to console or files.
+- No raw SQL — all queries through SQLAlchemy ORM.
+- CORS restricted to localhost origins only.
+- Every PR needs security review per the checklist in PLAN.md.
+
+### Testing
+- 90%+ coverage on new code per commit, 75%+ project-wide floor.
+- Critical paths (stats engine, caffeine model, data import): 95%+.
+- Backend: pytest. Frontend: Vitest + React Testing Library. E2E: Playwright.
+- Tests run with `make test`.
+
+### Architecture Docs
+- ARCHITECTURE.md must be updated in the same commit as any structural change.
+- New ADRs created for significant architectural decisions.
+
+### Git Workflow
+- Relaxed git flow: feature/* → dev → main.
+- `main` always reflects a complete, user-ready release.
+- Squash merge to dev. Tag releases on main with semver.
+
+### Code Quality
+- Python: type hints everywhere, mypy strict, ruff for linting.
+- TypeScript: strict mode, eslint + prettier.
+- Pydantic for all API boundaries.
+- `import datetime as dt` in schemas.py to avoid field name collision with `time` type.
+
+### Display
+- Default display mode is "circadian" — amber/red palette only (no blue, green, white, or pure yellow). See ADR 004.
+
+## Common Commands
+```bash
+make setup     # Install all dependencies
+make dev       # Run backend + frontend
+make test      # Run all tests
+make lint      # Run all linters
+make migrate   # Apply DB migrations
+```
