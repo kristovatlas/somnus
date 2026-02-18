@@ -116,7 +116,7 @@ class HabitEntryCreate(BaseModel):
     habit_type: HabitType
     time: dt.time | None = None
     value: str | None = Field(default=None, max_length=100)
-    duration_minutes: int | None = Field(default=None, ge=1)
+    duration_minutes: int | None = Field(default=None, ge=1, le=300)
     notes: str | None = None
 
 
@@ -325,6 +325,40 @@ class DailyLogOut(BaseModel):
     nsdr_entries: list[NSDREntryOut] = []
 
     model_config = {"from_attributes": True}
+
+
+# --- User Settings ---
+
+
+# --- Daily Log Response Wrappers ---
+
+
+class DailyLogResponse(BaseModel):
+    """Wraps DailyLogOut with soft validation warnings."""
+
+    data: DailyLogOut
+    warnings: list[str] = []
+
+
+class DailyLogSummary(BaseModel):
+    """Lightweight schema for list endpoints — no nested entries."""
+
+    date: dt.date
+    copied_from_date: dt.date | None = None
+    is_sick: bool | None = None
+    has_entries: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+# --- Export ---
+
+
+class ExportData(BaseModel):
+    """JSON export structure."""
+
+    daily_logs: list[DailyLogOut] = []
+    sleep_records: list[SleepRecordOut] = []
 
 
 # --- User Settings ---

@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
 from backend.database import init_db
+from backend.routers import daily_log, export
+from backend.routers import settings as settings_router
 from backend.schemas import HealthResponse
 
 VERSION = "0.1.0"
@@ -34,6 +36,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(daily_log.router)
+app.include_router(settings_router.router)
+app.include_router(export.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)
