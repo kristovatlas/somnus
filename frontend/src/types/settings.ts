@@ -14,6 +14,14 @@ export interface UserSettingsOut {
   display_mode: DisplayMode
   circadian_mode_start: string
   onboarding_completed: boolean
+  last_oura_sync: string | null
+}
+
+export interface OuraSyncResponse {
+  synced_count: number
+  start_date: string
+  end_date: string
+  errors: string[]
 }
 
 export interface UserSettingsUpdate {

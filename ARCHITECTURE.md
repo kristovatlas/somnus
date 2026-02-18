@@ -131,9 +131,9 @@ C4Component
 
     Container_Boundary(frontend, "Frontend SPA") {
 
-        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date. Layout guard checks onboarding status.")
+        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /settings. Layout guard checks onboarding status.")
 
-        Component(layout, "Layout", "React", "Nav header with app title. Onboarding gate — redirects based on settings.onboarding_completed.")
+        Component(layout, "Layout", "React", "Nav header with app title and settings gear link. Onboarding gate — redirects based on settings.onboarding_completed.")
 
         Component_Boundary(onboarding, "Onboarding Wizard") {
             Component(wizard, "OnboardingWizard", "React", "6-step wizard: Welcome, Oura, SleepProfile, TrackingSetup, DataStorage, Done. Per-step PATCH to settings.")
@@ -147,11 +147,16 @@ C4Component
             Component(sections, "Entry Sections", "React", "11 collapsible sections: Caffeine, Meals, Supplements, Habits, Stimulating, Sexual Activity, Pre-Bed Rituals, Naps, Sunlight, Red Light, NSDR.")
         }
 
+        Component_Boundary(settings_page, "Settings Page") {
+            Component(settings_pg, "SettingsPage", "React", "Four-section settings: Oura connection, Profile, Red Light Panels, Display mode.")
+            Component(oura_section, "OuraSection", "React", "Token input (PAT), sync button, last sync display, sync results.")
+        }
+
         Component(caffeine_chart, "CaffeineChart", "SVG", "Inline SVG decay curve. Client-side exponential decay math. Bedtime marker and 100mg threshold.")
 
         Component_Boundary(api_layer, "API Client") {
             Component(api_client, "fetchJson/fetchVoid", "TypeScript", "Thin fetch wrapper with JSON parsing and ApiError handling.")
-            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, settings, redLightPanels API functions.")
+            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, settings, redLightPanels, oura API functions.")
         }
 
         Component(shared, "Shared Components", "React", "TimePicker, NumberInput, SelectInput, SliderInput, Toggle.")
@@ -162,6 +167,7 @@ C4Component
     Rel(router, layout, "Renders")
     Rel(layout, wizard, "Onboarding route")
     Rel(layout, daily_log_page, "Log route")
+    Rel(layout, settings_pg, "Settings route")
     Rel(daily_log_page, sections, "Renders")
     Rel(daily_log_page, caffeine_chart, "Renders when caffeine entries exist")
     Rel(daily_log_page, date_nav, "Renders")

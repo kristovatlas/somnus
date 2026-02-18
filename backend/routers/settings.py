@@ -20,6 +20,24 @@ router = APIRouter(prefix="/api", tags=["settings"])
 # --- User Settings ---
 
 
+def _settings_to_out(settings: UserSettings) -> UserSettingsOut:
+    """Convert a UserSettings model to its API output schema."""
+    return UserSettingsOut(
+        oura_token_set=settings.oura_token is not None,
+        typical_bedtime=settings.typical_bedtime,
+        target_wake_time=settings.target_wake_time,
+        caffeine_sensitivity=settings.caffeine_sensitivity,
+        timezone=settings.timezone,
+        chronotype=settings.chronotype,
+        zip_code=settings.zip_code,
+        age=settings.age,
+        display_mode=settings.display_mode,
+        circadian_mode_start=settings.circadian_mode_start,
+        onboarding_completed=settings.onboarding_completed,
+        last_oura_sync=settings.last_oura_sync,
+    )
+
+
 def _get_or_create_settings(db: Session) -> UserSettings:
     """Get singleton settings row, creating if needed."""
     settings = db.get(UserSettings, 1)
@@ -35,19 +53,7 @@ def _get_or_create_settings(db: Session) -> UserSettings:
 def get_settings(db: Session = Depends(get_db)) -> UserSettingsOut:
     """Get the singleton user settings."""
     settings = _get_or_create_settings(db)
-    return UserSettingsOut(
-        oura_token_set=settings.oura_token is not None,
-        typical_bedtime=settings.typical_bedtime,
-        target_wake_time=settings.target_wake_time,
-        caffeine_sensitivity=settings.caffeine_sensitivity,
-        timezone=settings.timezone,
-        chronotype=settings.chronotype,
-        zip_code=settings.zip_code,
-        age=settings.age,
-        display_mode=settings.display_mode,
-        circadian_mode_start=settings.circadian_mode_start,
-        onboarding_completed=settings.onboarding_completed,
-    )
+    return _settings_to_out(settings)
 
 
 @router.patch("/settings", response_model=UserSettingsOut)
@@ -62,19 +68,7 @@ def update_settings(
         setattr(settings, key, value)
     db.commit()
     db.refresh(settings)
-    return UserSettingsOut(
-        oura_token_set=settings.oura_token is not None,
-        typical_bedtime=settings.typical_bedtime,
-        target_wake_time=settings.target_wake_time,
-        caffeine_sensitivity=settings.caffeine_sensitivity,
-        timezone=settings.timezone,
-        chronotype=settings.chronotype,
-        zip_code=settings.zip_code,
-        age=settings.age,
-        display_mode=settings.display_mode,
-        circadian_mode_start=settings.circadian_mode_start,
-        onboarding_completed=settings.onboarding_completed,
-    )
+    return _settings_to_out(settings)
 
 
 # --- Red Light Panels ---

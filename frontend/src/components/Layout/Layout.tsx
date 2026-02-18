@@ -46,6 +46,14 @@ export function Layout() {
         <h1 className="layout-title" onClick={() => navigate('/log')} role="button" tabIndex={0}>
           Somnus
         </h1>
+        <button
+          className="layout-settings-btn"
+          onClick={() => navigate('/settings')}
+          aria-label="Settings"
+          title="Settings"
+        >
+          &#9881;
+        </button>
       </header>
       <main className="layout-main">
         <Outlet />

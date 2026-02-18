@@ -3,8 +3,26 @@
 }
 
 .layout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 1rem 2rem;
   border-bottom: 1px solid var(--color-border);
+}
+
+.layout-settings-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.layout-settings-btn:hover {
+  color: var(--color-text-primary);
+  background: transparent;
 }
 
 .layout-title {

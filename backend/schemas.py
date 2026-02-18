@@ -390,5 +390,16 @@ class UserSettingsOut(BaseModel):
     display_mode: DisplayMode
     circadian_mode_start: dt.time
     onboarding_completed: bool
+    last_oura_sync: dt.datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+# --- Oura Sync ---
+
+
+class OuraSyncResponse(BaseModel):
+    synced_count: int
+    start_date: dt.date
+    end_date: dt.date
+    errors: list[str] = []
