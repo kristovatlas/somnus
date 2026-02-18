@@ -1,0 +1,51 @@
+.section-wrapper {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.section-header:hover {
+  background: var(--color-bg-elevated);
+}
+
+.section-arrow {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  width: 1rem;
+}
+
+.section-title {
+  flex: 1;
+}
+
+.section-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: var(--color-interactive);
+  color: var(--color-bg-primary);
+}
+
+.section-content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
