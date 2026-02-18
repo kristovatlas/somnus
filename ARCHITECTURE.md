@@ -74,6 +74,7 @@ C4Component
 
         Component_Boundary(routers, "API Routers") {
             Component(daily_log_router, "Daily Log Router", "FastAPI Router", "CRUD for all daily entry types. Copy-day endpoint. Date-range queries.")
+            Component(dashboard_router, "Dashboard Router", "FastAPI Router", "Single BFF endpoint returning aggregated sleep overview data.")
             Component(oura_router, "Oura Router", "FastAPI Router", "Sync endpoint. Token management. Bulk historical import.")
             Component(analysis_router, "Analysis Router", "FastAPI Router", "Correlation, regression, and timing analysis endpoints. Confidence intervals.")
             Component(recommendations_router, "Recommendations Router", "FastAPI Router", "Personalized recommendations. Experiment tracking.")
@@ -81,6 +82,7 @@ C4Component
         }
 
         Component_Boundary(services, "Services") {
+            Component(dashboard_svc, "Dashboard Service", "Python", "BFF aggregation: sleep record, trends, stage averages, consistency metrics, streak, red light summary, caffeine entries.")
             Component(oura_client, "Oura Client", "httpx", "Oura API v2 integration. Sleep, readiness, activity data.")
             Component(caffeine_svc, "Caffeine Model", "Python", "Exponential decay pharmacokinetics. Sensitivity-adjusted half-life.")
             Component(sleep_timing_svc, "Sleep Timing", "Python", "Chronotype inference. Optimal bedtime window. 3-component consistency model (σ, δ, Δ).")
@@ -98,6 +100,7 @@ C4Component
     }
 
     Rel(main, daily_log_router, "Mounts")
+    Rel(main, dashboard_router, "Mounts")
     Rel(main, oura_router, "Mounts")
     Rel(main, analysis_router, "Mounts")
     Rel(main, recommendations_router, "Mounts")
@@ -105,6 +108,9 @@ C4Component
 
     Rel(daily_log_router, db, "CRUD")
     Rel(daily_log_router, validation_svc, "Validates input")
+    Rel(dashboard_router, dashboard_svc, "Aggregates data")
+    Rel(dashboard_svc, db, "Reads records")
+    Rel(dashboard_svc, reference_data, "Age targets, thresholds")
     Rel(oura_router, oura_client, "Delegates sync")
     Rel(oura_router, db, "Writes sleep records")
     Rel(analysis_router, stats_engine, "Runs analysis")
@@ -131,9 +137,9 @@ C4Component
 
     Container_Boundary(frontend, "Frontend SPA") {
 
-        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /settings. Layout guard checks onboarding status.")
+        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /settings. Layout guard checks onboarding status.")
 
-        Component(layout, "Layout", "React", "Nav header with app title and settings gear link. Onboarding gate — redirects based on settings.onboarding_completed.")
+        Component(layout, "Layout", "React", "Nav header with app title, dashboard and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
 
         Component_Boundary(onboarding, "Onboarding Wizard") {
             Component(wizard, "OnboardingWizard", "React", "6-step wizard: Welcome, Oura, SleepProfile, TrackingSetup, DataStorage, Done. Per-step PATCH to settings.")
@@ -147,6 +153,16 @@ C4Component
             Component(sections, "Entry Sections", "React", "11 collapsible sections: Caffeine, Meals, Supplements, Habits, Stimulating, Sexual Activity, Pre-Bed Rituals, Naps, Sunlight, Red Light, NSDR.")
         }
 
+        Component_Boundary(dashboard_view, "Dashboard") {
+            Component(dashboard_page, "DashboardPage", "React", "Card grid layout aggregating sleep overview: score, stages, trends, consistency, streak, red light, caffeine.")
+            Component(sleep_score_card, "SleepScoreCard", "SVG", "Circular score ring with key metric pills (HRV, HR, efficiency, readiness).")
+            Component(stage_bar, "StageBreakdownBar", "SVG", "Horizontal stacked bar for deep/REM/light with age-adjusted target comparison.")
+            Component(sparklines, "TrendSparklines + Sparkline", "SVG", "2x2 grid of 7-day trend sparklines. Reusable Sparkline component.")
+            Component(consistency, "ConsistencyMeter", "SVG", "Bedtime dot plot with σ/δ/Δ metric pills. Weekend dots distinguished.")
+            Component(streak, "LoggingStreak", "React", "Consecutive logging day count with color coding.")
+            Component(red_light, "RedLightSummary", "React", "Weekly session count, dose, on-track badge.")
+        }
+
         Component_Boundary(settings_page, "Settings Page") {
             Component(settings_pg, "SettingsPage", "React", "Four-section settings: Oura connection, Profile, Red Light Panels, Display mode.")
             Component(oura_section, "OuraSection", "React", "Token input (PAT), sync button, last sync display, sync results.")
@@ -156,18 +172,20 @@ C4Component
 
         Component_Boundary(api_layer, "API Client") {
             Component(api_client, "fetchJson/fetchVoid", "TypeScript", "Thin fetch wrapper with JSON parsing and ApiError handling.")
-            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, settings, redLightPanels, oura API functions.")
+            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, dashboard, settings, redLightPanels, oura API functions.")
         }
 
         Component(shared, "Shared Components", "React", "TimePicker, NumberInput, SelectInput, SliderInput, Toggle.")
 
-        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useOnboarding, useDateNavigation, useCaffeineDecay.")
+        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useDashboard, useOnboarding, useDateNavigation, useCaffeineDecay.")
     }
 
     Rel(router, layout, "Renders")
     Rel(layout, wizard, "Onboarding route")
     Rel(layout, daily_log_page, "Log route")
+    Rel(layout, dashboard_page, "Dashboard route")
     Rel(layout, settings_pg, "Settings route")
+    Rel(dashboard_page, caffeine_chart, "Renders when caffeine entries exist")
     Rel(daily_log_page, sections, "Renders")
     Rel(daily_log_page, caffeine_chart, "Renders when caffeine entries exist")
     Rel(daily_log_page, date_nav, "Renders")
@@ -191,6 +209,20 @@ User → Frontend (DailyLog form) → POST /api/daily-log/{date}
 User → Frontend (Settings, "Sync") → GET /api/oura/sync?start=&end=
   → Oura Client → Oura Cloud API v2 (HTTPS, PAT auth)
   → Response validation → SleepRecord model → SQLite DB
+```
+
+### Dashboard Flow
+```
+User → Frontend (DashboardPage) → GET /api/dashboard
+  → Dashboard Service aggregates:
+    - Latest SleepRecord (today or yesterday)
+    - 7-day trend data (scores, HRV, stages)
+    - Stage averages vs age-adjusted targets
+    - Bedtime consistency (σ, δ, Δ) from SleepRecord bedtimes
+    - Logging streak from DailyLog dates
+    - Red light weekly summary
+    - Today's caffeine entries
+  → Single JSON response → Frontend renders card grid
 ```
 
 ### Analysis Flow
