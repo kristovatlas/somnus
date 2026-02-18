@@ -137,9 +137,9 @@ C4Component
 
     Container_Boundary(frontend, "Frontend SPA") {
 
-        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /analysis, /settings. Layout guard checks onboarding status.")
+        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /analysis, /recommendations, /settings. Layout guard checks onboarding status.")
 
-        Component(layout, "Layout", "React", "Nav header with app title, dashboard, analysis, and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
+        Component(layout, "Layout", "React", "Nav header with app title, dashboard, analysis, recommendations, and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
 
         Component_Boundary(onboarding, "Onboarding Wizard") {
             Component(wizard, "OnboardingWizard", "React", "6-step wizard: Welcome, Oura, SleepProfile, TrackingSetup, DataStorage, Done. Per-step PATCH to settings.")
@@ -180,16 +180,23 @@ C4Component
             Component(explainer, "Explainer", "React", "Collapsible 'How to read' section with hedged language.")
         }
 
+        Component_Boundary(recommendations_view, "Recommendations") {
+            Component(recommendations_page, "RecommendationsPage", "React", "Orchestrates recommendation cards and experiment tracker. Gated on 50+ days (Phase B). Hedged language throughout.")
+            Component(rec_card, "RecommendationCard", "React", "Category badge, title, body, evidence level pill, start experiment button.")
+            Component(experiment_tracker, "ExperimentTracker", "React", "Progress bar, baseline vs result metric pills, complete/abandon buttons.")
+            Component(top_recs, "TopRecommendations", "React", "Dashboard card showing top 3 recommendations with link to full page.")
+        }
+
         Component(caffeine_chart, "CaffeineChart", "SVG", "Inline SVG decay curve. Client-side exponential decay math. Bedtime marker and 100mg threshold.")
 
         Component_Boundary(api_layer, "API Client") {
             Component(api_client, "fetchJson/fetchVoid", "TypeScript", "Thin fetch wrapper with JSON parsing and ApiError handling.")
-            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, dashboard, analysis, settings, redLightPanels, oura API functions.")
+            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, dashboard, analysis, recommendations, settings, redLightPanels, oura API functions.")
         }
 
         Component(shared, "Shared Components", "React", "TimePicker, NumberInput, SelectInput, SliderInput, Toggle.")
 
-        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useDashboard, useAnalysisStatus, useCorrelations, useRegression, useTiming, useNaps, useOnboarding, useDateNavigation, useCaffeineDecay.")
+        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useDashboard, useAnalysisStatus, useCorrelations, useRegression, useTiming, useNaps, useRecommendations, useOnboarding, useDateNavigation, useCaffeineDecay.")
     }
 
     Rel(router, layout, "Renders")
@@ -197,6 +204,7 @@ C4Component
     Rel(layout, daily_log_page, "Log route")
     Rel(layout, dashboard_page, "Dashboard route")
     Rel(layout, analysis_page, "Analysis route")
+    Rel(layout, recommendations_page, "Recommendations route")
     Rel(layout, settings_pg, "Settings route")
     Rel(dashboard_page, caffeine_chart, "Renders when caffeine entries exist")
     Rel(daily_log_page, sections, "Renders")
@@ -261,6 +269,28 @@ Phase C (≥30 bedtimes): GET /api/analysis/timing
 GET /api/analysis/naps
   → Nap Analysis Service segments by timing × duration
   → Compares each segment to no-nap baseline onset latency
+```
+
+### Recommendations Flow
+```
+User → Frontend (RecommendationsPage) → GET /api/recommendations
+  → Recommender Service builds central DataFrame
+  → Checks Phase B (≥50 days) — returns insufficient_data if not met
+  → Runs 4 generators:
+    - Data-Driven: regression coefficients → hedged action text
+    - Science Threshold: last-14-day averages vs known thresholds
+    - Untried: factors with <7 days → tracking suggestions
+    - Timing: social jet lag, bedtime vs optimal window
+  → Dedup, priority sort, cap at 20
+  → Returns recommendations + active experiment (with computed metrics)
+
+User → "Start experiment" → POST /api/experiments
+  → Creates Experiment row (409 if one already active)
+  → 14-day default duration, single-factor isolation
+
+GET /api/experiments/{id}
+  → Computes baseline (14d before start) and result (start to today) metrics at read time
+  → Auto-completes experiments past their end_date
 ```
 
 ### Caffeine Projection (Client-Side)

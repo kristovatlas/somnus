@@ -99,6 +99,12 @@ class DisplayMode(enum.StrEnum):
     AUTO = "auto"
 
 
+class ExperimentStatus(enum.StrEnum):
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    ABANDONED = "abandoned"
+
+
 # --- Models ---
 
 
@@ -356,6 +362,23 @@ class NSDREntry(Base):
     )
 
     daily_log: Mapped[DailyLog] = relationship(back_populates="nsdr_entries")
+
+
+class Experiment(Base):
+    """Tracked experiment — user tests one factor change for ~2 weeks."""
+
+    __tablename__ = "experiments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    factor: Mapped[str] = mapped_column(String(100), nullable=False)
+    hypothesis: Mapped[str] = mapped_column(Text, nullable=False)
+    start_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    status: Mapped[ExperimentStatus] = mapped_column(
+        Enum(ExperimentStatus), nullable=False, default=ExperimentStatus.ACTIVE
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
 
 
 class UserSettings(Base):

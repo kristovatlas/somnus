@@ -44,6 +44,11 @@ def get_dashboard_data(db: Session, today: dt.date | None = None) -> dict[str, A
     red_light_summary = _get_red_light_summary(db, today)
     today_caffeine = _get_today_caffeine(db, today)
 
+    # Top recommendations (lightweight — returns [] if insufficient data)
+    from backend.services.recommender import get_top_recommendations
+
+    top_recs = get_top_recommendations(db)
+
     return {
         "sleep_record": sleep_record,
         "stage_targets": (
@@ -65,6 +70,7 @@ def get_dashboard_data(db: Session, today: dt.date | None = None) -> dict[str, A
         "today_caffeine_entries": today_caffeine,
         "caffeine_sensitivity": caffeine_sensitivity,
         "typical_bedtime": typical_bedtime,
+        "top_recommendations": top_recs,
     }
 
 

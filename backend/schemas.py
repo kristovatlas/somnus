@@ -11,6 +11,7 @@ from backend.models import (
     CaffeineSource,
     Chronotype,
     DisplayMode,
+    ExperimentStatus,
     HabitType,
     NSDRType,
     PreBedRitualType,
@@ -458,6 +459,12 @@ class RedLightWeeklySummary(BaseModel):
     meets_minimum: bool
 
 
+class TopRecommendation(BaseModel):
+    id: str
+    title: str
+    category: str
+
+
 class DashboardResponse(BaseModel):
     sleep_record: SleepRecordOut | None = None
     stage_targets: StageTargets | None = None
@@ -469,6 +476,7 @@ class DashboardResponse(BaseModel):
     today_caffeine_entries: list[CaffeineEntryOut] = []
     caffeine_sensitivity: CaffeineSensitivity = CaffeineSensitivity.NORMAL
     typical_bedtime: dt.time | None = None
+    top_recommendations: list[TopRecommendation] = []
 
 
 # --- Analysis Engine ---
@@ -563,3 +571,61 @@ class NapResponse(BaseModel):
     segments: list[NapSegment]
     total_nap_days: int
     total_no_nap_days: int
+
+
+# --- Recommendations Engine ---
+
+
+class Recommendation(BaseModel):
+    id: str
+    category: str  # data_driven | science_threshold | untried | timing
+    priority: int
+    title: str
+    body: str
+    factor: str
+    factor_label: str
+    outcome: str | None = None
+    outcome_label: str | None = None
+    evidence_level: str | None = None
+    suggested_experiment: str | None = None
+    n_days: int | None = None
+
+
+class ExperimentOut(BaseModel):
+    id: int
+    factor: str
+    factor_label: str
+    hypothesis: str
+    start_date: dt.date
+    end_date: dt.date
+    status: ExperimentStatus
+    notes: str | None = None
+    baseline_sleep_score: float | None = None
+    baseline_deep_minutes: float | None = None
+    baseline_rem_minutes: float | None = None
+    baseline_hrv: float | None = None
+    result_sleep_score: float | None = None
+    result_deep_minutes: float | None = None
+    result_rem_minutes: float | None = None
+    result_hrv: float | None = None
+    days_completed: int = 0
+
+
+class RecommendationsResponse(BaseModel):
+    recommendations: list[Recommendation]
+    total_days: int
+    has_sufficient_data: bool
+    active_experiment: ExperimentOut | None = None
+
+
+class ExperimentCreate(BaseModel):
+    factor: str = Field(max_length=100)
+    hypothesis: str
+    start_date: dt.date
+    end_date: dt.date | None = None
+    notes: str | None = None
+
+
+class ExperimentUpdate(BaseModel):
+    status: ExperimentStatus | None = None
+    notes: str | None = None

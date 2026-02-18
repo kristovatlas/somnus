@@ -2,6 +2,7 @@
 
 import type { CaffeineEntryOut } from './dailyLog'
 import type { CaffeineSensitivity } from './enums'
+import type { TopRecommendation } from './recommendations'
 
 export interface SleepRecordOut {
   date: string
@@ -85,4 +86,5 @@ export interface DashboardData {
   today_caffeine_entries: CaffeineEntryOut[]
   caffeine_sensitivity: CaffeineSensitivity
   typical_bedtime: string | null
+  top_recommendations: TopRecommendation[]
 }

@@ -9,6 +9,7 @@ import { TrendSparklines } from './TrendSparklines'
 import { ConsistencyMeter } from './ConsistencyMeter'
 import { LoggingStreak } from './LoggingStreak'
 import { RedLightSummary } from './RedLightSummary'
+import { TopRecommendations } from './TopRecommendations'
 import './DashboardPage.css'
 
 export function DashboardPage() {
@@ -52,6 +53,8 @@ export function DashboardPage() {
       <LoggingStreak streak={data.logging_streak} />
 
       <RedLightSummary summary={data.red_light_summary} />
+
+      <TopRecommendations recommendations={data.top_recommendations ?? []} />
 
       {caffeineEntries.length > 0 && (
         <div className="dashboard-caffeine">

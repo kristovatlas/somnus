@@ -191,3 +191,34 @@
 .dashboard-caffeine {
   grid-column: 1 / -1;
 }
+
+/* Top Recommendations */
+.top-recs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+
+.top-recs-item {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.top-recs-item:last-child {
+  border-bottom: none;
+}
+
+.top-recs-link {
+  background: transparent;
+  border: none;
+  color: var(--color-interactive);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.top-recs-link:hover {
+  color: var(--color-interactive-hover);
+}

@@ -4,6 +4,7 @@ import { OnboardingWizard } from './components/Onboarding/OnboardingWizard'
 import { DailyLogPage } from './components/DailyLog/DailyLogPage'
 import { DashboardPage } from './components/Dashboard/DashboardPage'
 import { AnalysisPage } from './components/Analysis/AnalysisPage'
+import { RecommendationsPage } from './components/Recommendations/RecommendationsPage'
 import { SettingsPage } from './components/Settings/SettingsPage'
 
 function todayStr(): string {
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'log/:date', element: <DailyLogPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'analysis', element: <AnalysisPage /> },
+      { path: 'recommendations', element: <RecommendationsPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },
