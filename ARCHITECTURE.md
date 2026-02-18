@@ -121,6 +121,56 @@ C4Component
 
 ---
 
+## Level 3: Component Diagram — Frontend
+
+What components make up the frontend SPA?
+
+```mermaid
+C4Component
+    title Somnus Frontend — Component Diagram
+
+    Container_Boundary(frontend, "Frontend SPA") {
+
+        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date. Layout guard checks onboarding status.")
+
+        Component(layout, "Layout", "React", "Nav header with app title. Onboarding gate — redirects based on settings.onboarding_completed.")
+
+        Component_Boundary(onboarding, "Onboarding Wizard") {
+            Component(wizard, "OnboardingWizard", "React", "6-step wizard: Welcome, Oura, SleepProfile, TrackingSetup, DataStorage, Done. Per-step PATCH to settings.")
+        }
+
+        Component_Boundary(daily_log, "Daily Log") {
+            Component(daily_log_page, "DailyLogPage", "React", "Assembles date nav, sections, caffeine chart, notes, save button. Whole-log PUT on save.")
+            Component(date_nav, "DateNavigator", "React", "Date display with prev/next/today. Date in URL param.")
+            Component(copy_day, "CopyDayButton", "React", "Date picker modal to copy entries from another day.")
+            Component(warning_banner, "WarningBanner", "React", "Dismissible validation warnings from backend.")
+            Component(sections, "Entry Sections", "React", "11 collapsible sections: Caffeine, Meals, Supplements, Habits, Stimulating, Sexual Activity, Pre-Bed Rituals, Naps, Sunlight, Red Light, NSDR.")
+        }
+
+        Component(caffeine_chart, "CaffeineChart", "SVG", "Inline SVG decay curve. Client-side exponential decay math. Bedtime marker and 100mg threshold.")
+
+        Component_Boundary(api_layer, "API Client") {
+            Component(api_client, "fetchJson/fetchVoid", "TypeScript", "Thin fetch wrapper with JSON parsing and ApiError handling.")
+            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, settings, redLightPanels API functions.")
+        }
+
+        Component(shared, "Shared Components", "React", "TimePicker, NumberInput, SelectInput, SliderInput, Toggle.")
+
+        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useOnboarding, useDateNavigation, useCaffeineDecay.")
+    }
+
+    Rel(router, layout, "Renders")
+    Rel(layout, wizard, "Onboarding route")
+    Rel(layout, daily_log_page, "Log route")
+    Rel(daily_log_page, sections, "Renders")
+    Rel(daily_log_page, caffeine_chart, "Renders when caffeine entries exist")
+    Rel(daily_log_page, date_nav, "Renders")
+    Rel(hooks, api_modules, "Calls")
+    Rel(api_modules, api_client, "Uses")
+```
+
+---
+
 ## Data Flow
 
 ### Daily Entry Flow

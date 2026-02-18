@@ -1,0 +1,15 @@
+.caffeine-chart {
+  margin-top: 0.5rem;
+}
+
+.caffeine-chart-title {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.caffeine-chart-svg {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+}

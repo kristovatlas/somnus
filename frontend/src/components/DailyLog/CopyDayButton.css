@@ -1,0 +1,38 @@
+.copy-day-trigger {
+  background: transparent;
+  color: var(--color-text-accent);
+  border: 1px dashed var(--color-border-light);
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+
+.copy-day-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+}
+
+.copy-day-label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.copy-day-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.copy-day-cancel {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-light);
+}
+
+.copy-day-error {
+  color: var(--color-error);
+  font-size: 0.85rem;
+}

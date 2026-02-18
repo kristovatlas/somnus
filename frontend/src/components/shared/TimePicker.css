@@ -1,0 +1,25 @@
+.time-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.time-picker-label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.time-picker-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.time-picker-input {
+  flex: 1;
+}
+
+.time-picker-now {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
