@@ -79,6 +79,7 @@ C4Component
             Component(analysis_router, "Analysis Router", "FastAPI Router", "Correlation, regression, and timing analysis endpoints. Confidence intervals.")
             Component(recommendations_router, "Recommendations Router", "FastAPI Router", "Personalized recommendations. Experiment tracking.")
             Component(export_router, "Export Router", "FastAPI Router", "CSV, JSON, SQLite export. Date-range filtering.")
+            Component(reports_router, "Reports Router", "FastAPI Router", "Weekly and monthly summary reports. HTML export.")
         }
 
         Component_Boundary(services, "Services") {
@@ -94,6 +95,7 @@ C4Component
             Component(validation_svc, "Validation", "Python", "Input range checks. Outlier detection (z-score). Soft warnings vs hard rejects.")
             Component(stats_engine, "Stats Engine", "scipy, statsmodels", "Correlations. Dynamic regression with lagged variables. Multiple targets. ACF/PACF. Stationarity.")
             Component(recommender, "Recommender", "Python", "Rule engine combining regression + science thresholds. Experiment suggestions.")
+            Component(report_svc, "Report Service", "Python", "Weekly and monthly report computation. On-the-fly aggregation. HTML rendering with circadian palette.")
         }
 
         Component(reference_data, "Science Reference Data", "Python", "Evidence-based thresholds, targets, and guidance for all tracked factors.")
@@ -105,6 +107,7 @@ C4Component
     Rel(main, analysis_router, "Mounts")
     Rel(main, recommendations_router, "Mounts")
     Rel(main, export_router, "Mounts")
+    Rel(main, reports_router, "Mounts")
 
     Rel(daily_log_router, db, "CRUD")
     Rel(daily_log_router, validation_svc, "Validates input")
@@ -121,6 +124,11 @@ C4Component
     Rel(recommendations_router, recommender, "Generates recommendations")
     Rel(recommender, stats_engine, "Reads analysis results")
     Rel(recommender, reference_data, "Science thresholds")
+    Rel(reports_router, report_svc, "Generates reports")
+    Rel(report_svc, db, "Reads records")
+    Rel(report_svc, dashboard_svc, "Reuses consistency")
+    Rel(report_svc, stats_engine, "Top factors")
+    Rel(report_svc, recommender, "Active experiment")
     Rel(sunlight_svc, openmeteo, "Weather API")
     Rel(sunlight_svc, nrel, "Solar API")
 ```
@@ -137,9 +145,9 @@ C4Component
 
     Container_Boundary(frontend, "Frontend SPA") {
 
-        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /analysis, /recommendations, /settings. Layout guard checks onboarding status.")
+        Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /analysis, /recommendations, /reports, /settings. Layout guard checks onboarding status.")
 
-        Component(layout, "Layout", "React", "Nav header with app title, dashboard, analysis, recommendations, and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
+        Component(layout, "Layout", "React", "Nav header with app title, dashboard, analysis, recommendations, reports, and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
 
         Component_Boundary(onboarding, "Onboarding Wizard") {
             Component(wizard, "OnboardingWizard", "React", "6-step wizard: Welcome, Oura, SleepProfile, TrackingSetup, DataStorage, Done. Per-step PATCH to settings.")
@@ -187,17 +195,26 @@ C4Component
             Component(top_recs, "TopRecommendations", "React", "Dashboard card showing top 3 recommendations with link to full page.")
         }
 
+        Component_Boundary(reports_view, "Reports") {
+            Component(reports_page, "ReportsPage", "React", "Orchestrates weekly/monthly views with tab toggle. Period navigation. Loading/error/insufficient-data guards.")
+            Component(weekly_view, "WeeklyReportView", "React", "Period navigator, metrics comparison, consistency pills, top factors, export link.")
+            Component(monthly_view, "MonthlyReportView", "React", "Period navigator, metrics, best/worst nights, stage compliance, experiment progress, weekly summaries.")
+            Component(metrics_card, "MetricsComparisonCard", "React", "2x2 grid: score, HRV, deep, REM. Current value + trend arrow + prior value.")
+            Component(factors_card, "TopFactorsCard", "React", "Top positive/negative factor with hedged language and r-value.")
+            Component(nights_card, "BestWorstNightsCard", "React", "Side-by-side best/worst night with contributing factor tags.")
+            Component(compliance_card, "StageComplianceCard", "React", "Deep/REM target hit rates. Hidden when no age set.")
+        }
 
         Component(caffeine_chart, "CaffeineChart", "SVG", "Inline SVG decay curve. Client-side exponential decay math. Bedtime marker and 100mg threshold.")
 
         Component_Boundary(api_layer, "API Client") {
             Component(api_client, "fetchJson/fetchVoid", "TypeScript", "Thin fetch wrapper with JSON parsing and ApiError handling.")
-            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, dashboard, analysis, recommendations, settings, redLightPanels, oura API functions.")
+            Component(api_modules, "Endpoint Modules", "TypeScript", "dailyLog, dashboard, analysis, recommendations, reports, settings, redLightPanels, oura API functions.")
         }
 
         Component(shared, "Shared Components", "React", "TimePicker, NumberInput, SelectInput, SliderInput, Toggle.")
 
-        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useDashboard, useAnalysisStatus, useCorrelations, useRegression, useTiming, useNaps, useRecommendations, useOnboarding, useDateNavigation, useCaffeineDecay.")
+        Component(hooks, "Custom Hooks", "React", "useSettings, useDailyLog, useDashboard, useAnalysisStatus, useCorrelations, useRegression, useTiming, useNaps, useRecommendations, useWeeklyReport, useMonthlyReport, useOnboarding, useDateNavigation, useCaffeineDecay.")
     }
 
     Rel(router, layout, "Renders")
@@ -206,6 +223,7 @@ C4Component
     Rel(layout, dashboard_page, "Dashboard route")
     Rel(layout, analysis_page, "Analysis route")
     Rel(layout, recommendations_page, "Recommendations route")
+    Rel(layout, reports_page, "Reports route")
     Rel(layout, settings_pg, "Settings route")
     Rel(dashboard_page, caffeine_chart, "Renders when caffeine entries exist")
     Rel(daily_log_page, sections, "Renders")
@@ -292,6 +310,31 @@ User → "Start experiment" → POST /api/experiments
 GET /api/experiments/{id}
   → Computes baseline (14d before start) and result (start to today) metrics at read time
   → Auto-completes experiments past their end_date
+```
+
+### Reports Flow
+```
+User → Frontend (ReportsPage) → GET /api/reports/weekly?year=&week=
+  → Report Service computes on-the-fly:
+    - SleepRecords + DailyLogs in ISO week range
+    - Metric averages (score, HRV, deep, REM)
+    - Prior week comparison + trend arrows
+    - Bedtime consistency (reuses dashboard_service)
+    - Top factors (full-dataset correlations via stats_engine)
+    - Logging completeness (DailyLog count)
+  → Returns WeeklyReportResponse
+
+GET /api/reports/monthly?year=&month=
+  → Report Service computes:
+    - Same metrics as weekly, monthly range
+    - Best/worst nights with contributing factors from DailyLog sub-entries
+    - Stage compliance (deep/REM vs age-adjusted targets)
+    - Active experiment progress
+    - Weekly summaries (calls get_week_report per ISO week in month)
+  → Returns MonthlyReportResponse
+
+GET /api/reports/weekly/export-html
+  → Renders HTML with inline circadian CSS, returns text/html StreamingResponse
 ```
 
 ### Caffeine Projection (Client-Side)
