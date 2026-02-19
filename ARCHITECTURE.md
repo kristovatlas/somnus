@@ -187,6 +187,7 @@ C4Component
             Component(top_recs, "TopRecommendations", "React", "Dashboard card showing top 3 recommendations with link to full page.")
         }
 
+
         Component(caffeine_chart, "CaffeineChart", "SVG", "Inline SVG decay curve. Client-side exponential decay math. Bedtime marker and 100mg threshold.")
 
         Component_Boundary(api_layer, "API Client") {
