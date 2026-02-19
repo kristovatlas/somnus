@@ -629,3 +629,75 @@ class ExperimentCreate(BaseModel):
 class ExperimentUpdate(BaseModel):
     status: ExperimentStatus | None = None
     notes: str | None = None
+
+
+# --- Reports ---
+
+
+class MetricAverages(BaseModel):
+    avg_sleep_score: float | None = None
+    avg_hrv: float | None = None
+    avg_deep_minutes: float | None = None
+    avg_rem_minutes: float | None = None
+
+
+class TrendArrows(BaseModel):
+    sleep_score: str | None = None  # "up" | "down" | "flat"
+    avg_hrv: str | None = None
+    deep_minutes: str | None = None
+    rem_minutes: str | None = None
+
+
+class TopFactor(BaseModel):
+    label: str
+    pearson_r: float
+
+
+class WeeklyReportResponse(BaseModel):
+    period_start: dt.date
+    period_end: dt.date
+    iso_year: int
+    iso_week: int
+    days_with_data: int
+    days_in_period: int  # always 7
+    logging_completeness: str  # "5/7 days"
+    current: MetricAverages
+    prior: MetricAverages
+    trends: TrendArrows
+    consistency: ConsistencyMetrics | None = None
+    top_positive_factor: TopFactor | None = None
+    top_negative_factor: TopFactor | None = None
+    has_insufficient_data: bool
+
+
+class NightSummary(BaseModel):
+    date: dt.date
+    sleep_score: int
+    contributing_factors: list[str] = []
+
+
+class StageComplianceReport(BaseModel):
+    deep_target_nights: int
+    deep_total_nights: int
+    rem_target_nights: int
+    rem_total_nights: int
+
+
+class MonthlyReportResponse(BaseModel):
+    period_start: dt.date
+    period_end: dt.date
+    year: int
+    month: int
+    month_name: str
+    days_with_data: int
+    days_in_period: int
+    logging_completeness: str
+    current: MetricAverages
+    prior: MetricAverages
+    trends: TrendArrows
+    best_night: NightSummary | None = None
+    worst_night: NightSummary | None = None
+    stage_compliance: StageComplianceReport | None = None
+    active_experiment: ExperimentOut | None = None
+    weekly_summaries: list[WeeklyReportResponse] = []
+    has_insufficient_data: bool

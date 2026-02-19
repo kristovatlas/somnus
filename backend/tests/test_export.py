@@ -106,3 +106,16 @@ def test_export_csv_with_date_range(client: TestClient) -> None:
 def test_export_invalid_format(client: TestClient) -> None:
     resp = client.get("/api/export?format=xml")
     assert resp.status_code == 400
+
+
+# --- SQLite export ---
+
+
+def test_export_sqlite_responds(client: TestClient) -> None:
+    """SQLite export returns either the DB file (200) or 409 if unavailable."""
+    resp = client.get("/api/export/sqlite")
+    # In CI the default db_path may or may not exist
+    assert resp.status_code in (200, 409)
+    if resp.status_code == 200:
+        assert resp.headers["content-type"] == "application/octet-stream"
+        assert "somnus.db" in resp.headers.get("content-disposition", "")

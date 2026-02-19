@@ -1,0 +1,315 @@
+/* Report page styles — circadian palette */
+
+.report-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.report-tab {
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.report-tab.active {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-interactive);
+}
+
+/* Navigation */
+.report-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.report-nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+}
+
+.report-nav-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.report-period-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.report-nav-today {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+.report-nav-today:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-interactive);
+}
+
+/* Cards */
+.report-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.report-card-title {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Metrics grid */
+.report-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.report-metric-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.5rem;
+  background: var(--color-bg-elevated);
+  border-radius: 6px;
+}
+
+.report-metric-label {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.report-metric-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.report-metric-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.report-metric-prior {
+  color: var(--color-text-muted);
+}
+
+.report-trend-up {
+  color: #cc8833;
+}
+
+.report-trend-down {
+  color: #ff6b6b;
+}
+
+.report-trend-flat {
+  color: var(--color-text-muted);
+}
+
+/* Consistency pills */
+.report-consistency-pills {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.report-pill {
+  padding: 0.15rem 0.5rem;
+  background: var(--color-bg-elevated);
+  border-radius: 4px;
+}
+
+/* Top factors */
+.report-factor-line {
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.report-factor-r {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+/* Best/worst nights */
+.report-nights-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.report-night-panel {
+  padding: 0.75rem;
+  background: var(--color-bg-elevated);
+  border-radius: 6px;
+}
+
+.report-night-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.report-night-date {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.report-night-score {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0.25rem 0;
+}
+
+.report-night-factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.report-factor-tag {
+  display: inline-block;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* Compliance */
+.report-compliance-line {
+  font-size: 0.9rem;
+  margin: 0.35rem 0;
+}
+
+/* Completeness */
+.report-completeness {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+/* Insufficient data */
+.report-insufficient {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+/* Export */
+.report-export {
+  margin-top: 1rem;
+  text-align: right;
+}
+
+.report-export-link {
+  color: var(--color-interactive);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.report-export-link:hover {
+  color: var(--color-interactive-hover);
+  text-decoration: underline;
+}
+
+/* Status */
+.report-empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.report-error {
+  color: var(--color-error);
+  text-align: center;
+  padding: 2rem;
+}
+
+.report-muted {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+/* Collapsible */
+.report-collapsible-toggle {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  font-weight: 500;
+}
+
+.report-weekly-list {
+  margin-top: 0.75rem;
+}
+
+.report-weekly-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.report-weekly-item:last-child {
+  border-bottom: none;
+}
+
+.report-weekly-label {
+  color: var(--color-text-secondary);
+}
+
+.report-weekly-score {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .report-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .report-nights-row {
+    grid-template-columns: 1fr;
+  }
+}

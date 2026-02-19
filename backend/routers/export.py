@@ -1,10 +1,11 @@
-"""Data export API route — JSON and CSV (zip) formats."""
+"""Data export API route — JSON, CSV (zip), and SQLite formats."""
 
 from __future__ import annotations
 
 import csv
 import datetime as dt
 import io
+import shutil
 import zipfile
 from collections.abc import Sequence
 
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.models import SleepRecord
 from backend.schemas import DailyLogOut, ExportData, SleepRecordOut
@@ -231,6 +233,25 @@ def _build_csv_zip(
         buf,
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=somnus_export.zip"},
+    )
+
+
+@router.get("/export/sqlite", response_model=None)
+def export_sqlite() -> StreamingResponse:
+    """Export the raw SQLite database file."""
+    db_path = app_settings.db_path
+    if str(db_path) == ":memory:" or not db_path.exists():
+        raise HTTPException(
+            status_code=409, detail="SQLite export unavailable in this environment"
+        )
+    buf = io.BytesIO()
+    with open(db_path, "rb") as f:
+        shutil.copyfileobj(f, buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": "attachment; filename=somnus.db"},
     )
 
 
