@@ -70,6 +70,7 @@ const fullDashboard: DashboardData = {
   today_caffeine_entries: [],
   caffeine_sensitivity: 'normal',
   typical_bedtime: '22:30:00',
+  top_recommendations: [],
 }
 
 const emptyDashboard: DashboardData = {
@@ -88,6 +89,7 @@ const emptyDashboard: DashboardData = {
   today_caffeine_entries: [],
   caffeine_sensitivity: 'normal',
   typical_bedtime: null,
+  top_recommendations: [],
 }
 
 function mockFetchWith(data: DashboardData) {

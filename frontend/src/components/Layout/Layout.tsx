@@ -65,6 +65,14 @@ export function Layout() {
           </button>
           <button
             className="layout-nav-btn"
+            onClick={() => navigate('/recommendations')}
+            aria-label="Recommendations"
+            title="Recommendations"
+          >
+            &#9733;
+          </button>
+          <button
+            className="layout-nav-btn"
             onClick={() => navigate('/settings')}
             aria-label="Settings"
             title="Settings"

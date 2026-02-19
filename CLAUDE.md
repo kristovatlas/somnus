@@ -40,6 +40,11 @@ Somnus is a locally-run sleep optimization app. Python (FastAPI) backend + React
 - `main` always reflects a complete, user-ready release.
 - Squash merge to dev. Tag releases on main with semver.
 
+### Pull Requests
+- Every PR description must include a **Test plan** section with a checkbox list.
+- Before submitting a PR, run as many test plan items as possible and **check off the boxes** in the PR description for each verified item.
+- At minimum, always run and verify: backend tests, frontend tests, frontend lint, and frontend build.
+
 ### Code Quality
 - Python: type hints everywhere, mypy strict, ruff for linting.
 - TypeScript: strict mode, eslint + prettier.

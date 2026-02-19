@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
 from backend.database import init_db
-from backend.routers import analysis, daily_log, dashboard, export, oura
+from backend.routers import analysis, daily_log, dashboard, export, oura, recommendations
 from backend.routers import settings as settings_router
 from backend.schemas import HealthResponse
 
@@ -44,6 +44,7 @@ app.include_router(export.router)
 app.include_router(oura.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
+app.include_router(recommendations.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)
