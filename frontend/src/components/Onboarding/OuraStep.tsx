@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { StepNavigation } from './StepNavigation'
+import { syncOura } from '../../api/oura'
 import type { UserSettingsUpdate } from '../../types'
 
 interface OuraStepProps {
   ouraTokenSet: boolean
-  onUpdate: (data: UserSettingsUpdate) => void
+  onUpdate: (data: UserSettingsUpdate) => unknown | Promise<unknown>
   onNext: () => void
   onBack: () => void
 }
@@ -12,9 +13,11 @@ interface OuraStepProps {
 export function OuraStep({ ouraTokenSet, onUpdate, onNext, onBack }: OuraStepProps) {
   const [token, setToken] = useState('')
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (token.trim()) {
-      onUpdate({ oura_token: token.trim() })
+      await onUpdate({ oura_token: token.trim() })
+      // Sync historical data in the background — don't block onboarding
+      syncOura().catch(() => {})
     }
     onNext()
   }

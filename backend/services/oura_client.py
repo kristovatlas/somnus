@@ -58,7 +58,7 @@ class OuraClient:
         Returns list of daily sleep objects keyed by 'day'.
         """
         data = self._get(
-            "/v2/usercollection/daily_sleep",
+            "/usercollection/daily_sleep",
             {"start_date": str(start_date), "end_date": str(end_date)},
         )
         return data.get("data", [])
@@ -68,7 +68,7 @@ class OuraClient:
     ) -> list[dict]:
         """Fetch daily readiness scores from Oura API v2."""
         data = self._get(
-            "/v2/usercollection/daily_readiness",
+            "/usercollection/daily_readiness",
             {"start_date": str(start_date), "end_date": str(end_date)},
         )
         return data.get("data", [])
@@ -78,7 +78,7 @@ class OuraClient:
     ) -> list[dict]:
         """Fetch detailed sleep periods (HRV, HR, stages, etc.) from Oura API v2."""
         data = self._get(
-            "/v2/usercollection/sleep",
+            "/usercollection/sleep",
             {"start_date": str(start_date), "end_date": str(end_date)},
         )
         return data.get("data", [])
