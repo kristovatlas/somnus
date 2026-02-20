@@ -439,7 +439,7 @@ class TestSyncEndpoint:
         with patch("backend.routers.oura.OuraClient") as MockClient:
             instance = MockClient.return_value
             instance.get_daily_sleep.side_effect = OuraAPIError(
-                401, "Oura token is invalid or expired. Generate a new one at cloud.ouraring.com"
+                401, "Oura token is invalid or expired. Generate a new one at cloud.ouraring.com/personal-access-tokens"
             )
 
             resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")

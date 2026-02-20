@@ -41,7 +41,7 @@ class OuraClient:
         if resp.status_code == 401:
             raise OuraAPIError(
                 401,
-                "Oura token is invalid or expired. Generate a new one at cloud.ouraring.com",
+                "Oura token is invalid or expired. Generate a new one at cloud.ouraring.com/personal-access-tokens",
             )
         if resp.status_code == 429:
             raise OuraAPIError(429, "Oura API rate limit reached. Try again in a few minutes.")

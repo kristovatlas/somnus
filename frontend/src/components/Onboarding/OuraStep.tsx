@@ -43,6 +43,12 @@ export function OuraStep({ ouraTokenSet, onUpdate, onNext, onBack }: OuraStepPro
             placeholder="Paste your Oura token"
             style={{ width: '100%' }}
           />
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>
+            Get your token at{' '}
+            <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener noreferrer">
+              cloud.ouraring.com/personal-access-tokens
+            </a>
+          </p>
         </div>
       )}
 

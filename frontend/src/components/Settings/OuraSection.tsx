@@ -86,7 +86,7 @@ export function OuraSection({ settings, onUpdate }: OuraSectionProps) {
           <p className="oura-token-hint">
             Get your token at{' '}
             <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener noreferrer">
-              cloud.ouraring.com
+              cloud.ouraring.com/personal-access-tokens
             </a>
           </p>
         </div>
