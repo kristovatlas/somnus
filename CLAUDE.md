@@ -39,6 +39,8 @@ Somnus is a locally-run sleep optimization app. Python (FastAPI) backend + React
 - Relaxed git flow: feature/* → dev → main.
 - `main` always reflects a complete, user-ready release.
 - Squash merge to dev. Tag releases on main with semver.
+- **All code changes go through feature branches and PRs to dev.** Bug fixes, features, test additions — always `feature/*` or `fix/*` branch → PR to `dev`. Never commit directly to `dev`.
+- **Exception:** Changes to `CLAUDE.md` itself may be committed directly to `dev` so all Claude Code sessions see them immediately.
 
 ### Pull Requests
 - Every PR description must include a **Test plan** section with a checkbox list.
