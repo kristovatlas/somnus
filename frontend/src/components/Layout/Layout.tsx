@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { getSettings } from '../../api/settings'
 import type { UserSettingsOut } from '../../types'
@@ -10,15 +10,16 @@ export function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  useEffect(() => {
+  const fetchSettings = useCallback(() => {
     getSettings()
       .then(setSettings)
-      .catch(() => {
-        // Settings not available yet — treat as needing onboarding
-        setSettings(null)
-      })
+      .catch(() => setSettings(null))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
 
   useEffect(() => {
     if (loading || !settings) return
@@ -90,7 +91,7 @@ export function Layout() {
         </nav>
       </header>
       <main className="layout-main">
-        <Outlet />
+        <Outlet context={{ refreshSettings: fetchSettings }} />
       </main>
     </div>
   )

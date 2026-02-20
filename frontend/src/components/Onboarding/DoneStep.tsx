@@ -1,5 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import type { UserSettingsUpdate } from '../../types'
+
+interface LayoutContext {
+  refreshSettings: () => void
+}
 
 interface DoneStepProps {
   onUpdate: (data: UserSettingsUpdate) => void
@@ -7,9 +11,11 @@ interface DoneStepProps {
 
 export function DoneStep({ onUpdate }: DoneStepProps) {
   const navigate = useNavigate()
+  const context = useOutletContext<LayoutContext | null>()
 
   const handleFinish = async () => {
     await onUpdate({ onboarding_completed: true })
+    context?.refreshSettings()
     navigate('/log', { replace: true })
   }
 
