@@ -176,6 +176,53 @@ class TestOuraClient:
         call_kwargs = mock_get.call_args
         assert call_kwargs.kwargs["headers"]["Authorization"] == "Bearer my-secret-token"
 
+    def test_constructs_correct_url(self) -> None:
+        """Verify the URL passed to httpx uses base_url + path without doubling /v2."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": []}
+
+        mock_get = MagicMock(return_value=mock_resp)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
+
+        url = mock_get.call_args.args[0]
+        assert url == "https://api.ouraring.com/v2/usercollection/daily_sleep"
+        assert "/v2/v2/" not in url
+
+    def test_constructs_correct_url_readiness(self) -> None:
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": []}
+
+        mock_get = MagicMock(return_value=mock_resp)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            client.get_daily_readiness(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
+
+        url = mock_get.call_args.args[0]
+        assert url == "https://api.ouraring.com/v2/usercollection/daily_readiness"
+
+    def test_constructs_correct_url_sleep_periods(self) -> None:
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": []}
+
+        mock_get = MagicMock(return_value=mock_resp)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            client.get_sleep_periods(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
+
+        url = mock_get.call_args.args[0]
+        assert url == "https://api.ouraring.com/v2/usercollection/sleep"
+
     def test_generic_400_error(self) -> None:
         client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
         mock_resp = MagicMock()
