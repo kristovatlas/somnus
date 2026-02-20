@@ -1,4 +1,4 @@
-.PHONY: setup setup-backend setup-frontend dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend format migrate clean
+.PHONY: setup setup-backend setup-frontend dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate clean
 
 # --- Setup ---
 setup: setup-backend setup-frontend
@@ -27,6 +27,11 @@ test-backend:
 
 test-frontend:
 	cd frontend && npm test
+
+test-e2e:
+	cd frontend && npx playwright test
+
+test-all: test test-e2e
 
 # --- Linting ---
 lint: lint-backend lint-frontend

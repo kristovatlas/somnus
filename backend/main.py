@@ -1,5 +1,6 @@
 """Somnus — Sleep Optimization App. FastAPI application entry point."""
 
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -46,6 +47,11 @@ app.include_router(dashboard.router)
 app.include_router(analysis.router)
 app.include_router(recommendations.router)
 app.include_router(reports.router)
+
+if os.environ.get("SOMNUS_TESTING") == "1":
+    from backend.routers.testing import router as testing_router
+
+    app.include_router(testing_router)
 
 
 @app.get("/api/health", response_model=HealthResponse)
