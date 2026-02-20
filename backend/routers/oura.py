@@ -56,7 +56,7 @@ def sync_oura(
         if settings.last_oura_sync:
             start_date = settings.last_oura_sync.date()
         else:
-            start_date = today - dt.timedelta(days=30)
+            start_date = today - dt.timedelta(days=365)
 
     client = OuraClient(
         token=settings.oura_token,
