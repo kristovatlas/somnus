@@ -223,6 +223,75 @@ class TestOuraClient:
         url = mock_get.call_args.args[0]
         assert url == "https://api.ouraring.com/v2/usercollection/sleep"
 
+    def test_date_chunks_splits_large_range(self) -> None:
+        chunks = OuraClient._date_chunks(
+            dt.date(2026, 1, 1), dt.date(2026, 3, 31), 30
+        )
+        # 90 days → 3 chunks of 30
+        assert len(chunks) == 3
+        assert chunks[0] == (dt.date(2026, 1, 1), dt.date(2026, 1, 30))
+        assert chunks[1] == (dt.date(2026, 1, 31), dt.date(2026, 3, 1))
+        assert chunks[2] == (dt.date(2026, 3, 2), dt.date(2026, 3, 31))
+
+    def test_date_chunks_single_chunk_for_small_range(self) -> None:
+        chunks = OuraClient._date_chunks(
+            dt.date(2026, 2, 1), dt.date(2026, 2, 10), 30
+        )
+        assert len(chunks) == 1
+        assert chunks[0] == (dt.date(2026, 2, 1), dt.date(2026, 2, 10))
+
+    def test_date_chunks_single_day(self) -> None:
+        chunks = OuraClient._date_chunks(
+            dt.date(2026, 2, 15), dt.date(2026, 2, 15), 30
+        )
+        assert len(chunks) == 1
+        assert chunks[0] == (dt.date(2026, 2, 15), dt.date(2026, 2, 15))
+
+    def test_large_range_makes_multiple_api_calls(self) -> None:
+        """A 60-day range should produce 2 HTTP request chunks."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": [{"day": "2026-01-15", "score": 80}]}
+
+        mock_get = MagicMock(return_value=mock_resp)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            result = client.get_daily_sleep(dt.date(2026, 1, 1), dt.date(2026, 3, 1))
+
+        # 60 days → 2 chunks → 2 HTTP calls, each returning 1 item
+        assert mock_get.call_count == 2
+        assert len(result) == 2
+
+    def test_pagination_follows_next_token(self) -> None:
+        """When the API returns a next_token, the client should follow it."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+
+        page1 = MagicMock()
+        page1.status_code = 200
+        page1.json.return_value = {
+            "data": [{"day": "2026-02-15", "score": 82}],
+            "next_token": "abc123",
+        }
+        page2 = MagicMock()
+        page2.status_code = 200
+        page2.json.return_value = {
+            "data": [{"day": "2026-02-16", "score": 75}],
+        }
+
+        mock_get = MagicMock(side_effect=[page1, page2])
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            result = client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
+
+        assert len(result) == 2
+        assert mock_get.call_count == 2
+        # Second call should include next_token
+        second_call_params = mock_get.call_args_list[1].kwargs["params"]
+        assert second_call_params["next_token"] == "abc123"
+
     def test_generic_400_error(self) -> None:
         client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
         mock_resp = MagicMock()

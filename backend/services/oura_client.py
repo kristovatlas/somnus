@@ -26,6 +26,9 @@ class OuraClient:
         self._token = token
         self._base_url = base_url.rstrip("/")
 
+    # Oura API rejects date ranges wider than ~30 days.
+    _CHUNK_DAYS = 30
+
     def _get(self, path: str, params: dict[str, str]) -> dict:
         """Make an authenticated GET request to the Oura API."""
         try:
@@ -50,6 +53,47 @@ class OuraClient:
 
         return resp.json()
 
+    def _get_paginated(self, path: str, params: dict[str, str]) -> list[dict]:
+        """Fetch all pages of a paginated Oura API endpoint."""
+        all_data: list[dict] = []
+        current_params = dict(params)
+        while True:
+            data = self._get(path, current_params)
+            all_data.extend(data.get("data", []))
+            next_token = data.get("next_token")
+            if not next_token:
+                break
+            current_params["next_token"] = next_token
+        return all_data
+
+    @staticmethod
+    def _date_chunks(
+        start_date: dt.date, end_date: dt.date, chunk_days: int
+    ) -> list[tuple[dt.date, dt.date]]:
+        """Split a date range into chunks of at most chunk_days."""
+        chunks: list[tuple[dt.date, dt.date]] = []
+        current = start_date
+        while current <= end_date:
+            chunk_end = min(current + dt.timedelta(days=chunk_days - 1), end_date)
+            chunks.append((current, chunk_end))
+            current = chunk_end + dt.timedelta(days=1)
+        return chunks
+
+    def _get_chunked(
+        self, path: str, start_date: dt.date, end_date: dt.date
+    ) -> list[dict]:
+        """Fetch data across a large date range by chunking into smaller requests."""
+        all_data: list[dict] = []
+        for chunk_start, chunk_end in self._date_chunks(
+            start_date, end_date, self._CHUNK_DAYS
+        ):
+            results = self._get_paginated(
+                path,
+                {"start_date": str(chunk_start), "end_date": str(chunk_end)},
+            )
+            all_data.extend(results)
+        return all_data
+
     def get_daily_sleep(
         self, start_date: dt.date, end_date: dt.date
     ) -> list[dict]:
@@ -57,31 +101,19 @@ class OuraClient:
 
         Returns list of daily sleep objects keyed by 'day'.
         """
-        data = self._get(
-            "/usercollection/daily_sleep",
-            {"start_date": str(start_date), "end_date": str(end_date)},
-        )
-        return data.get("data", [])
+        return self._get_chunked("/usercollection/daily_sleep", start_date, end_date)
 
     def get_daily_readiness(
         self, start_date: dt.date, end_date: dt.date
     ) -> list[dict]:
         """Fetch daily readiness scores from Oura API v2."""
-        data = self._get(
-            "/usercollection/daily_readiness",
-            {"start_date": str(start_date), "end_date": str(end_date)},
-        )
-        return data.get("data", [])
+        return self._get_chunked("/usercollection/daily_readiness", start_date, end_date)
 
     def get_sleep_periods(
         self, start_date: dt.date, end_date: dt.date
     ) -> list[dict]:
         """Fetch detailed sleep periods (HRV, HR, stages, etc.) from Oura API v2."""
-        data = self._get(
-            "/usercollection/sleep",
-            {"start_date": str(start_date), "end_date": str(end_date)},
-        )
-        return data.get("data", [])
+        return self._get_chunked("/usercollection/sleep", start_date, end_date)
 
 
 def _seconds_to_minutes(seconds: int | None) -> int | None:
