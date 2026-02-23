@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -34,7 +36,11 @@ def _settings_to_out(settings: UserSettings) -> UserSettingsOut:
         display_mode=settings.display_mode,
         circadian_mode_start=settings.circadian_mode_start,
         onboarding_completed=settings.onboarding_completed,
-        last_oura_sync=settings.last_oura_sync,
+        last_oura_sync=(
+            settings.last_oura_sync.replace(tzinfo=dt.UTC)
+            if settings.last_oura_sync
+            else None
+        ),
     )
 
 

@@ -151,6 +151,7 @@ class TestPrepareAnalysisDataframe:
         assert df.iloc[0]["bedtime_hour"] == pytest.approx(24.5)
 
     def test_sleep_midpoint_computed(self, db: Session):
+        """Bedtime 10 PM, wake 6 AM → midpoint should be ~2 AM (26.0 in 24+ space)."""
         d = dt.date(2025, 1, 1)
         _make_sleep_record(
             db, d,
@@ -160,15 +161,55 @@ class TestPrepareAnalysisDataframe:
         db.commit()
 
         df = prepare_analysis_dataframe(db)
-        # Midpoint of 22.0 and 30.0 (6+24) = 26.0 ... wait, wake_time < 6 so +24
-        # bedtime_hour = 22.0, wake_hour = 6+24=30.0, midpoint = 26.0
-        # Actually wake_time is 6:00 AM, which is not < 6, so wake_hour = 6.0
-        # bedtime_hour = 22.0, wake_hour = 6.0, but 6 is not < 6, so no +24
-        # midpoint = (22 + 6) / 2 = 14.0 — that's wrong
-        # The code checks if wake_h < 6, and 6 is not < 6, so wake_h = 6.0
-        # midpoint = (22 + 6) / 2 = 14.0
-        # This is expected behavior for the code as written
-        assert df.iloc[0]["sleep_midpoint_hour"] == pytest.approx(14.0)
+        # bed_h = 22.0, wake_h = 6.0, since 6.0 < 22.0 → wake_h = 30.0
+        # midpoint = (22.0 + 30.0) / 2 = 26.0 (= 2:00 AM)
+        assert df.iloc[0]["sleep_midpoint_hour"] == pytest.approx(26.0)
+
+    def test_sleep_midpoint_wake_before_6am(self, db: Session):
+        """Bedtime 11 PM, wake 5 AM → midpoint ~2 AM (26.0)."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(
+            db, d,
+            bedtime=dt.datetime(2024, 12, 31, 23, 0),
+            wake_time=dt.datetime(2025, 1, 1, 5, 0),
+        )
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        # bed_h = 23.0, wake_h = 5.0, since 5.0 < 23.0 → wake_h = 29.0
+        # midpoint = (23.0 + 29.0) / 2 = 26.0
+        assert df.iloc[0]["sleep_midpoint_hour"] == pytest.approx(26.0)
+
+    def test_sleep_midpoint_late_bedtime_late_wake(self, db: Session):
+        """Bedtime 1 AM, wake 9 AM → midpoint 5 AM (29.0)."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(
+            db, d,
+            bedtime=dt.datetime(2025, 1, 1, 1, 0),
+            wake_time=dt.datetime(2025, 1, 1, 9, 0),
+        )
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        # bed_h = 1.0 → normalized to 25.0 (< 6 shift)
+        # wake_h = 9.0, since 9.0 < 25.0 → wake_h = 33.0
+        # midpoint = (25.0 + 33.0) / 2 = 29.0 (= 5:00 AM)
+        assert df.iloc[0]["sleep_midpoint_hour"] == pytest.approx(29.0)
+
+    def test_sleep_midpoint_typical_scenario(self, db: Session):
+        """Bedtime 10:30 PM, wake 6:30 AM → midpoint 2:30 AM (26.5)."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(
+            db, d,
+            bedtime=dt.datetime(2024, 12, 31, 22, 30),
+            wake_time=dt.datetime(2025, 1, 1, 6, 30),
+        )
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        # bed_h = 22.5, wake_h = 6.5, since 6.5 < 22.5 → wake_h = 30.5
+        # midpoint = (22.5 + 30.5) / 2 = 26.5 (= 2:30 AM)
+        assert df.iloc[0]["sleep_midpoint_hour"] == pytest.approx(26.5)
 
     def test_is_weekend_flag(self, db: Session):
         # 2025-01-04 is a Saturday

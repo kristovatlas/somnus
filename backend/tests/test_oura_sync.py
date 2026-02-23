@@ -14,6 +14,7 @@ from backend.models import SleepRecord, UserSettings
 from backend.services.oura_client import (
     OuraAPIError,
     OuraClient,
+    _parse_datetime,
     build_sleep_records,
 )
 
@@ -333,6 +334,56 @@ class TestBuildSleepRecords:
         assert r["total_sleep_minutes"] is None
         assert r["sleep_efficiency"] is None
         assert r["bedtime"] is None
+
+
+# --- _parse_datetime tests ---
+
+
+class TestParseDatetime:
+    """Tests for timezone handling in _parse_datetime."""
+
+    def test_returns_naive_datetime(self) -> None:
+        """Timezone-aware Oura timestamps should be stored as naive local time."""
+        result = _parse_datetime("2026-02-14T22:30:00-05:00")
+        assert result is not None
+        assert result.tzinfo is None
+
+    def test_preserves_local_time_values(self) -> None:
+        """The hour/minute should match the original local time, not UTC."""
+        result = _parse_datetime("2026-02-14T22:30:00-05:00")
+        assert result is not None
+        assert result.hour == 22
+        assert result.minute == 30
+
+    def test_none_returns_none(self) -> None:
+        assert _parse_datetime(None) is None
+
+    def test_naive_input_stays_naive(self) -> None:
+        """Input without timezone offset should work fine."""
+        result = _parse_datetime("2026-02-14T22:30:00")
+        assert result is not None
+        assert result.tzinfo is None
+        assert result.hour == 22
+
+
+class TestBuildSleepRecordsBedtime:
+    """Tests that bedtime/wake_time are stored as naive local datetimes."""
+
+    def test_bedtime_is_naive(self) -> None:
+        records = build_sleep_records([], [], SAMPLE_SLEEP_PERIODS["data"])
+        r = records["2026-02-15"]
+        assert r["bedtime"] is not None
+        assert r["bedtime"].tzinfo is None
+        assert r["bedtime"].hour == 22
+        assert r["bedtime"].minute == 30
+
+    def test_wake_time_is_naive(self) -> None:
+        records = build_sleep_records([], [], SAMPLE_SLEEP_PERIODS["data"])
+        r = records["2026-02-15"]
+        assert r["wake_time"] is not None
+        assert r["wake_time"].tzinfo is None
+        assert r["wake_time"].hour == 6
+        assert r["wake_time"].minute == 15
 
 
 # --- Sync endpoint integration tests ---
