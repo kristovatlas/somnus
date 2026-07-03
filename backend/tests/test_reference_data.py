@@ -8,7 +8,6 @@ from backend.science.reference_data import (
     rate_stage_vs_target,
 )
 
-
 # --- get_stage_targets ---
 
 

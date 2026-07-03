@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-import pandas as pd
 from sqlalchemy.orm import Session, joinedload
 
-from backend.models import DailyLog, NapEntry, SleepRecord
+from backend.models import DailyLog, SleepRecord
 
 # Timing buckets (start hour ranges)
 TIMING_BUCKETS = [
@@ -33,11 +32,7 @@ def compute_nap_analysis(db: Session) -> dict[str, Any]:
     to no-nap baseline.
     """
     # Get all daily logs with nap entries
-    logs = (
-        db.query(DailyLog)
-        .options(joinedload(DailyLog.nap_entries))
-        .all()
-    )
+    logs = db.query(DailyLog).options(joinedload(DailyLog.nap_entries)).all()
 
     # Get all sleep records
     sleep_records = db.query(SleepRecord).all()
@@ -50,6 +45,7 @@ def compute_nap_analysis(db: Session) -> dict[str, Any]:
     for log in logs:
         # Get NEXT day's sleep record (nap today → sleep tonight)
         import datetime as dt
+
         next_date = log.date + dt.timedelta(days=1)
         sleep = sleep_by_date.get(next_date)
         if sleep is None:
@@ -96,9 +92,13 @@ def _compute_baseline(no_nap_days: list[dict[str, Any]]) -> dict[str, float | No
             "avg_total_sleep": None,
         }
 
-    onset_vals = [d["onset_latency_minutes"] for d in no_nap_days if d["onset_latency_minutes"] is not None]
+    onset_vals = [
+        d["onset_latency_minutes"] for d in no_nap_days if d["onset_latency_minutes"] is not None
+    ]
     eff_vals = [d["sleep_efficiency"] for d in no_nap_days if d["sleep_efficiency"] is not None]
-    total_vals = [d["total_sleep_minutes"] for d in no_nap_days if d["total_sleep_minutes"] is not None]
+    total_vals = [
+        d["total_sleep_minutes"] for d in no_nap_days if d["total_sleep_minutes"] is not None
+    ]
 
     return {
         "avg_onset_latency": round(sum(onset_vals) / len(onset_vals), 1) if onset_vals else None,
@@ -117,7 +117,8 @@ def _segment_naps(
     for timing_label, t_min, t_max in TIMING_BUCKETS:
         for dur_label, d_min, d_max in DURATION_BUCKETS:
             matching = [
-                d for d in nap_days
+                d
+                for d in nap_days
                 if d.get("start_hour") is not None
                 and d.get("duration_minutes") is not None
                 and t_min <= d["start_hour"] < t_max
@@ -133,14 +134,10 @@ def _segment_naps(
                 if d["onset_latency_minutes"] is not None
             ]
             eff_vals = [
-                d["sleep_efficiency"]
-                for d in matching
-                if d["sleep_efficiency"] is not None
+                d["sleep_efficiency"] for d in matching if d["sleep_efficiency"] is not None
             ]
             total_vals = [
-                d["total_sleep_minutes"]
-                for d in matching
-                if d["total_sleep_minutes"] is not None
+                d["total_sleep_minutes"] for d in matching if d["total_sleep_minutes"] is not None
             ]
 
             avg_onset = round(sum(onset_vals) / len(onset_vals), 1) if onset_vals else None
@@ -152,14 +149,16 @@ def _segment_naps(
             if avg_onset is not None and baseline["avg_onset_latency"] is not None:
                 vs_no_nap = round(avg_onset - baseline["avg_onset_latency"], 1)
 
-            segments.append({
-                "timing_label": timing_label,
-                "duration_label": dur_label,
-                "n_days": len(matching),
-                "avg_onset_latency": avg_onset,
-                "avg_efficiency": avg_eff,
-                "avg_total_sleep": avg_total,
-                "vs_no_nap_onset": vs_no_nap,
-            })
+            segments.append(
+                {
+                    "timing_label": timing_label,
+                    "duration_label": dur_label,
+                    "n_days": len(matching),
+                    "avg_onset_latency": avg_onset,
+                    "avg_efficiency": avg_eff,
+                    "avg_total_sleep": avg_total,
+                    "vs_no_nap_onset": vs_no_nap,
+                }
+            )
 
     return segments

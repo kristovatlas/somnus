@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from sqlalchemy.orm import Session
@@ -12,7 +12,6 @@ from backend.models import Experiment, ExperimentStatus, SleepRecord
 from backend.science.reference_data import (
     PREDICTOR_ACTIONS,
     SCIENCE_THRESHOLDS,
-    ScienceThreshold,
 )
 from backend.services.sleep_timing import compute_sleep_timing
 from backend.services.stats_engine import (
@@ -22,6 +21,9 @@ from backend.services.stats_engine import (
     get_data_status,
     prepare_analysis_dataframe,
 )
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 # Minimum recent days for science threshold evaluation
 _MIN_RECENT_DAYS = 7
@@ -62,9 +64,8 @@ def _make_rec_id(category: str, factor: str, outcome: str | None = None) -> str:
     return ":".join(parts)
 
 
-def _data_driven_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
+def _data_driven_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Generate recommendations from regression coefficients."""
-    import pandas as pd  # noqa: F811
 
     recs: list[dict[str, Any]] = []
 
@@ -98,32 +99,31 @@ def _data_driven_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
             body = action_text.format(outcome=outcome_label)
             body += f" (n={result['n_days']} days, p={coef['p_value']:.3f})."
 
-            recs.append({
-                "id": _make_rec_id("data_driven", predictor, outcome),
-                "category": "data_driven",
-                "priority": priority,
-                "title": VARIABLE_LABELS.get(predictor, predictor),
-                "body": body,
-                "factor": predictor,
-                "factor_label": VARIABLE_LABELS.get(predictor, predictor),
-                "outcome": outcome,
-                "outcome_label": outcome_label,
-                "evidence_level": evidence,
-                "n_days": result["n_days"],
-            })
+            recs.append(
+                {
+                    "id": _make_rec_id("data_driven", predictor, outcome),
+                    "category": "data_driven",
+                    "priority": priority,
+                    "title": VARIABLE_LABELS.get(predictor, predictor),
+                    "body": body,
+                    "factor": predictor,
+                    "factor_label": VARIABLE_LABELS.get(predictor, predictor),
+                    "outcome": outcome,
+                    "outcome_label": outcome_label,
+                    "evidence_level": evidence,
+                    "n_days": result["n_days"],
+                }
+            )
 
     return recs
 
 
-def _science_threshold_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
+def _science_threshold_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Generate recommendations from science-backed thresholds."""
     recs: list[dict[str, Any]] = []
 
     # Use last _RECENT_WINDOW days
-    if len(df) > _RECENT_WINDOW:
-        recent = df.iloc[-_RECENT_WINDOW:]
-    else:
-        recent = df
+    recent = df.iloc[-_RECENT_WINDOW:] if len(df) > _RECENT_WINDOW else df
 
     for thresh in SCIENCE_THRESHOLDS:
         if thresh.column not in recent.columns:
@@ -144,7 +144,7 @@ def _science_threshold_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
             violated = avg < thresh.threshold_value
         elif thresh.comparison == "outside_range":
             # For room temp: below 65 or above 68
-            low = thresh.threshold_value if thresh.range_upper is not None else thresh.threshold_value
+            low = thresh.threshold_value
             high = thresh.range_upper if thresh.range_upper is not None else thresh.threshold_value
             # For room_temp_f: threshold_value=68, we want outside 65-68
             if thresh.column == "room_temp_f":
@@ -155,30 +155,30 @@ def _science_threshold_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
         if not violated:
             continue
 
-        body = thresh.body_template.format(
-            avg=avg, threshold=thresh.threshold_value, n_days=n_days
-        )
+        body = thresh.body_template.format(avg=avg, threshold=thresh.threshold_value, n_days=n_days)
 
         evidence_adj = _EVIDENCE_ADJ.get(thresh.evidence_level, 0)
         priority = max(1, _BASE_PRIORITY["science_threshold"] + evidence_adj)
 
-        recs.append({
-            "id": _make_rec_id("science_threshold", thresh.column),
-            "category": "science_threshold",
-            "priority": priority,
-            "title": thresh.title,
-            "body": body,
-            "factor": thresh.column,
-            "factor_label": thresh.label,
-            "evidence_level": thresh.evidence_level,
-            "suggested_experiment": thresh.experiment_template,
-            "n_days": n_days,
-        })
+        recs.append(
+            {
+                "id": _make_rec_id("science_threshold", thresh.column),
+                "category": "science_threshold",
+                "priority": priority,
+                "title": thresh.title,
+                "body": body,
+                "factor": thresh.column,
+                "factor_label": thresh.label,
+                "evidence_level": thresh.evidence_level,
+                "suggested_experiment": thresh.experiment_template,
+                "n_days": n_days,
+            }
+        )
 
     return recs
 
 
-def _untried_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
+def _untried_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Suggest tracking factors the user hasn't tried much."""
     recs: list[dict[str, Any]] = []
 
@@ -186,10 +186,7 @@ def _untried_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
         if thresh.untried_title is None:
             continue
 
-        if thresh.column not in df.columns:
-            n_recorded = 0
-        else:
-            n_recorded = int(df[thresh.column].notna().sum())
+        n_recorded = int(df[thresh.column].notna().sum()) if thresh.column in df.columns else 0
 
         if n_recorded >= _MIN_RECENT_DAYS:
             continue
@@ -198,22 +195,24 @@ def _untried_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
         evidence_adj = _EVIDENCE_ADJ.get(thresh.evidence_level, 0)
         priority = max(1, priority + evidence_adj)
 
-        recs.append({
-            "id": _make_rec_id("untried", thresh.column),
-            "category": "untried",
-            "priority": priority,
-            "title": thresh.untried_title,
-            "body": thresh.untried_suggestion or "",
-            "factor": thresh.column,
-            "factor_label": thresh.label,
-            "evidence_level": thresh.evidence_level,
-            "suggested_experiment": thresh.experiment_template,
-        })
+        recs.append(
+            {
+                "id": _make_rec_id("untried", thresh.column),
+                "category": "untried",
+                "priority": priority,
+                "title": thresh.untried_title,
+                "body": thresh.untried_suggestion or "",
+                "factor": thresh.column,
+                "factor_label": thresh.label,
+                "evidence_level": thresh.evidence_level,
+                "suggested_experiment": thresh.experiment_template,
+            }
+        )
 
     return recs
 
 
-def _timing_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
+def _timing_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Generate recommendations from sleep timing analysis."""
     recs: list[dict[str, Any]] = []
 
@@ -223,25 +222,27 @@ def _timing_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
     sjl = timing.get("social_jet_lag_minutes")
     if sjl is not None and sjl > 60:
         priority = max(1, _BASE_PRIORITY["timing"] + _EVIDENCE_ADJ["high"])
-        recs.append({
-            "id": _make_rec_id("timing", "social_jet_lag"),
-            "category": "timing",
-            "priority": priority,
-            "title": "Consider more consistent sleep timing",
-            "body": (
-                f"Your weekend/weekday sleep midpoint differs by "
-                f"{sjl:.0f} minutes. Research associates social jet lag "
-                f"above 60 minutes with reduced sleep quality."
-            ),
-            "factor": "social_jet_lag",
-            "factor_label": "Social Jet Lag",
-            "evidence_level": "high",
-            "suggested_experiment": (
-                "Try keeping bedtime within 30 minutes of your weekday "
-                "schedule on weekends for 2 weeks"
-            ),
-            "n_days": timing.get("n_days"),
-        })
+        recs.append(
+            {
+                "id": _make_rec_id("timing", "social_jet_lag"),
+                "category": "timing",
+                "priority": priority,
+                "title": "Consider more consistent sleep timing",
+                "body": (
+                    f"Your weekend/weekday sleep midpoint differs by "
+                    f"{sjl:.0f} minutes. Research associates social jet lag "
+                    f"above 60 minutes with reduced sleep quality."
+                ),
+                "factor": "social_jet_lag",
+                "factor_label": "Social Jet Lag",
+                "evidence_level": "high",
+                "suggested_experiment": (
+                    "Try keeping bedtime within 30 minutes of your weekday "
+                    "schedule on weekends for 2 weeks"
+                ),
+                "n_days": timing.get("n_days"),
+            }
+        )
 
     # Recent bedtime later than optimal window by 30+ min
     optimal_end = timing.get("optimal_bedtime_end")
@@ -251,21 +252,23 @@ def _timing_recs(df: "pd.DataFrame") -> list[dict[str, Any]]:
             recent_avg = float(recent_bedtimes.iloc[-_RECENT_WINDOW:].mean())
             if recent_avg > optimal_end + 0.5:  # 30+ min late
                 priority = max(1, _BASE_PRIORITY["timing"] + _EVIDENCE_ADJ["high"])
-                recs.append({
-                    "id": _make_rec_id("timing", "bedtime_late"),
-                    "category": "timing",
-                    "priority": priority,
-                    "title": "Consider an earlier bedtime",
-                    "body": (
-                        f"Your recent average bedtime is later than your "
-                        f"personal optimal window by about "
-                        f"{(recent_avg - optimal_end) * 60:.0f} minutes."
-                    ),
-                    "factor": "bedtime_hour",
-                    "factor_label": "Bedtime",
-                    "evidence_level": "high",
-                    "n_days": len(recent_bedtimes),
-                })
+                recs.append(
+                    {
+                        "id": _make_rec_id("timing", "bedtime_late"),
+                        "category": "timing",
+                        "priority": priority,
+                        "title": "Consider an earlier bedtime",
+                        "body": (
+                            f"Your recent average bedtime is later than your "
+                            f"personal optimal window by about "
+                            f"{(recent_avg - optimal_end) * 60:.0f} minutes."
+                        ),
+                        "factor": "bedtime_hour",
+                        "factor_label": "Bedtime",
+                        "evidence_level": "high",
+                        "n_days": len(recent_bedtimes),
+                    }
+                )
 
     return recs
 
@@ -331,11 +334,7 @@ def _get_active_experiment(db: Session) -> dict[str, Any] | None:
     """Get the current active experiment with computed metrics."""
     today = dt.date.today()
 
-    experiment = (
-        db.query(Experiment)
-        .filter(Experiment.status == ExperimentStatus.ACTIVE)
-        .first()
-    )
+    experiment = db.query(Experiment).filter(Experiment.status == ExperimentStatus.ACTIVE).first()
 
     if experiment is None:
         return None

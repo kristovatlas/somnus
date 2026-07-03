@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import datetime as dt
+from typing import Any
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -36,8 +36,8 @@ D6 = dt.date(2025, 6, 20)  # Friday
 D7 = dt.date(2025, 6, 21)  # Saturday
 
 
-def _make_settings(db: Session, **kwargs: object) -> UserSettings:
-    defaults = {"id": 1, "onboarding_completed": True}
+def _make_settings(db: Session, **kwargs: Any) -> UserSettings:
+    defaults: dict[str, Any] = {"id": 1, "onboarding_completed": True}
     defaults.update(kwargs)
     s = UserSettings(**defaults)
     db.add(s)
@@ -113,8 +113,12 @@ class TestComputeStageAverages:
         assert _compute_stage_averages([], None) is None
 
     def test_with_data_no_targets(self, db: Session) -> None:
-        r1 = _make_sleep_record(db, D1, deep_minutes=80, rem_minutes=100, light_minutes=200, total_sleep_minutes=380)
-        r2 = _make_sleep_record(db, D2, deep_minutes=60, rem_minutes=90, light_minutes=210, total_sleep_minutes=360)
+        r1 = _make_sleep_record(
+            db, D1, deep_minutes=80, rem_minutes=100, light_minutes=200, total_sleep_minutes=380
+        )
+        r2 = _make_sleep_record(
+            db, D2, deep_minutes=60, rem_minutes=90, light_minutes=210, total_sleep_minutes=360
+        )
         result = _compute_stage_averages([r1, r2], None)
         assert result is not None
         assert result["avg_deep_minutes"] == 70.0
@@ -291,9 +295,14 @@ class TestGetDashboardData:
     def test_with_sleep_records(self, db: Session) -> None:
         _make_settings(db)
         _make_sleep_record(
-            db, D7,
-            sleep_score=85, avg_hrv=45.0, deep_minutes=80, rem_minutes=100,
-            light_minutes=200, total_sleep_minutes=380,
+            db,
+            D7,
+            sleep_score=85,
+            avg_hrv=45.0,
+            deep_minutes=80,
+            rem_minutes=100,
+            light_minutes=200,
+            total_sleep_minutes=380,
             bedtime=dt.datetime(2025, 6, 20, 22, 0),
         )
         data = get_dashboard_data(db, today=D7)
@@ -360,9 +369,13 @@ class TestDashboardEndpoint:
         today = dt.date.today()
         _make_settings(db, age=35)
         _make_sleep_record(
-            db, today,
-            sleep_score=90, deep_minutes=70, rem_minutes=95,
-            light_minutes=200, total_sleep_minutes=365,
+            db,
+            today,
+            sleep_score=90,
+            deep_minutes=70,
+            rem_minutes=95,
+            light_minutes=200,
+            total_sleep_minutes=365,
             bedtime=dt.datetime.combine(today - dt.timedelta(days=1), dt.time(22, 0)),
         )
         _make_daily_log(db, today)

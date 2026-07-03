@@ -34,9 +34,7 @@ def get_recommendations(db: Session = Depends(get_db)) -> RecommendationsRespons
         total_days=result["total_days"],
         has_sufficient_data=result["has_sufficient_data"],
         active_experiment=(
-            ExperimentOut(**result["active_experiment"])
-            if result["active_experiment"]
-            else None
+            ExperimentOut(**result["active_experiment"]) if result["active_experiment"] else None
         ),
     )
 
@@ -49,16 +47,10 @@ def get_experiments(db: Session = Depends(get_db)) -> list[ExperimentOut]:
 
 
 @router.post("/experiments", response_model=ExperimentOut, status_code=201)
-def create_experiment(
-    body: ExperimentCreate, db: Session = Depends(get_db)
-) -> ExperimentOut:
+def create_experiment(body: ExperimentCreate, db: Session = Depends(get_db)) -> ExperimentOut:
     """Start a new experiment. Returns 409 if one is already active."""
     # Check for active experiment
-    active = (
-        db.query(Experiment)
-        .filter(Experiment.status == ExperimentStatus.ACTIVE)
-        .first()
-    )
+    active = db.query(Experiment).filter(Experiment.status == ExperimentStatus.ACTIVE).first()
     if active is not None:
         raise HTTPException(
             status_code=409,
@@ -86,9 +78,7 @@ def create_experiment(
 
 
 @router.get("/experiments/{experiment_id}", response_model=ExperimentOut)
-def get_experiment(
-    experiment_id: int, db: Session = Depends(get_db)
-) -> ExperimentOut:
+def get_experiment(experiment_id: int, db: Session = Depends(get_db)) -> ExperimentOut:
     """Get a single experiment with computed metrics."""
     result = get_experiment_by_id(db, experiment_id)
     if result is None:

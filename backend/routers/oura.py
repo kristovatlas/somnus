@@ -68,7 +68,7 @@ def sync_oura(
     try:
         daily_sleep = client.get_daily_sleep(start_date, end_date)
     except OuraAPIError as e:
-        raise HTTPException(status_code=e.status_code or 502, detail=e.message)
+        raise HTTPException(status_code=e.status_code or 502, detail=e.message) from e
 
     try:
         daily_readiness = client.get_daily_readiness(start_date, end_date)
@@ -97,7 +97,7 @@ def sync_oura(
             db.add(SleepRecord(**record_data))
         synced_count += 1
 
-    settings.last_oura_sync = dt.datetime.now(dt.timezone.utc)
+    settings.last_oura_sync = dt.datetime.now(dt.UTC)
     db.commit()
 
     return OuraSyncResponse(

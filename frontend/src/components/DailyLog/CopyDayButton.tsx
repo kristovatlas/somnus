@@ -1,45 +1,49 @@
-import { useState } from 'react'
-import { copyDay } from '../../api/dailyLog'
-import type { DailyLogOut } from '../../types'
-import './CopyDayButton.css'
+import { useState } from "react";
+import { copyDay } from "../../api/dailyLog";
+import type { DailyLogOut } from "../../types";
+import "./CopyDayButton.css";
 
 interface CopyDayButtonProps {
-  targetDate: string
-  onCopied: (log: DailyLogOut) => void
+  targetDate: string;
+  onCopied: (log: DailyLogOut) => void;
 }
 
 function yesterdayStr(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() - 1)
-  return d.toISOString().slice(0, 10)
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 export function CopyDayButton({ targetDate, onCopied }: CopyDayButtonProps) {
-  const [showPicker, setShowPicker] = useState(false)
-  const [sourceDate, setSourceDate] = useState(yesterdayStr(targetDate))
-  const [copying, setCopying] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [showPicker, setShowPicker] = useState(false);
+  const [sourceDate, setSourceDate] = useState(yesterdayStr(targetDate));
+  const [copying, setCopying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCopy = async () => {
-    setCopying(true)
-    setError(null)
+    setCopying(true);
+    setError(null);
     try {
-      const log = await copyDay(targetDate, sourceDate)
-      onCopied(log)
-      setShowPicker(false)
+      const log = await copyDay(targetDate, sourceDate);
+      onCopied(log);
+      setShowPicker(false);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Copy failed')
+      setError(e instanceof Error ? e.message : "Copy failed");
     } finally {
-      setCopying(false)
+      setCopying(false);
     }
-  }
+  };
 
   if (!showPicker) {
     return (
-      <button type="button" className="copy-day-trigger" onClick={() => setShowPicker(true)}>
+      <button
+        type="button"
+        className="copy-day-trigger"
+        onClick={() => setShowPicker(true)}
+      >
         Copy from another day
       </button>
-    )
+    );
   }
 
   return (
@@ -53,7 +57,7 @@ export function CopyDayButton({ targetDate, onCopied }: CopyDayButtonProps) {
       />
       <div className="copy-day-actions">
         <button type="button" onClick={handleCopy} disabled={copying}>
-          {copying ? 'Copying...' : 'Copy'}
+          {copying ? "Copying..." : "Copy"}
         </button>
         <button
           type="button"
@@ -65,5 +69,5 @@ export function CopyDayButton({ targetDate, onCopied }: CopyDayButtonProps) {
       </div>
       {error && <p className="copy-day-error">{error}</p>}
     </div>
-  )
+  );
 }

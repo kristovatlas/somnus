@@ -383,7 +383,9 @@ PREDICTOR_ACTIONS: dict[str, dict[str, str]] = {
     },
     "alcohol": {
         "negative": "Alcohol use appears associated with lower {outcome} in your data",
-        "positive": "Your data shows an unexpected positive association between alcohol and {outcome}",
+        "positive": (
+            "Your data shows an unexpected positive association between alcohol and {outcome}"
+        ),
     },
     "stress_level": {
         "negative": "Higher stress appears associated with lower {outcome}",
@@ -395,7 +397,9 @@ PREDICTOR_ACTIONS: dict[str, dict[str, str]] = {
     },
     "blue_blockers": {
         "positive": "Blue blocker use appears associated with better {outcome}",
-        "negative": "Your data shows an unexpected negative association for blue blockers and {outcome}",
+        "negative": (
+            "Your data shows an unexpected negative association for blue blockers and {outcome}"
+        ),
     },
     "screens_off": {
         "positive": "Turning off screens appears associated with better {outcome}",

@@ -88,7 +88,8 @@ body.theme-light {
 body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   line-height: 1.6;
   transition: var(--transition-theme);
   min-height: 100vh;

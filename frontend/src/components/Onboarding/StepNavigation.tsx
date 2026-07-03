@@ -1,12 +1,12 @@
-import './StepNavigation.css'
+import "./StepNavigation.css";
 
 interface StepNavigationProps {
-  isFirst: boolean
-  isLast: boolean
-  onBack: () => void
-  onNext: () => void
-  onSkip?: () => void
-  nextLabel?: string
+  isFirst: boolean;
+  isLast: boolean;
+  onBack: () => void;
+  onNext: () => void;
+  onSkip?: () => void;
+  nextLabel?: string;
 }
 
 export function StepNavigation({
@@ -32,9 +32,9 @@ export function StepNavigation({
       )}
       {!isLast && (
         <button type="button" className="step-nav-next" onClick={onNext}>
-          {nextLabel ?? 'Next'}
+          {nextLabel ?? "Next"}
         </button>
       )}
     </div>
-  )
+  );
 }

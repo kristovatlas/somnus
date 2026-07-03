@@ -1,22 +1,22 @@
-import { TimePicker } from '../shared/TimePicker'
-import { SelectInput } from '../shared/SelectInput'
-import { StepNavigation } from './StepNavigation'
+import { TimePicker } from "../shared/TimePicker";
+import { SelectInput } from "../shared/SelectInput";
+import { StepNavigation } from "./StepNavigation";
 import {
   CaffeineSensitivity,
   CAFFEINE_SENSITIVITY_LABELS,
   Chronotype,
   CHRONOTYPE_LABELS,
-} from '../../types/enums'
-import type { UserSettingsUpdate } from '../../types'
+} from "../../types/enums";
+import type { UserSettingsUpdate } from "../../types";
 
 interface SleepProfileStepProps {
-  typicalBedtime: string | null
-  targetWakeTime: string | null
-  caffeineSensitivity: CaffeineSensitivity
-  chronotype: Chronotype | null
-  onUpdate: (data: UserSettingsUpdate) => void
-  onNext: () => void
-  onBack: () => void
+  typicalBedtime: string | null;
+  targetWakeTime: string | null;
+  caffeineSensitivity: CaffeineSensitivity;
+  chronotype: Chronotype | null;
+  onUpdate: (data: UserSettingsUpdate) => void;
+  onNext: () => void;
+  onBack: () => void;
 }
 
 export function SleepProfileStep({
@@ -31,11 +31,16 @@ export function SleepProfileStep({
   return (
     <div>
       <h2>Sleep Profile</h2>
-      <p style={{ color: 'var(--color-text-secondary)', margin: '0.5rem 0 1.5rem' }}>
+      <p
+        style={{
+          color: "var(--color-text-secondary)",
+          margin: "0.5rem 0 1.5rem",
+        }}
+      >
         Help us understand your sleep patterns.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         <TimePicker
           label="Typical Bedtime"
           value={typicalBedtime}
@@ -62,7 +67,12 @@ export function SleepProfileStep({
         />
       </div>
 
-      <StepNavigation isFirst={false} isLast={false} onBack={onBack} onNext={onNext} />
+      <StepNavigation
+        isFirst={false}
+        isLast={false}
+        onBack={onBack}
+        onNext={onNext}
+      />
     </div>
-  )
+  );
 }

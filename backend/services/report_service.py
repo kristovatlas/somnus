@@ -13,7 +13,6 @@ from backend.models import DailyLog, HabitType, SleepRecord, UserSettings
 from backend.science.reference_data import get_stage_targets
 from backend.services.dashboard_service import _compute_consistency
 
-
 # ---------------------------------------------------------------------------
 # Date range helpers
 # ---------------------------------------------------------------------------
@@ -69,9 +68,7 @@ def _compute_metric_averages(records: list[SleepRecord]) -> dict[str, Any]:
     }
 
 
-def _compute_trend_arrows(
-    current: dict[str, Any], prior: dict[str, Any]
-) -> dict[str, Any]:
+def _compute_trend_arrows(current: dict[str, Any], prior: dict[str, Any]) -> dict[str, Any]:
     """Compare current vs prior averages. Returns up/down/flat per metric."""
     mapping = {
         "sleep_score": ("avg_sleep_score", "avg_sleep_score"),
@@ -94,6 +91,25 @@ def _compute_trend_arrows(
         else:
             arrows[key] = "down"
     return arrows
+
+
+def _metric_rows_html(cur: dict[str, Any], pri: dict[str, Any], trends: dict[str, Any]) -> str:
+    """Render the four standard metric table rows shared by weekly/monthly reports."""
+    specs = [
+        ("Sleep Score", "avg_sleep_score", "sleep_score", ""),
+        ("HRV", "avg_hrv", "avg_hrv", ""),
+        ("Deep Sleep", "avg_deep_minutes", "deep_minutes", " min"),
+        ("REM Sleep", "avg_rem_minutes", "rem_minutes", " min"),
+    ]
+    rows = []
+    for label, field, trend_key, unit in specs:
+        rows.append(
+            f"<tr><td>{label}</td>"
+            f"<td>{_fmt(cur.get(field))}{unit}</td>"
+            f"<td>{_fmt(pri.get(field))}{unit}</td>"
+            f"<td>{_trend_html(trends.get(trend_key))}</td></tr>"
+        )
+    return "\n".join(rows)
 
 
 def _get_top_factors(db: Session) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -183,8 +199,7 @@ def _get_contributing_factors(db: Session, date: dt.date) -> list[str]:
 
     # Morning sunlight
     morning_sun = [
-        e for e in log.sunlight_entries
-        if e.start_time is not None and e.start_time.hour < 12
+        e for e in log.sunlight_entries if e.start_time is not None and e.start_time.hour < 12
     ]
     if morning_sun:
         durations = [e.duration_minutes for e in morning_sun if e.duration_minutes is not None]
@@ -208,9 +223,7 @@ def _get_contributing_factors(db: Session, date: dt.date) -> list[str]:
     return factors
 
 
-def _compute_stage_compliance(
-    records: list[SleepRecord], age: int | None
-) -> dict[str, Any] | None:
+def _compute_stage_compliance(records: list[SleepRecord], age: int | None) -> dict[str, Any] | None:
     """Count nights hitting deep/REM targets. Returns None if no age set."""
     targets = get_stage_targets(age)
     if targets is None:
@@ -223,10 +236,14 @@ def _compute_stage_compliance(
         return None
 
     deep_target_nights = sum(
-        1 for r in deep_records if r.deep_minutes >= targets.deep_min_minutes  # type: ignore[operator]
+        1
+        for r in deep_records
+        if r.deep_minutes is not None and r.deep_minutes >= targets.deep_min_minutes
     )
     rem_target_nights = sum(
-        1 for r in rem_records if r.rem_minutes >= targets.rem_min_minutes  # type: ignore[operator]
+        1
+        for r in rem_records
+        if r.rem_minutes is not None and r.rem_minutes >= targets.rem_min_minutes
     )
 
     return {
@@ -266,11 +283,7 @@ def get_week_report(
     )
 
     # Count daily logs in range
-    log_count = (
-        db.query(DailyLog)
-        .filter(DailyLog.date >= monday, DailyLog.date <= sunday)
-        .count()
-    )
+    log_count = db.query(DailyLog).filter(DailyLog.date >= monday, DailyLog.date <= sunday).count()
 
     days_with_data = len(records)
 
@@ -364,9 +377,7 @@ def get_month_report(
     )
 
     log_count = (
-        db.query(DailyLog)
-        .filter(DailyLog.date >= first_day, DailyLog.date <= last_day)
-        .count()
+        db.query(DailyLog).filter(DailyLog.date >= first_day, DailyLog.date <= last_day).count()
     )
 
     days_with_data = len(records)
@@ -417,8 +428,8 @@ def get_month_report(
     best_night = None
     worst_night = None
     if scored:
-        best = max(scored, key=lambda r: r.sleep_score)  # type: ignore[arg-type]
-        worst = min(scored, key=lambda r: r.sleep_score)  # type: ignore[arg-type]
+        best = max(scored, key=lambda r: r.sleep_score or 0)
+        worst = min(scored, key=lambda r: r.sleep_score or 0)
         best_night = {
             "date": best.date,
             "sleep_score": best.sleep_score,
@@ -442,9 +453,7 @@ def get_month_report(
 
     # Weekly summaries
     weeks = _weeks_in_month(year, month)
-    weekly_summaries = [
-        get_week_report(db, wy, ww, today=today) for wy, ww in weeks
-    ]
+    weekly_summaries = [get_week_report(db, wy, ww, today=today) for wy, ww in weeks]
 
     return {
         "period_start": first_day,
@@ -547,14 +556,14 @@ def render_weekly_html(report: dict[str, Any]) -> str:
     if r.get("top_positive_factor"):
         f = r["top_positive_factor"]
         factors_html += (
-            f'<p>Associated with better sleep score: '
-            f'<strong>{f["label"]}</strong> (r={f["pearson_r"]:.3f})</p>'
+            f"<p>Associated with better sleep score: "
+            f"<strong>{f['label']}</strong> (r={f['pearson_r']:.3f})</p>"
         )
     if r.get("top_negative_factor"):
         f = r["top_negative_factor"]
         factors_html += (
-            f'<p>Associated with worse sleep score: '
-            f'<strong>{f["label"]}</strong> (r={f["pearson_r"]:.3f})</p>'
+            f"<p>Associated with worse sleep score: "
+            f"<strong>{f['label']}</strong> (r={f['pearson_r']:.3f})</p>"
         )
 
     consistency_html = ""
@@ -564,12 +573,19 @@ def render_weekly_html(report: dict[str, Any]) -> str:
         <h3>Bedtime Consistency</h3>
         <table>
             <tr><th>Metric</th><th>Value</th><th>Rating</th></tr>
-            <tr><td>Variability (&#963;)</td><td>{c['sigma_minutes']:.0f} min</td><td>{c['sigma_rating']}</td></tr>
+            <tr><td>Variability (&#963;)</td>
+                <td>{c["sigma_minutes"]:.0f} min</td><td>{c["sigma_rating"]}</td></tr>
         """
         if c.get("delta_minutes") is not None:
-            consistency_html += f'<tr><td>Offset (&#948;)</td><td>{c["delta_minutes"]:.0f} min</td><td>{c["delta_rating"]}</td></tr>'
+            consistency_html += (
+                f"<tr><td>Offset (&#948;)</td>"
+                f"<td>{c['delta_minutes']:.0f} min</td><td>{c['delta_rating']}</td></tr>"
+            )
         if c.get("weekend_drift_minutes") is not None:
-            consistency_html += f'<tr><td>Weekend Drift (&#916;)</td><td>{c["weekend_drift_minutes"]:.0f} min</td><td>{c["drift_rating"]}</td></tr>'
+            consistency_html += (
+                f"<tr><td>Weekend Drift (&#916;)</td>"
+                f"<td>{c['weekend_drift_minutes']:.0f} min</td><td>{c['drift_rating']}</td></tr>"
+            )
         consistency_html += "</table>"
 
     return f"""<!DOCTYPE html>
@@ -577,28 +593,25 @@ def render_weekly_html(report: dict[str, Any]) -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Somnus Weekly Report — Week {r['iso_week']}, {r['iso_year']}</title>
+<title>Somnus Weekly Report — Week {r["iso_week"]}, {r["iso_year"]}</title>
 <style>{_CIRCADIAN_CSS}</style>
 </head>
 <body>
 <h1>Weekly Report</h1>
-<p>{r['period_start']} to {r['period_end']} (Week {r['iso_week']}, {r['iso_year']})</p>
-<p class="muted">Logged {r['logging_completeness']}</p>
+<p>{r["period_start"]} to {r["period_end"]} (Week {r["iso_week"]}, {r["iso_year"]})</p>
+<p class="muted">Logged {r["logging_completeness"]}</p>
 
-{"<p><em>Insufficient data for full analysis.</em></p>" if r['has_insufficient_data'] else ""}
+{"<p><em>Insufficient data for full analysis.</em></p>" if r["has_insufficient_data"] else ""}
 
 <h2>Metrics</h2>
 <table>
 <tr><th>Metric</th><th>This Week</th><th>Prior Week</th><th>Trend</th></tr>
-<tr><td>Sleep Score</td><td>{_fmt(cur.get('avg_sleep_score'))}</td><td>{_fmt(pri.get('avg_sleep_score'))}</td><td>{_trend_html(trends.get('sleep_score'))}</td></tr>
-<tr><td>HRV</td><td>{_fmt(cur.get('avg_hrv'))}</td><td>{_fmt(pri.get('avg_hrv'))}</td><td>{_trend_html(trends.get('avg_hrv'))}</td></tr>
-<tr><td>Deep Sleep</td><td>{_fmt(cur.get('avg_deep_minutes'))} min</td><td>{_fmt(pri.get('avg_deep_minutes'))} min</td><td>{_trend_html(trends.get('deep_minutes'))}</td></tr>
-<tr><td>REM Sleep</td><td>{_fmt(cur.get('avg_rem_minutes'))} min</td><td>{_fmt(pri.get('avg_rem_minutes'))} min</td><td>{_trend_html(trends.get('rem_minutes'))}</td></tr>
+{_metric_rows_html(cur, pri, trends)}
 </table>
 
 {consistency_html}
 
-{f'<h2>Top Factors</h2>{factors_html}' if factors_html else ''}
+{f"<h2>Top Factors</h2>{factors_html}" if factors_html else ""}
 
 <footer class="muted" style="margin-top:2rem;font-size:0.8rem;">Generated by Somnus</footer>
 </body>
@@ -615,29 +628,39 @@ def render_monthly_html(report: dict[str, Any]) -> str:
     best_worst_html = ""
     if r.get("best_night"):
         b = r["best_night"]
-        tags = "".join(f'<span class="factor-tag">{f}</span>' for f in b.get("contributing_factors", []))
-        best_worst_html += f'<h3>Best Night</h3><p>{b["date"]} — Score: {b["sleep_score"]}</p>{tags}'
+        tags = "".join(
+            f'<span class="factor-tag">{f}</span>' for f in b.get("contributing_factors", [])
+        )
+        best_worst_html += (
+            f"<h3>Best Night</h3><p>{b['date']} — Score: {b['sleep_score']}</p>{tags}"
+        )
     if r.get("worst_night"):
         w = r["worst_night"]
-        tags = "".join(f'<span class="factor-tag">{f}</span>' for f in w.get("contributing_factors", []))
-        best_worst_html += f'<h3>Worst Night</h3><p>{w["date"]} — Score: {w["sleep_score"]}</p>{tags}'
+        tags = "".join(
+            f'<span class="factor-tag">{f}</span>' for f in w.get("contributing_factors", [])
+        )
+        best_worst_html += (
+            f"<h3>Worst Night</h3><p>{w['date']} — Score: {w['sleep_score']}</p>{tags}"
+        )
 
     compliance_html = ""
     if r.get("stage_compliance"):
         sc = r["stage_compliance"]
         compliance_html = f"""
         <h2>Stage Compliance</h2>
-        <p>Hit deep sleep target: {sc['deep_target_nights']}/{sc['deep_total_nights']} nights</p>
-        <p>Hit REM target: {sc['rem_target_nights']}/{sc['rem_total_nights']} nights</p>
+        <p>Hit deep sleep target: {sc["deep_target_nights"]}/{sc["deep_total_nights"]} nights</p>
+        <p>Hit REM target: {sc["rem_target_nights"]}/{sc["rem_total_nights"]} nights</p>
         """
 
     experiment_html = ""
     if r.get("active_experiment"):
         exp = r["active_experiment"]
+        factor_label = exp.get("factor_label", exp.get("factor", ""))
         experiment_html = f"""
         <h2>Active Experiment</h2>
-        <p><strong>{exp.get('factor_label', exp.get('factor', ''))}</strong>: {exp.get('hypothesis', '')}</p>
-        <p>{exp.get('start_date', '')} to {exp.get('end_date', '')} — {exp.get('days_completed', 0)} days completed</p>
+        <p><strong>{factor_label}</strong>: {exp.get("hypothesis", "")}</p>
+        <p>{exp.get("start_date", "")} to {exp.get("end_date", "")}
+        — {exp.get("days_completed", 0)} days completed</p>
         """
 
     weekly_html = ""
@@ -645,7 +668,13 @@ def render_monthly_html(report: dict[str, Any]) -> str:
         rows = ""
         for ws in r["weekly_summaries"]:
             wc = ws["current"]
-            rows += f'<tr><td>Wk {ws["iso_week"]}</td><td>{_fmt(wc.get("avg_sleep_score"))}</td><td>{_fmt(wc.get("avg_hrv"))}</td><td>{_fmt(wc.get("avg_deep_minutes"))}</td><td>{_fmt(wc.get("avg_rem_minutes"))}</td></tr>'
+            rows += (
+                f"<tr><td>Wk {ws['iso_week']}</td>"
+                f"<td>{_fmt(wc.get('avg_sleep_score'))}</td>"
+                f"<td>{_fmt(wc.get('avg_hrv'))}</td>"
+                f"<td>{_fmt(wc.get('avg_deep_minutes'))}</td>"
+                f"<td>{_fmt(wc.get('avg_rem_minutes'))}</td></tr>"
+            )
         weekly_html = f"""
         <h2>Weekly Breakdown</h2>
         <table>
@@ -659,23 +688,20 @@ def render_monthly_html(report: dict[str, Any]) -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Somnus Monthly Report — {r['month_name']} {r['year']}</title>
+<title>Somnus Monthly Report — {r["month_name"]} {r["year"]}</title>
 <style>{_CIRCADIAN_CSS}</style>
 </head>
 <body>
-<h1>Monthly Report — {r['month_name']} {r['year']}</h1>
-<p>{r['period_start']} to {r['period_end']}</p>
-<p class="muted">Logged {r['logging_completeness']}</p>
+<h1>Monthly Report — {r["month_name"]} {r["year"]}</h1>
+<p>{r["period_start"]} to {r["period_end"]}</p>
+<p class="muted">Logged {r["logging_completeness"]}</p>
 
-{"<p><em>Insufficient data for full analysis.</em></p>" if r['has_insufficient_data'] else ""}
+{"<p><em>Insufficient data for full analysis.</em></p>" if r["has_insufficient_data"] else ""}
 
 <h2>Metrics</h2>
 <table>
 <tr><th>Metric</th><th>This Month</th><th>Prior Month</th><th>Trend</th></tr>
-<tr><td>Sleep Score</td><td>{_fmt(cur.get('avg_sleep_score'))}</td><td>{_fmt(pri.get('avg_sleep_score'))}</td><td>{_trend_html(trends.get('sleep_score'))}</td></tr>
-<tr><td>HRV</td><td>{_fmt(cur.get('avg_hrv'))}</td><td>{_fmt(pri.get('avg_hrv'))}</td><td>{_trend_html(trends.get('avg_hrv'))}</td></tr>
-<tr><td>Deep Sleep</td><td>{_fmt(cur.get('avg_deep_minutes'))} min</td><td>{_fmt(pri.get('avg_deep_minutes'))} min</td><td>{_trend_html(trends.get('deep_minutes'))}</td></tr>
-<tr><td>REM Sleep</td><td>{_fmt(cur.get('avg_rem_minutes'))} min</td><td>{_fmt(pri.get('avg_rem_minutes'))} min</td><td>{_trend_html(trends.get('rem_minutes'))}</td></tr>
+{_metric_rows_html(cur, pri, trends)}
 </table>
 
 {best_worst_html}

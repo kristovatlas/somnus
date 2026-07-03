@@ -84,7 +84,9 @@ class TestOuraClient:
         mock_resp.json.return_value = SAMPLE_DAILY_SLEEP
 
         with patch("httpx.Client") as mock_http:
-            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=MagicMock(return_value=mock_resp)))
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
             mock_http.return_value.__exit__ = MagicMock(return_value=False)
             result = client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
 
@@ -98,7 +100,9 @@ class TestOuraClient:
         mock_resp.json.return_value = SAMPLE_DAILY_READINESS
 
         with patch("httpx.Client") as mock_http:
-            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=MagicMock(return_value=mock_resp)))
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
             mock_http.return_value.__exit__ = MagicMock(return_value=False)
             result = client.get_daily_readiness(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
 
@@ -112,7 +116,9 @@ class TestOuraClient:
         mock_resp.json.return_value = SAMPLE_SLEEP_PERIODS
 
         with patch("httpx.Client") as mock_http:
-            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=MagicMock(return_value=mock_resp)))
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
             mock_http.return_value.__exit__ = MagicMock(return_value=False)
             result = client.get_sleep_periods(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
 
@@ -125,7 +131,9 @@ class TestOuraClient:
         mock_resp.status_code = 401
 
         with patch("httpx.Client") as mock_http:
-            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=MagicMock(return_value=mock_resp)))
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
             mock_http.return_value.__exit__ = MagicMock(return_value=False)
             with pytest.raises(OuraAPIError) as exc_info:
                 client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
@@ -139,7 +147,9 @@ class TestOuraClient:
         mock_resp.status_code = 429
 
         with patch("httpx.Client") as mock_http:
-            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=MagicMock(return_value=mock_resp)))
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
             mock_http.return_value.__exit__ = MagicMock(return_value=False)
             with pytest.raises(OuraAPIError) as exc_info:
                 client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
@@ -229,7 +239,9 @@ class TestOuraClient:
         mock_resp.status_code = 500
 
         with patch("httpx.Client") as mock_http:
-            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=MagicMock(return_value=mock_resp)))
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
             mock_http.return_value.__exit__ = MagicMock(return_value=False)
             with pytest.raises(OuraAPIError) as exc_info:
                 client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
@@ -269,9 +281,7 @@ class TestBuildSleepRecords:
         assert r["wake_time"] is not None
 
     def test_sleep_only_no_readiness(self) -> None:
-        records = build_sleep_records(
-            SAMPLE_DAILY_SLEEP["data"], [], SAMPLE_SLEEP_PERIODS["data"]
-        )
+        records = build_sleep_records(SAMPLE_DAILY_SLEEP["data"], [], SAMPLE_SLEEP_PERIODS["data"])
         r = records["2026-02-15"]
         assert r["sleep_score"] == 82
         assert "readiness_score" not in r
@@ -358,8 +368,8 @@ class TestSyncEndpoint:
     def test_sync_happy_path(self, client: TestClient, db: Session) -> None:
         self._set_token(db)
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.return_value = SAMPLE_DAILY_SLEEP["data"]
             instance.get_daily_readiness.return_value = SAMPLE_DAILY_READINESS["data"]
             instance.get_sleep_periods.return_value = SAMPLE_SLEEP_PERIODS["data"]
@@ -388,8 +398,8 @@ class TestSyncEndpoint:
         db.add(existing)
         db.commit()
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.return_value = SAMPLE_DAILY_SLEEP["data"]
             instance.get_daily_readiness.return_value = SAMPLE_DAILY_READINESS["data"]
             instance.get_sleep_periods.return_value = SAMPLE_SLEEP_PERIODS["data"]
@@ -403,8 +413,8 @@ class TestSyncEndpoint:
     def test_sync_updates_last_oura_sync(self, client: TestClient, db: Session) -> None:
         self._set_token(db)
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.return_value = []
             instance.get_daily_readiness.return_value = []
             instance.get_sleep_periods.return_value = []
@@ -422,8 +432,8 @@ class TestSyncEndpoint:
         settings.last_oura_sync = dt.datetime(2026, 2, 10, 12, 0, 0)
         db.commit()
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.return_value = []
             instance.get_daily_readiness.return_value = []
             instance.get_sleep_periods.return_value = []
@@ -436,10 +446,12 @@ class TestSyncEndpoint:
     def test_sync_invalid_token_returns_error(self, client: TestClient, db: Session) -> None:
         self._set_token(db)
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.side_effect = OuraAPIError(
-                401, "Oura token is invalid or expired. Generate a new one at cloud.ouraring.com/personal-access-tokens"
+                401,
+                "Oura token is invalid or expired. "
+                "Generate a new one at cloud.ouraring.com/personal-access-tokens",
             )
 
             resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
@@ -450,8 +462,8 @@ class TestSyncEndpoint:
     def test_sync_rate_limit_returns_429(self, client: TestClient, db: Session) -> None:
         self._set_token(db)
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.side_effect = OuraAPIError(
                 429, "Oura API rate limit reached. Try again in a few minutes."
             )
@@ -463,8 +475,8 @@ class TestSyncEndpoint:
     def test_sync_partial_data_reports_errors(self, client: TestClient, db: Session) -> None:
         self._set_token(db)
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.return_value = SAMPLE_DAILY_SLEEP["data"]
             instance.get_daily_readiness.side_effect = OuraAPIError(500, "Server error")
             instance.get_sleep_periods.side_effect = OuraAPIError(500, "Server error")
@@ -480,8 +492,8 @@ class TestSyncEndpoint:
         """Verify the Oura token value never appears in sync responses."""
         self._set_token(db, token="super-secret-oura-token")
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.return_value = []
             instance.get_daily_readiness.return_value = []
             instance.get_sleep_periods.return_value = []
@@ -493,8 +505,8 @@ class TestSyncEndpoint:
     def test_sync_connection_error(self, client: TestClient, db: Session) -> None:
         self._set_token(db)
 
-        with patch("backend.routers.oura.OuraClient") as MockClient:
-            instance = MockClient.return_value
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
             instance.get_daily_sleep.side_effect = OuraAPIError(
                 0, "Could not connect to Oura API. Check your internet connection."
             )
