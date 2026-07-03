@@ -135,9 +135,9 @@ export type CaffeineSensitivity =
 
 export const CAFFEINE_SENSITIVITY_LABELS: Record<CaffeineSensitivity, string> =
   {
-    fast: "Fast (2.5h half-life)",
-    normal: "Normal (4h half-life)",
-    slow: "Slow (6h half-life)",
+    fast: "Fast — evening coffee doesn't keep me up (2.5h half-life)",
+    normal: "Normal — afternoon coffee is fine, evening isn't (4h half-life)",
+    slow: "Slow — coffee after noon keeps me up (6h half-life)",
   };
 
 export const Chronotype = {

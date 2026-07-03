@@ -1,11 +1,14 @@
 import { useState } from "react";
 
+// data-storage intentionally precedes oura: the Oura token is persisted into
+// the SQLite file, so users must learn how to relocate it (e.g. onto an
+// encrypted volume) BEFORE any secret is written (issue #8)
 export const ONBOARDING_STEPS = [
   "welcome",
+  "data-storage",
   "oura",
   "sleep-profile",
   "tracking-setup",
-  "data-storage",
   "done",
 ] as const;
 

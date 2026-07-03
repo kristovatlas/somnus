@@ -19,6 +19,24 @@ interface SleepProfileStepProps {
   onBack: () => void;
 }
 
+// Synthetic select option representing "no self-assessment" (chronotype null)
+const CHRONOTYPE_UNKNOWN = "unknown";
+type ChronotypeChoice = Chronotype | typeof CHRONOTYPE_UNKNOWN;
+const CHRONOTYPE_CHOICES: readonly ChronotypeChoice[] = [
+  CHRONOTYPE_UNKNOWN,
+  ...Object.values(Chronotype),
+];
+const CHRONOTYPE_CHOICE_LABELS: Record<ChronotypeChoice, string> = {
+  [CHRONOTYPE_UNKNOWN]: "Not sure — infer it from my data",
+  ...CHRONOTYPE_LABELS,
+};
+
+const hintStyle = {
+  color: "var(--color-text-muted)",
+  fontSize: "0.8rem",
+  margin: "-0.5rem 0 0",
+} as const;
+
 export function SleepProfileStep({
   typicalBedtime,
   targetWakeTime,
@@ -58,13 +76,25 @@ export function SleepProfileStep({
           options={Object.values(CaffeineSensitivity)}
           labels={CAFFEINE_SENSITIVITY_LABELS}
         />
+        <p style={hintStyle}>
+          Rule of thumb: if coffee at 5 PM doesn't affect your sleep you're
+          fast; if coffee after noon keeps you up you're slow. Not sure? Leave
+          it on normal — your data will tell.
+        </p>
         <SelectInput
           label="Chronotype"
-          value={chronotype ?? Chronotype.INTERMEDIATE}
-          onChange={(v) => onUpdate({ chronotype: v })}
-          options={Object.values(Chronotype)}
-          labels={CHRONOTYPE_LABELS}
+          value={chronotype ?? CHRONOTYPE_UNKNOWN}
+          onChange={(v) =>
+            onUpdate({ chronotype: v === CHRONOTYPE_UNKNOWN ? null : v })
+          }
+          options={CHRONOTYPE_CHOICES}
+          labels={CHRONOTYPE_CHOICE_LABELS}
         />
+        <p style={hintStyle}>
+          "Not sure" is a great default: after ~30 days Somnus infers your
+          chronotype from when you actually sleep. Self-labels like "night owl"
+          often reflect habits rather than biology and can bias your analysis.
+        </p>
       </div>
 
       <StepNavigation

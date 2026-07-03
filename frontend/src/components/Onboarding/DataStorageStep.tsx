@@ -15,8 +15,9 @@ export function DataStorageStep({ onNext, onBack }: DataStorageStepProps) {
           margin: "0.5rem 0 1.5rem",
         }}
       >
-        All your sleep and health data is stored locally on your machine.
-        Nothing is sent to external servers.
+        All your sleep and health data — including the Oura token you can add in
+        the next step — is stored in a local SQLite database. Nothing is sent to
+        external servers.
       </p>
 
       <ul
@@ -26,10 +27,17 @@ export function DataStorageStep({ onNext, onBack }: DataStorageStepProps) {
           lineHeight: 2,
         }}
       >
-        <li>Data stored in a local SQLite database</li>
-        <li>Export your data anytime as JSON</li>
+        <li>
+          Default location: <code>~/.somnus/somnus.db</code>
+        </li>
+        <li>
+          Prefer an encrypted volume? Quit and relaunch with{" "}
+          <code>SOMNUS_DB_PATH=/your/path/somnus.db</code> now — before
+          connecting Oura — so your token is never written to the default
+          location.
+        </li>
+        <li>Export your data anytime as CSV or JSON</li>
         <li>No cloud accounts required</li>
-        <li>Oura data fetched directly to your machine</li>
       </ul>
 
       <StepNavigation

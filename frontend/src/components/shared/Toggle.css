@@ -11,6 +11,25 @@
   color: var(--color-text-secondary);
 }
 
+.toggle-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toggle-state {
+  font-size: 0.7rem;
+  min-width: 1.6rem;
+  text-align: right;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.toggle-state--on {
+  color: var(--color-text-accent);
+  font-weight: 600;
+}
+
 .toggle-track {
   position: relative;
   width: 44px;
