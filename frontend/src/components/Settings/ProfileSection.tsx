@@ -1,38 +1,48 @@
-import { useState } from 'react'
-import { NumberInput } from '../shared/NumberInput'
-import { SelectInput } from '../shared/SelectInput'
-import { TimePicker } from '../shared/TimePicker'
-import type { UserSettingsOut, UserSettingsUpdate } from '../../types'
+import { useState } from "react";
+import { NumberInput } from "../shared/NumberInput";
+import { SelectInput } from "../shared/SelectInput";
+import { TimePicker } from "../shared/TimePicker";
+import type { UserSettingsOut, UserSettingsUpdate } from "../../types";
 import {
   CaffeineSensitivity,
   CAFFEINE_SENSITIVITY_LABELS,
   Chronotype,
   CHRONOTYPE_LABELS,
-} from '../../types'
+} from "../../types";
 
 interface ProfileSectionProps {
-  settings: UserSettingsOut
-  onUpdate: (data: UserSettingsUpdate) => Promise<UserSettingsOut>
+  settings: UserSettingsOut;
+  onUpdate: (data: UserSettingsUpdate) => Promise<UserSettingsOut>;
 }
 
-const CHRONOTYPE_OPTIONS = [Chronotype.EARLY, Chronotype.INTERMEDIATE, Chronotype.LATE] as const
-const SENSITIVITY_OPTIONS = [CaffeineSensitivity.FAST, CaffeineSensitivity.NORMAL, CaffeineSensitivity.SLOW] as const
+const CHRONOTYPE_OPTIONS = [
+  Chronotype.EARLY,
+  Chronotype.INTERMEDIATE,
+  Chronotype.LATE,
+] as const;
+const SENSITIVITY_OPTIONS = [
+  CaffeineSensitivity.FAST,
+  CaffeineSensitivity.NORMAL,
+  CaffeineSensitivity.SLOW,
+] as const;
 
 export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving] = useState(false);
 
   async function handleChange(data: UserSettingsUpdate) {
-    setSaving(true)
+    setSaving(true);
     try {
-      await onUpdate(data)
+      await onUpdate(data);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   return (
     <section className="settings-section">
-      <h2 className="settings-section-title">Profile {saving && <span className="settings-saving">Saving...</span>}</h2>
+      <h2 className="settings-section-title">
+        Profile {saving && <span className="settings-saving">Saving...</span>}
+      </h2>
 
       <div className="settings-fields">
         <NumberInput
@@ -44,7 +54,9 @@ export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
         />
 
         <div className="settings-field">
-          <label className="settings-field-label" htmlFor="timezone">Timezone</label>
+          <label className="settings-field-label" htmlFor="timezone">
+            Timezone
+          </label>
           <input
             id="timezone"
             type="text"
@@ -93,5 +105,5 @@ export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
         />
       </div>
     </section>
-  )
+  );
 }

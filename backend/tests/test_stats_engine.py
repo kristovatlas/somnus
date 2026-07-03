@@ -1,6 +1,7 @@
 """Tests for the statistical analysis engine."""
 
 import datetime as dt
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -27,11 +28,10 @@ from backend.services.stats_engine import (
     prepare_analysis_dataframe,
 )
 
-
 # --- Helpers ---
 
 
-def _make_sleep_record(db: Session, date: dt.date, **kwargs) -> SleepRecord:
+def _make_sleep_record(db: Session, date: dt.date, **kwargs: Any) -> SleepRecord:
     defaults = {
         "sleep_score": 80,
         "deep_minutes": 70,
@@ -50,31 +50,30 @@ def _make_sleep_record(db: Session, date: dt.date, **kwargs) -> SleepRecord:
     return rec
 
 
-def _make_daily_log(db: Session, date: dt.date, **kwargs) -> DailyLog:
+def _make_daily_log(db: Session, date: dt.date, **kwargs: Any) -> DailyLog:
     log = DailyLog(date=date, **kwargs)
     db.add(log)
     return log
 
 
-def _seed_correlated_data(db: Session, n: int = 30, positive: bool = True):
+def _seed_correlated_data(db: Session, n: int = 30, positive: bool = True) -> None:
     """Seed n days of perfectly correlated caffeine → sleep_score data."""
     base_date = dt.date(2025, 1, 1)
     for i in range(n):
         d = base_date + dt.timedelta(days=i)
         caffeine_mg = 100 + i * 10
-        if positive:
-            score = 60 + i
-        else:
-            score = 90 - i
+        score = 60 + i if positive else 90 - i
 
         _make_sleep_record(db, d, sleep_score=score)
-        log = _make_daily_log(db, d)
-        db.add(CaffeineEntry(
-            date=d,
-            time=dt.time(8, 0),
-            amount_mg=caffeine_mg,
-            source="drip_coffee",
-        ))
+        _make_daily_log(db, d)
+        db.add(
+            CaffeineEntry(
+                date=d,
+                time=dt.time(8, 0),
+                amount_mg=caffeine_mg,
+                source="drip_coffee",
+            )
+        )
     db.commit()
 
 
@@ -82,11 +81,11 @@ def _seed_correlated_data(db: Session, n: int = 30, positive: bool = True):
 
 
 class TestPrepareAnalysisDataframe:
-    def test_empty_db(self, db: Session):
+    def test_empty_db(self, db: Session) -> None:
         df = prepare_analysis_dataframe(db)
         assert df.empty
 
-    def test_sleep_records_only(self, db: Session):
+    def test_sleep_records_only(self, db: Session) -> None:
         _make_sleep_record(db, dt.date(2025, 1, 1))
         _make_sleep_record(db, dt.date(2025, 1, 2))
         db.commit()
@@ -96,31 +95,35 @@ class TestPrepareAnalysisDataframe:
         assert "sleep_score" in df.columns
         assert "bedtime_hour" in df.columns
 
-    def test_daily_logs_only(self, db: Session):
+    def test_daily_logs_only(self, db: Session) -> None:
         """Daily logs without sleep records → empty DataFrame (no outcomes)."""
         _make_daily_log(db, dt.date(2025, 1, 1))
-        db.add(CaffeineEntry(
-            date=dt.date(2025, 1, 1),
-            time=dt.time(8, 0),
-            amount_mg=200,
-            source="espresso",
-        ))
+        db.add(
+            CaffeineEntry(
+                date=dt.date(2025, 1, 1),
+                time=dt.time(8, 0),
+                amount_mg=200,
+                source="espresso",
+            )
+        )
         db.commit()
 
         df = prepare_analysis_dataframe(db)
         # No sleep records means nothing to analyze
         assert df.empty
 
-    def test_joined_data(self, db: Session):
+    def test_joined_data(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
         _make_sleep_record(db, d)
         _make_daily_log(db, d)
-        db.add(CaffeineEntry(
-            date=d,
-            time=dt.time(8, 0),
-            amount_mg=150,
-            source="drip_coffee",
-        ))
+        db.add(
+            CaffeineEntry(
+                date=d,
+                time=dt.time(8, 0),
+                amount_mg=150,
+                source="drip_coffee",
+            )
+        )
         db.commit()
 
         df = prepare_analysis_dataframe(db)
@@ -128,7 +131,7 @@ class TestPrepareAnalysisDataframe:
         assert df.iloc[0]["total_caffeine_mg"] == 150
         assert df.iloc[0]["sleep_score"] == 80
 
-    def test_null_handling_nan_not_zero(self, db: Session):
+    def test_null_handling_nan_not_zero(self, db: Session) -> None:
         """Missing data should be NaN, never zero (ADR 003)."""
         d = dt.date(2025, 1, 1)
         _make_sleep_record(db, d)
@@ -138,11 +141,12 @@ class TestPrepareAnalysisDataframe:
         df = prepare_analysis_dataframe(db)
         assert pd.isna(df.iloc[0]["total_caffeine_mg"])
 
-    def test_bedtime_hour_normalization(self, db: Session):
+    def test_bedtime_hour_normalization(self, db: Session) -> None:
         """Bedtime after midnight should be 24+ hours."""
         d = dt.date(2025, 1, 1)
         _make_sleep_record(
-            db, d,
+            db,
+            d,
             bedtime=dt.datetime(2024, 12, 31, 0, 30),  # 12:30 AM
         )
         db.commit()
@@ -150,12 +154,13 @@ class TestPrepareAnalysisDataframe:
         df = prepare_analysis_dataframe(db)
         assert df.iloc[0]["bedtime_hour"] == pytest.approx(24.5)
 
-    def test_sleep_midpoint_computed(self, db: Session):
+    def test_sleep_midpoint_computed(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
         _make_sleep_record(
-            db, d,
+            db,
+            d,
             bedtime=dt.datetime(2024, 12, 31, 22, 0),  # 10 PM
-            wake_time=dt.datetime(2025, 1, 1, 6, 0),   # 6 AM
+            wake_time=dt.datetime(2025, 1, 1, 6, 0),  # 6 AM
         )
         db.commit()
 
@@ -170,7 +175,7 @@ class TestPrepareAnalysisDataframe:
         # This is expected behavior for the code as written
         assert df.iloc[0]["sleep_midpoint_hour"] == pytest.approx(14.0)
 
-    def test_is_weekend_flag(self, db: Session):
+    def test_is_weekend_flag(self, db: Session) -> None:
         # 2025-01-04 is a Saturday
         _make_sleep_record(db, dt.date(2025, 1, 4))
         # 2025-01-06 is a Monday
@@ -183,7 +188,7 @@ class TestPrepareAnalysisDataframe:
         assert saturday_row["is_weekend"] == True  # noqa: E712
         assert monday_row["is_weekend"] == False  # noqa: E712
 
-    def test_habit_aggregation(self, db: Session):
+    def test_habit_aggregation(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
         _make_sleep_record(db, d)
         _make_daily_log(db, d)
@@ -198,7 +203,7 @@ class TestPrepareAnalysisDataframe:
         assert df.iloc[0]["exercise_duration_minutes"] == 45
         assert df.iloc[0]["stress_level"] == 7.0
 
-    def test_rolling_consistency(self, db: Session):
+    def test_rolling_consistency(self, db: Session) -> None:
         """sigma_7d and delta_7d are computed from bedtime_hour rolling window."""
         base = dt.date(2025, 1, 1)
         for i in range(7):
@@ -213,7 +218,7 @@ class TestPrepareAnalysisDataframe:
         # After 7 days, rolling window should have values
         assert not pd.isna(df.iloc[-1]["sigma_7d"])
 
-    def test_sunlight_aggregation(self, db: Session):
+    def test_sunlight_aggregation(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
         _make_sleep_record(db, d)
         _make_daily_log(db, d)
@@ -224,7 +229,7 @@ class TestPrepareAnalysisDataframe:
         assert df.iloc[0]["sunlight_morning_minutes"] == 20
         assert df.iloc[0]["sunlight_first_hour"] == pytest.approx(7.5)
 
-    def test_nap_aggregation(self, db: Session):
+    def test_nap_aggregation(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
         _make_sleep_record(db, d)
         _make_daily_log(db, d)
@@ -241,7 +246,7 @@ class TestPrepareAnalysisDataframe:
 
 
 class TestGetDataStatus:
-    def test_empty_dataframe(self):
+    def test_empty_dataframe(self) -> None:
         df = pd.DataFrame()
         status = get_data_status(df)
         assert status["total_sleep_days"] == 0
@@ -249,7 +254,7 @@ class TestGetDataStatus:
         assert status["phase_b_unlocked"] is False
         assert status["phase_c_unlocked"] is False
 
-    def test_insufficient_data(self, db: Session):
+    def test_insufficient_data(self, db: Session) -> None:
         for i in range(10):
             _make_sleep_record(db, dt.date(2025, 1, 1) + dt.timedelta(days=i))
         db.commit()
@@ -259,7 +264,7 @@ class TestGetDataStatus:
         assert status["total_sleep_days"] == 10
         assert status["phase_a_unlocked"] is False
 
-    def test_phase_a_unlocked(self, db: Session):
+    def test_phase_a_unlocked(self, db: Session) -> None:
         for i in range(15):
             d = dt.date(2025, 1, 1) + dt.timedelta(days=i)
             _make_sleep_record(db, d)
@@ -270,9 +275,11 @@ class TestGetDataStatus:
         df = prepare_analysis_dataframe(db)
         status = get_data_status(df)
         assert status["phase_a_unlocked"] is True
-        assert any(v["name"] == "total_caffeine_mg" and v["has_correlations"] for v in status["variables"])
+        assert any(
+            v["name"] == "total_caffeine_mg" and v["has_correlations"] for v in status["variables"]
+        )
 
-    def test_phase_c_requires_30_bedtime_days(self, db: Session):
+    def test_phase_c_requires_30_bedtime_days(self, db: Session) -> None:
         for i in range(30):
             d = dt.date(2025, 1, 1) + dt.timedelta(days=i)
             _make_sleep_record(db, d)
@@ -287,38 +294,40 @@ class TestGetDataStatus:
 
 
 class TestComputeCorrelations:
-    def test_empty_dataframe(self):
+    def test_empty_dataframe(self) -> None:
         df = pd.DataFrame()
         results, sick = compute_correlations(df)
         assert results == []
         assert sick == 0
 
-    def test_positive_correlation(self, db: Session):
+    def test_positive_correlation(self, db: Session) -> None:
         _seed_correlated_data(db, n=30, positive=True)
         df = prepare_analysis_dataframe(db)
         results, _ = compute_correlations(df)
 
         # Find caffeine → sleep_score correlation
         caff_score = [
-            r for r in results
+            r
+            for r in results
             if r["predictor"] == "total_caffeine_mg" and r["outcome"] == "sleep_score"
         ]
         assert len(caff_score) == 1
         assert caff_score[0]["pearson_r"] > 0.9  # Near-perfect positive
 
-    def test_negative_correlation(self, db: Session):
+    def test_negative_correlation(self, db: Session) -> None:
         _seed_correlated_data(db, n=30, positive=False)
         df = prepare_analysis_dataframe(db)
         results, _ = compute_correlations(df)
 
         caff_score = [
-            r for r in results
+            r
+            for r in results
             if r["predictor"] == "total_caffeine_mg" and r["outcome"] == "sleep_score"
         ]
         assert len(caff_score) == 1
         assert caff_score[0]["pearson_r"] < -0.9  # Near-perfect negative
 
-    def test_r_values_in_range(self, db: Session):
+    def test_r_values_in_range(self, db: Session) -> None:
         _seed_correlated_data(db, n=30)
         df = prepare_analysis_dataframe(db)
         results, _ = compute_correlations(df)
@@ -327,7 +336,7 @@ class TestComputeCorrelations:
             assert -1.0 <= r["pearson_r"] <= 1.0
             assert -1.0 <= r["spearman_r"] <= 1.0
 
-    def test_insufficient_data_skipped(self, db: Session):
+    def test_insufficient_data_skipped(self, db: Session) -> None:
         """Less than min_days pairs → no results."""
         for i in range(5):
             d = dt.date(2025, 1, 1) + dt.timedelta(days=i)
@@ -342,7 +351,7 @@ class TestComputeCorrelations:
         caff_results = [r for r in results if r["predictor"] == "total_caffeine_mg"]
         assert len(caff_results) == 0
 
-    def test_sick_days_excluded(self, db: Session):
+    def test_sick_days_excluded(self, db: Session) -> None:
         _seed_correlated_data(db, n=20)
         # Add sick days
         for i in range(20, 25):
@@ -356,7 +365,7 @@ class TestComputeCorrelations:
         _, sick_count = compute_correlations(df)
         assert sick_count == 5
 
-    def test_sorted_by_abs_r(self, db: Session):
+    def test_sorted_by_abs_r(self, db: Session) -> None:
         _seed_correlated_data(db, n=30)
         df = prepare_analysis_dataframe(db)
         results, _ = compute_correlations(df)
@@ -365,7 +374,7 @@ class TestComputeCorrelations:
             for i in range(len(results) - 1):
                 assert abs(results[i]["pearson_r"]) >= abs(results[i + 1]["pearson_r"])
 
-    def test_confidence_levels(self, db: Session):
+    def test_confidence_levels(self, db: Session) -> None:
         _seed_correlated_data(db, n=20)
         df = prepare_analysis_dataframe(db)
         results, _ = compute_correlations(df, min_days=14)
@@ -383,18 +392,18 @@ class TestComputeCorrelations:
 
 
 class TestDetectOutliers:
-    def test_empty_dataframe(self):
+    def test_empty_dataframe(self) -> None:
         df = pd.DataFrame()
         assert detect_outliers(df) == {}
 
-    def test_no_outliers(self):
+    def test_no_outliers(self) -> None:
         # Normal-looking data
         data = {"sleep_score": [80, 82, 78, 81, 79, 83, 80, 82, 78, 81]}
         df = pd.DataFrame(data, index=pd.date_range("2025-01-01", periods=10))
         outliers = detect_outliers(df, columns=["sleep_score"])
         assert "sleep_score" not in outliers
 
-    def test_detects_outlier(self):
+    def test_detects_outlier(self) -> None:
         # One extreme value
         scores = [80] * 20 + [200]  # z > 3 for the outlier
         dates = pd.date_range("2025-01-01", periods=21)
@@ -403,7 +412,7 @@ class TestDetectOutliers:
         assert "sleep_score" in outliers
         assert len(outliers["sleep_score"]) == 1
 
-    def test_z_score_math(self):
+    def test_z_score_math(self) -> None:
         """Manually verify z-score calculation."""
         vals = [10.0] * 50 + [100.0]
         dates = pd.date_range("2025-01-01", periods=51)
@@ -422,11 +431,11 @@ class TestDetectOutliers:
 
 
 class TestComputeRegression:
-    def test_empty_dataframe(self):
+    def test_empty_dataframe(self) -> None:
         df = pd.DataFrame()
         assert compute_regression(df, "sleep_score") is None
 
-    def test_insufficient_data(self, db: Session):
+    def test_insufficient_data(self, db: Session) -> None:
         for i in range(10):
             d = dt.date(2025, 1, 1) + dt.timedelta(days=i)
             _make_sleep_record(db, d)
@@ -437,7 +446,7 @@ class TestComputeRegression:
         df = prepare_analysis_dataframe(db)
         assert compute_regression(df, "sleep_score", min_days=50) is None
 
-    def test_basic_regression(self, db: Session):
+    def test_basic_regression(self, db: Session) -> None:
         """With enough correlated data, regression should return a result."""
         _seed_correlated_data(db, n=60, positive=False)
         df = prepare_analysis_dataframe(db)
@@ -448,7 +457,7 @@ class TestComputeRegression:
         assert 0 <= result["r_squared"] <= 1.0
         assert len(result["coefficients"]) > 0
 
-    def test_regression_coefficients_have_ci(self, db: Session):
+    def test_regression_coefficients_have_ci(self, db: Session) -> None:
         _seed_correlated_data(db, n=60)
         df = prepare_analysis_dataframe(db)
         result = compute_regression(df, "sleep_score", min_days=14)
@@ -459,7 +468,7 @@ class TestComputeRegression:
             assert "ci_upper" in coef
             assert coef["ci_lower"] <= coef["ci_upper"]
 
-    def test_regression_stationarity_check(self, db: Session):
+    def test_regression_stationarity_check(self, db: Session) -> None:
         _seed_correlated_data(db, n=60)
         df = prepare_analysis_dataframe(db)
         result = compute_regression(df, "sleep_score", min_days=14)
@@ -473,6 +482,6 @@ class TestComputeRegression:
 
 
 class TestVariableLabels:
-    def test_all_columns_have_labels(self):
+    def test_all_columns_have_labels(self) -> None:
         for col in OUTCOME_COLUMNS + PREDICTOR_COLUMNS:
             assert col in VARIABLE_LABELS, f"Missing label for {col}"

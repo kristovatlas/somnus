@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 from typing import Any
 
@@ -113,14 +114,14 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     # Caffeine
     if log.caffeine_entries:
         row["total_caffeine_mg"] = sum(e.amount_mg for e in log.caffeine_entries)
-        times = [_time_to_hour(e.time) for e in log.caffeine_entries if e.time is not None]
+        times = [h for e in log.caffeine_entries if (h := _time_to_hour(e.time)) is not None]
         row["last_caffeine_hour"] = max(times) if times else None
     else:
         row["total_caffeine_mg"] = None
         row["last_caffeine_hour"] = None
 
     # Meals
-    meal_times = [_time_to_hour(e.time) for e in log.meal_entries if e.time is not None]
+    meal_times = [h for e in log.meal_entries if (h := _time_to_hour(e.time)) is not None]
     last_meal_entries = [e for e in log.meal_entries if e.is_last_meal]
     if last_meal_entries and last_meal_entries[0].time is not None:
         row["last_meal_hour"] = _time_to_hour(last_meal_entries[0].time)
@@ -180,9 +181,9 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
         ]
         row["stimulating_minutes"] = sum(durations) if durations else None
         end_times = [
-            _time_to_hour(e.end_time)
+            h
             for e in log.stimulating_activity_entries
-            if e.end_time is not None
+            if (h := _time_to_hour(e.end_time)) is not None
         ]
         row["stimulating_last_hour"] = max(end_times) if end_times else None
     else:
@@ -201,8 +202,7 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     # Sunlight
     if log.sunlight_entries:
         morning_entries = [
-            e for e in log.sunlight_entries
-            if e.start_time is not None and e.start_time.hour < 12
+            e for e in log.sunlight_entries if e.start_time is not None and e.start_time.hour < 12
         ]
         if morning_entries:
             durations = [
@@ -210,9 +210,7 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
             ]
             row["sunlight_morning_minutes"] = sum(durations) if durations else None
             start_times = [
-                _time_to_hour(e.start_time)
-                for e in morning_entries
-                if e.start_time is not None
+                h for e in morning_entries if (h := _time_to_hour(e.start_time)) is not None
             ]
             row["sunlight_first_hour"] = min(start_times) if start_times else None
         else:
@@ -225,11 +223,7 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     # Red light
     if log.red_light_entries:
         row["red_light_done"] = 1.0
-        doses = [
-            e.dose_joules_cm2
-            for e in log.red_light_entries
-            if e.dose_joules_cm2 is not None
-        ]
+        doses = [e.dose_joules_cm2 for e in log.red_light_entries if e.dose_joules_cm2 is not None]
         row["red_light_dose_j_cm2"] = sum(doses) if doses else None
     else:
         row["red_light_done"] = None
@@ -248,9 +242,7 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     if log.pre_bed_ritual_entries:
         row["ritual_done"] = 1.0
         durations = [
-            e.duration_minutes
-            for e in log.pre_bed_ritual_entries
-            if e.duration_minutes is not None
+            e.duration_minutes for e in log.pre_bed_ritual_entries if e.duration_minutes is not None
         ]
         row["ritual_total_minutes"] = sum(durations) if durations else None
     else:
@@ -355,9 +347,7 @@ def prepare_analysis_dataframe(db: Session) -> pd.DataFrame:
 
     # Rolling consistency columns on bedtime_hour
     if "bedtime_hour" in df.columns:
-        df["sigma_7d"] = (
-            df["bedtime_hour"].rolling(window=7, min_periods=3).std() * 60
-        )
+        df["sigma_7d"] = df["bedtime_hour"].rolling(window=7, min_periods=3).std() * 60
         mean_7d = df["bedtime_hour"].rolling(window=7, min_periods=3).mean()
         df["delta_7d"] = (df["bedtime_hour"] - mean_7d).abs() * 60
     else:
@@ -387,13 +377,15 @@ def get_data_status(df: pd.DataFrame) -> dict[str, Any]:
         n = int(df[col].notna().sum())
         if n > max_n:
             max_n = n
-        variables.append({
-            "name": col,
-            "label": VARIABLE_LABELS.get(col, col),
-            "n_days": n,
-            "has_correlations": n >= 14,
-            "has_regression": n >= 50,
-        })
+        variables.append(
+            {
+                "name": col,
+                "label": VARIABLE_LABELS.get(col, col),
+                "n_days": n,
+                "has_correlations": n >= 14,
+                "has_regression": n >= 50,
+            }
+        )
 
     # Check bedtime data for phase C
     bedtime_days = int(df["bedtime_hour"].notna().sum()) if "bedtime_hour" in df.columns else 0
@@ -457,17 +449,19 @@ def compute_correlations(
             if np.isnan(pearson_r) or np.isnan(spearman_r):
                 continue
 
-            results.append({
-                "predictor": pred,
-                "predictor_label": VARIABLE_LABELS.get(pred, pred),
-                "outcome": outcome,
-                "outcome_label": VARIABLE_LABELS.get(outcome, outcome),
-                "pearson_r": round(float(pearson_r), 4),
-                "spearman_r": round(float(spearman_r), 4),
-                "p_value": round(float(p_val), 6),
-                "n_days": n,
-                "confidence": _confidence_level(n),
-            })
+            results.append(
+                {
+                    "predictor": pred,
+                    "predictor_label": VARIABLE_LABELS.get(pred, pred),
+                    "outcome": outcome,
+                    "outcome_label": VARIABLE_LABELS.get(outcome, outcome),
+                    "pearson_r": round(float(pearson_r), 4),
+                    "spearman_r": round(float(spearman_r), 4),
+                    "p_value": round(float(p_val), 6),
+                    "n_days": n,
+                    "confidence": _confidence_level(n),
+                }
+            )
 
     # Sort by absolute pearson_r descending
     results.sort(key=lambda r: abs(r["pearson_r"]), reverse=True)
@@ -556,10 +550,10 @@ def compute_regression(
 
     # Add lag-1 of outcome as autoregressive predictor
     work_df[f"{outcome}_lag1"] = work_df[outcome].shift(1)
-    all_predictors = available_predictors + [f"{outcome}_lag1"]
+    all_predictors = [*available_predictors, f"{outcome}_lag1"]
 
     # Drop rows with any NaN in selected columns
-    cols_needed = [outcome] + all_predictors
+    cols_needed = [outcome, *all_predictors]
     cols_present = [c for c in cols_needed if c in work_df.columns]
     clean_df = work_df[cols_present].dropna()
 
@@ -567,31 +561,31 @@ def compute_regression(
         return None
 
     y = clean_df[outcome]
-    X = clean_df[[c for c in all_predictors if c in clean_df.columns]]
+    x = clean_df[[c for c in all_predictors if c in clean_df.columns]]
 
     # Standardize predictors for comparable coefficients
-    X_means = X.mean()
-    X_stds = X.std()
+    x_means = x.mean()
+    x_stds = x.std()
     # Avoid division by zero for constant columns
-    X_stds = X_stds.replace(0, 1)
-    X_scaled = (X - X_means) / X_stds
+    x_stds = x_stds.replace(0, 1)
+    x_scaled = (x - x_means) / x_stds
 
-    X_const = sm.add_constant(X_scaled)
+    x_const = sm.add_constant(x_scaled)
 
     try:
-        model = sm.OLS(y, X_const).fit()
+        model = sm.OLS(y, x_const).fit()
     except Exception:
         return None
 
     # Compute VIF for each predictor
     excluded_predictors: list[str] = []
     multicollinearity_warning = False
-    vif_values: dict[str, float] = {}
+    vif_values: dict[str, float | None] = {}
 
-    if X_scaled.shape[1] > 1:
-        for i, col in enumerate(X_scaled.columns):
+    if x_scaled.shape[1] > 1:
+        for i, col in enumerate(x_scaled.columns):
             try:
-                vif = variance_inflation_factor(X_scaled.values, i)
+                vif = variance_inflation_factor(x_scaled.values, i)
                 if np.isfinite(vif):
                     vif_values[col] = round(float(vif), 2)
                     if vif > 5.0:
@@ -601,23 +595,22 @@ def compute_regression(
             except Exception:
                 vif_values[col] = None
 
-    # ADF test on residuals
+    # ADF test on residuals; statsmodels can fail on degenerate residuals,
+    # in which case we keep the optimistic default
     is_stationary = True
-    try:
+    with contextlib.suppress(Exception):
         adf_result = adfuller(model.resid, autolag="AIC")
         is_stationary = bool(adf_result[1] < 0.05)
-    except Exception:
-        pass
 
-    # ACF on residuals — check for autocorrelation
+    # ACF on residuals — check for autocorrelation (same degenerate-data fallback)
     has_autocorrelation = False
-    try:
+    with contextlib.suppress(Exception):
         acf_values = acf(model.resid, nlags=5, fft=False)
         # Significant if any lag 1-5 exceeds 2/sqrt(n) threshold
         threshold = 2 / np.sqrt(len(model.resid))
-        has_autocorrelation = bool(any(abs(acf_values[i]) > threshold for i in range(1, min(6, len(acf_values)))))
-    except Exception:
-        pass
+        has_autocorrelation = bool(
+            any(abs(acf_values[i]) > threshold for i in range(1, min(6, len(acf_values))))
+        )
 
     # Sanitize r_squared values
     r_sq = float(model.rsquared)
@@ -641,16 +634,18 @@ def compute_regression(
         if not np.isfinite(coef) or not np.isfinite(p_val):
             continue
 
-        coefficients.append({
-            "predictor": col,
-            "predictor_label": VARIABLE_LABELS.get(col, col),
-            "coefficient": round(coef, 4),
-            "ci_lower": round(float(ci[0]), 4) if np.isfinite(ci[0]) else None,
-            "ci_upper": round(float(ci[1]), 4) if np.isfinite(ci[1]) else None,
-            "p_value": round(p_val, 6),
-            "is_significant": p_val < 0.05,
-            "vif": vif_values.get(col),
-        })
+        coefficients.append(
+            {
+                "predictor": col,
+                "predictor_label": VARIABLE_LABELS.get(col, col),
+                "coefficient": round(coef, 4),
+                "ci_lower": round(float(ci[0]), 4) if np.isfinite(ci[0]) else None,
+                "ci_upper": round(float(ci[1]), 4) if np.isfinite(ci[1]) else None,
+                "p_value": round(p_val, 6),
+                "is_significant": p_val < 0.05,
+                "vif": vif_values.get(col),
+            }
+        )
 
     return {
         "outcome": outcome,

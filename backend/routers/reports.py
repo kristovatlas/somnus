@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -23,7 +25,7 @@ def weekly_report(
     year: int | None = Query(default=None, ge=1, le=9999),
     week: int | None = Query(default=None, ge=1, le=53),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Get a weekly summary report. Defaults to current ISO week."""
     return get_week_report(db, iso_year=year, iso_week=week)
 
@@ -33,7 +35,7 @@ def monthly_report(
     year: int | None = Query(default=None, ge=1, le=9999),
     month: int | None = Query(default=None, ge=1, le=12),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Get a monthly summary report. Defaults to current month."""
     return get_month_report(db, year=year, month=month)
 

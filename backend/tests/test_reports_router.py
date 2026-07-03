@@ -14,15 +14,17 @@ def _seed_week(client: TestClient, db: Session) -> None:
     """Add records for ISO week 8, 2026 (Feb 16-22)."""
     for i in range(5):
         d = dt.date(2026, 2, 16 + i)
-        db.add(SleepRecord(
-            date=d,
-            sleep_score=80 + i,
-            avg_hrv=40.0 + i,
-            deep_minutes=60 + i * 2,
-            rem_minutes=85 + i,
-            bedtime=dt.datetime(d.year, d.month, d.day - 1, 22, 30),
-            wake_time=dt.datetime(d.year, d.month, d.day, 6, 30),
-        ))
+        db.add(
+            SleepRecord(
+                date=d,
+                sleep_score=80 + i,
+                avg_hrv=40.0 + i,
+                deep_minutes=60 + i * 2,
+                rem_minutes=85 + i,
+                bedtime=dt.datetime(d.year, d.month, d.day - 1, 22, 30),
+                wake_time=dt.datetime(d.year, d.month, d.day, 6, 30),
+            )
+        )
         db.add(DailyLog(date=d))
     db.commit()
 

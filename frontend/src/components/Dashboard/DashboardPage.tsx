@@ -1,34 +1,39 @@
 /** Dashboard — aggregated sleep overview page. */
 
-import { useDashboard } from '../../hooks/useDashboard'
-import { useCaffeineDecay } from '../../hooks/useCaffeineDecay'
-import { CaffeineChart } from '../CaffeineChart/CaffeineChart'
-import { SleepScoreCard } from './SleepScoreCard'
-import { StageBreakdownBar } from './StageBreakdownBar'
-import { TrendSparklines } from './TrendSparklines'
-import { ConsistencyMeter } from './ConsistencyMeter'
-import { LoggingStreak } from './LoggingStreak'
-import { RedLightSummary } from './RedLightSummary'
-import { TopRecommendations } from './TopRecommendations'
-import './DashboardPage.css'
+import { useDashboard } from "../../hooks/useDashboard";
+import { useCaffeineDecay } from "../../hooks/useCaffeineDecay";
+import { CaffeineChart } from "../CaffeineChart/CaffeineChart";
+import { SleepScoreCard } from "./SleepScoreCard";
+import { StageBreakdownBar } from "./StageBreakdownBar";
+import { TrendSparklines } from "./TrendSparklines";
+import { ConsistencyMeter } from "./ConsistencyMeter";
+import { LoggingStreak } from "./LoggingStreak";
+import { RedLightSummary } from "./RedLightSummary";
+import { TopRecommendations } from "./TopRecommendations";
+import "./DashboardPage.css";
 
 export function DashboardPage() {
-  const { data, loading, error } = useDashboard()
+  const { data, loading, error } = useDashboard();
 
-  const caffeineEntries = data?.today_caffeine_entries ?? []
-  const sensitivity = data?.caffeine_sensitivity ?? 'normal'
-  const caffeinePoints = useCaffeineDecay(caffeineEntries, sensitivity)
+  const caffeineEntries = data?.today_caffeine_entries ?? [];
+  const sensitivity = data?.caffeine_sensitivity ?? "normal";
+  const caffeinePoints = useCaffeineDecay(caffeineEntries, sensitivity);
 
   const bedtimeHour = data?.typical_bedtime
-    ? Number(data.typical_bedtime.split(':')[0]) + Number(data.typical_bedtime.split(':')[1]) / 60
-    : null
+    ? Number(data.typical_bedtime.split(":")[0]) +
+      Number(data.typical_bedtime.split(":")[1]) / 60
+    : null;
 
   if (loading) {
-    return <div className="dashboard-empty">Loading dashboard...</div>
+    return <div className="dashboard-empty">Loading dashboard...</div>;
   }
 
   if (error || !data) {
-    return <div className="dashboard-error">{error ?? 'Failed to load dashboard.'}</div>
+    return (
+      <div className="dashboard-error">
+        {error ?? "Failed to load dashboard."}
+      </div>
+    );
   }
 
   return (
@@ -62,5 +67,5 @@ export function DashboardPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -32,7 +32,7 @@ def get_dashboard_data(db: Session, today: dt.date | None = None) -> dict[str, A
     settings = db.get(UserSettings, 1)
     age = settings.age if settings else None
     typical_bedtime = settings.typical_bedtime if settings else None
-    caffeine_sensitivity = (settings.caffeine_sensitivity if settings else "normal")
+    caffeine_sensitivity = settings.caffeine_sensitivity if settings else "normal"
 
     targets = get_stage_targets(age)
     sleep_record = _get_latest_sleep_record(db, today)
@@ -74,9 +74,7 @@ def get_dashboard_data(db: Session, today: dt.date | None = None) -> dict[str, A
     }
 
 
-def _get_latest_sleep_record(
-    db: Session, today: dt.date
-) -> SleepRecord | None:
+def _get_latest_sleep_record(db: Session, today: dt.date) -> SleepRecord | None:
     """Get today's sleep record, falling back to yesterday."""
     record = db.get(SleepRecord, today)
     if record is not None:
@@ -84,9 +82,7 @@ def _get_latest_sleep_record(
     return db.get(SleepRecord, today - dt.timedelta(days=1))
 
 
-def _get_trend_data(
-    db: Session, today: dt.date, *, days: int = 7
-) -> list[SleepRecord]:
+def _get_trend_data(db: Session, today: dt.date, *, days: int = 7) -> list[SleepRecord]:
     """Query the last N days of SleepRecords, oldest first."""
     start = today - dt.timedelta(days=days - 1)
     return (
@@ -119,9 +115,7 @@ def _compute_stage_averages(
     deep_vals = [r.deep_minutes for r in records if r.deep_minutes is not None]
     rem_vals = [r.rem_minutes for r in records if r.rem_minutes is not None]
     light_vals = [r.light_minutes for r in records if r.light_minutes is not None]
-    total_vals = [
-        r.total_sleep_minutes for r in records if r.total_sleep_minutes is not None
-    ]
+    total_vals = [r.total_sleep_minutes for r in records if r.total_sleep_minutes is not None]
 
     if not deep_vals and not rem_vals:
         return None
@@ -134,13 +128,9 @@ def _compute_stage_averages(
     deep_vs = "in_range"
     rem_vs = "in_range"
     if targets and deep_vals:
-        deep_vs = rate_stage_vs_target(
-            avg_deep, targets.deep_min_minutes, targets.deep_max_minutes
-        )
+        deep_vs = rate_stage_vs_target(avg_deep, targets.deep_min_minutes, targets.deep_max_minutes)
     if targets and rem_vals:
-        rem_vs = rate_stage_vs_target(
-            avg_rem, targets.rem_min_minutes, targets.rem_max_minutes
-        )
+        rem_vs = rate_stage_vs_target(avg_rem, targets.rem_min_minutes, targets.rem_max_minutes)
 
     days_counted = max(len(deep_vals), len(rem_vals))
 
@@ -172,11 +162,7 @@ def _compute_consistency(
     typical_bedtime: dt.time | None,
 ) -> dict[str, Any] | None:
     """Compute bedtime consistency metrics (σ, δ, Δ)."""
-    bedtime_data = [
-        (r.date, r.bedtime)
-        for r in records
-        if r.bedtime is not None
-    ]
+    bedtime_data = [(r.date, r.bedtime) for r in records if r.bedtime is not None]
 
     if len(bedtime_data) < 2:
         return None
@@ -201,7 +187,7 @@ def _compute_consistency(
     # Δ: weekend drift
     weekday_hours = []
     weekend_hours = []
-    for (date, _), hour in zip(bedtime_data, hours):
+    for (date, _), hour in zip(bedtime_data, hours, strict=True):
         if date.weekday() >= 5:  # Saturday=5, Sunday=6
             weekend_hours.append(hour)
         else:
@@ -210,9 +196,7 @@ def _compute_consistency(
     drift_minutes: float | None = None
     drift_rating: str | None = None
     if weekday_hours and weekend_hours:
-        drift_minutes = abs(
-            statistics.mean(weekend_hours) - statistics.mean(weekday_hours)
-        ) * 60
+        drift_minutes = abs(statistics.mean(weekend_hours) - statistics.mean(weekday_hours)) * 60
         drift_rating = rate_drift(drift_minutes)
 
     bedtime_dots = [
@@ -229,9 +213,7 @@ def _compute_consistency(
         "sigma_rating": sigma_rating,
         "delta_minutes": round(delta_minutes, 1) if delta_minutes is not None else None,
         "delta_rating": delta_rating,
-        "weekend_drift_minutes": (
-            round(drift_minutes, 1) if drift_minutes is not None else None
-        ),
+        "weekend_drift_minutes": (round(drift_minutes, 1) if drift_minutes is not None else None),
         "drift_rating": drift_rating,
         "bedtime_dots": bedtime_dots,
         "days_counted": len(bedtime_data),
@@ -261,9 +243,7 @@ def _get_red_light_summary(db: Session, today: dt.date) -> dict[str, Any]:
     )
 
     session_count = len(entries)
-    total_dose = sum(
-        e.dose_joules_cm2 for e in entries if e.dose_joules_cm2 is not None
-    )
+    total_dose = sum(e.dose_joules_cm2 for e in entries if e.dose_joules_cm2 is not None)
     days_with = len({e.date for e in entries})
 
     return {
@@ -276,8 +256,4 @@ def _get_red_light_summary(db: Session, today: dt.date) -> dict[str, Any]:
 
 def _get_today_caffeine(db: Session, today: dt.date) -> list[CaffeineEntry]:
     """Get today's caffeine entries for client-side chart rendering."""
-    return (
-        db.query(CaffeineEntry)
-        .filter(CaffeineEntry.date == today)
-        .all()
-    )
+    return db.query(CaffeineEntry).filter(CaffeineEntry.date == today).all()

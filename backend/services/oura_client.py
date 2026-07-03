@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+from typing import Any
 
 import httpx
 
@@ -29,7 +30,7 @@ class OuraClient:
     # Oura API rejects date ranges wider than ~30 days.
     _CHUNK_DAYS = 30
 
-    def _get(self, path: str, params: dict[str, str]) -> dict:
+    def _get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
         """Make an authenticated GET request to the Oura API."""
         try:
             with httpx.Client(timeout=30.0) as client:
@@ -38,24 +39,28 @@ class OuraClient:
                     params=params,
                     headers={"Authorization": f"Bearer {self._token}"},
                 )
-        except httpx.ConnectError:
-            raise OuraAPIError(0, "Could not connect to Oura API. Check your internet connection.")
+        except httpx.ConnectError as exc:
+            raise OuraAPIError(
+                0, "Could not connect to Oura API. Check your internet connection."
+            ) from exc
 
         if resp.status_code == 401:
             raise OuraAPIError(
                 401,
-                "Oura token is invalid or expired. Generate a new one at cloud.ouraring.com/personal-access-tokens",
+                "Oura token is invalid or expired. "
+                "Generate a new one at cloud.ouraring.com/personal-access-tokens",
             )
         if resp.status_code == 429:
             raise OuraAPIError(429, "Oura API rate limit reached. Try again in a few minutes.")
         if resp.status_code >= 400:
             raise OuraAPIError(resp.status_code, f"Oura API error (HTTP {resp.status_code})")
 
-        return resp.json()
+        data: dict[str, Any] = resp.json()
+        return data
 
-    def _get_paginated(self, path: str, params: dict[str, str]) -> list[dict]:
+    def _get_paginated(self, path: str, params: dict[str, str]) -> list[dict[str, Any]]:
         """Fetch all pages of a paginated Oura API endpoint."""
-        all_data: list[dict] = []
+        all_data: list[dict[str, Any]] = []
         current_params = dict(params)
         while True:
             data = self._get(path, current_params)
@@ -81,12 +86,10 @@ class OuraClient:
 
     def _get_chunked(
         self, path: str, start_date: dt.date, end_date: dt.date
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Fetch data across a large date range by chunking into smaller requests."""
-        all_data: list[dict] = []
-        for chunk_start, chunk_end in self._date_chunks(
-            start_date, end_date, self._CHUNK_DAYS
-        ):
+        all_data: list[dict[str, Any]] = []
+        for chunk_start, chunk_end in self._date_chunks(start_date, end_date, self._CHUNK_DAYS):
             results = self._get_paginated(
                 path,
                 {"start_date": str(chunk_start), "end_date": str(chunk_end)},
@@ -94,24 +97,18 @@ class OuraClient:
             all_data.extend(results)
         return all_data
 
-    def get_daily_sleep(
-        self, start_date: dt.date, end_date: dt.date
-    ) -> list[dict]:
+    def get_daily_sleep(self, start_date: dt.date, end_date: dt.date) -> list[dict[str, Any]]:
         """Fetch daily sleep summaries from Oura API v2.
 
         Returns list of daily sleep objects keyed by 'day'.
         """
         return self._get_chunked("/usercollection/daily_sleep", start_date, end_date)
 
-    def get_daily_readiness(
-        self, start_date: dt.date, end_date: dt.date
-    ) -> list[dict]:
+    def get_daily_readiness(self, start_date: dt.date, end_date: dt.date) -> list[dict[str, Any]]:
         """Fetch daily readiness scores from Oura API v2."""
         return self._get_chunked("/usercollection/daily_readiness", start_date, end_date)
 
-    def get_sleep_periods(
-        self, start_date: dt.date, end_date: dt.date
-    ) -> list[dict]:
+    def get_sleep_periods(self, start_date: dt.date, end_date: dt.date) -> list[dict[str, Any]]:
         """Fetch detailed sleep periods (HRV, HR, stages, etc.) from Oura API v2."""
         return self._get_chunked("/usercollection/sleep", start_date, end_date)
 
@@ -133,15 +130,15 @@ def _parse_datetime(value: str | None) -> dt.datetime | None:
 
 
 def build_sleep_records(
-    daily_sleep: list[dict],
-    daily_readiness: list[dict],
-    sleep_periods: list[dict],
-) -> dict[str, dict]:
+    daily_sleep: list[dict[str, Any]],
+    daily_readiness: list[dict[str, Any]],
+    sleep_periods: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
     """Merge Oura API responses into SleepRecord-compatible dicts keyed by date string.
 
     Each dict contains fields that map directly to SleepRecord columns.
     """
-    records: dict[str, dict] = {}
+    records: dict[str, dict[str, Any]] = {}
 
     # Daily sleep → sleep_score
     for item in daily_sleep:
@@ -174,9 +171,7 @@ def build_sleep_records(
 
         records.setdefault(day, {"date": day})
         rec = records[day]
-        rec["total_sleep_minutes"] = _seconds_to_minutes(
-            item.get("total_sleep_duration")
-        )
+        rec["total_sleep_minutes"] = _seconds_to_minutes(item.get("total_sleep_duration"))
         rec["rem_minutes"] = _seconds_to_minutes(item.get("rem_sleep_duration"))
         rec["deep_minutes"] = _seconds_to_minutes(item.get("deep_sleep_duration"))
         rec["light_minutes"] = _seconds_to_minutes(item.get("light_sleep_duration"))

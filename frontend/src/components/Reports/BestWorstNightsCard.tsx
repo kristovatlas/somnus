@@ -1,10 +1,10 @@
 /** Side-by-side best and worst nights with contributing factors. */
 
-import type { NightSummary } from '../../types'
+import type { NightSummary } from "../../types";
 
 interface Props {
-  best: NightSummary | null
-  worst: NightSummary | null
+  best: NightSummary | null;
+  worst: NightSummary | null;
 }
 
 function NightPanel({ night, label }: { night: NightSummary; label: string }) {
@@ -16,16 +16,18 @@ function NightPanel({ night, label }: { night: NightSummary; label: string }) {
       {night.contributing_factors.length > 0 && (
         <div className="report-night-factors">
           {night.contributing_factors.map((f) => (
-            <span key={f} className="report-factor-tag">{f}</span>
+            <span key={f} className="report-factor-tag">
+              {f}
+            </span>
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export function BestWorstNightsCard({ best, worst }: Props) {
-  if (!best && !worst) return null
+  if (!best && !worst) return null;
 
   return (
     <div className="report-card" data-testid="best-worst-nights">
@@ -35,5 +37,5 @@ export function BestWorstNightsCard({ best, worst }: Props) {
         {worst && <NightPanel night={worst} label="Worst" />}
       </div>
     </div>
-  )
+  );
 }
