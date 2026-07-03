@@ -64,7 +64,8 @@ ignore = [
 "backend/routers/**" = ["B008"]
 
 [tool.mypy]
-python_version = "3.11"
+# No python_version pin: each CI matrix job type-checks under its own
+# interpreter (numpy>=2.4 ships PEP 695 stubs that require 3.12+ analysis).
 strict = true
 warn_return_any = true
 warn_unused_configs = true
