@@ -1,49 +1,54 @@
-import { useCallback, useEffect, useState } from 'react'
-import { listPanels, createPanel } from '../../api/redLightPanels'
-import type { RedLightPanelOut, RedLightPanelCreate } from '../../api/redLightPanels'
-import { fetchVoid } from '../../api/client'
-import './PanelSection.css'
+import { useCallback, useEffect, useState } from "react";
+import { listPanels, createPanel } from "../../api/redLightPanels";
+import type {
+  RedLightPanelOut,
+  RedLightPanelCreate,
+} from "../../api/redLightPanels";
+import { fetchVoid } from "../../api/client";
+import "./PanelSection.css";
 
 export function PanelSection() {
-  const [panels, setPanels] = useState<RedLightPanelOut[]>([])
-  const [showAdd, setShowAdd] = useState(false)
-  const [name, setName] = useState('')
-  const [wavelength, setWavelength] = useState('')
-  const [irradiance, setIrradiance] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [panels, setPanels] = useState<RedLightPanelOut[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [name, setName] = useState("");
+  const [wavelength, setWavelength] = useState("");
+  const [irradiance, setIrradiance] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const loadPanels = useCallback(() => {
-    listPanels().then(setPanels).catch(() => setError('Failed to load panels'))
-  }, [])
+    listPanels()
+      .then(setPanels)
+      .catch(() => setError("Failed to load panels"));
+  }, []);
 
   useEffect(() => {
-    loadPanels()
-  }, [loadPanels])
+    loadPanels();
+  }, [loadPanels]);
 
   async function handleAdd() {
-    if (!name.trim()) return
-    setError(null)
-    const data: RedLightPanelCreate = { name: name.trim() }
-    if (wavelength) data.wavelength_nm = Number(wavelength)
-    if (irradiance) data.irradiance_mw_cm2 = Number(irradiance)
+    if (!name.trim()) return;
+    setError(null);
+    const data: RedLightPanelCreate = { name: name.trim() };
+    if (wavelength) data.wavelength_nm = Number(wavelength);
+    if (irradiance) data.irradiance_mw_cm2 = Number(irradiance);
     try {
-      await createPanel(data)
-      setName('')
-      setWavelength('')
-      setIrradiance('')
-      setShowAdd(false)
-      loadPanels()
+      await createPanel(data);
+      setName("");
+      setWavelength("");
+      setIrradiance("");
+      setShowAdd(false);
+      loadPanels();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create panel')
+      setError(e instanceof Error ? e.message : "Failed to create panel");
     }
   }
 
   async function handleDelete(id: number) {
     try {
-      await fetchVoid(`/api/red-light-panels/${id}`, { method: 'DELETE' })
-      loadPanels()
+      await fetchVoid(`/api/red-light-panels/${id}`, { method: "DELETE" });
+      loadPanels();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete panel')
+      setError(e instanceof Error ? e.message : "Failed to delete panel");
     }
   }
 
@@ -60,12 +65,19 @@ export function PanelSection() {
           <li key={p.id} className="panel-item">
             <div className="panel-info">
               <span className="panel-name">{p.name}</span>
-              {p.wavelength_nm && <span className="panel-detail">{p.wavelength_nm}nm</span>}
+              {p.wavelength_nm && (
+                <span className="panel-detail">{p.wavelength_nm}nm</span>
+              )}
               {p.irradiance_mw_cm2 != null && (
-                <span className="panel-detail">{p.irradiance_mw_cm2} mW/cm²</span>
+                <span className="panel-detail">
+                  {p.irradiance_mw_cm2} mW/cm²
+                </span>
               )}
             </div>
-            <button className="panel-delete-btn" onClick={() => handleDelete(p.id)}>
+            <button
+              className="panel-delete-btn"
+              onClick={() => handleDelete(p.id)}
+            >
               Remove
             </button>
           </li>
@@ -96,8 +108,15 @@ export function PanelSection() {
             step={0.1}
           />
           <div className="panel-add-actions">
-            <button onClick={handleAdd} disabled={!name.trim()}>Add</button>
-            <button className="panel-cancel-btn" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button onClick={handleAdd} disabled={!name.trim()}>
+              Add
+            </button>
+            <button
+              className="panel-cancel-btn"
+              onClick={() => setShowAdd(false)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       ) : (
@@ -108,5 +127,5 @@ export function PanelSection() {
 
       {error && <p className="panel-error">{error}</p>}
     </section>
-  )
+  );
 }

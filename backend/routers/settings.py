@@ -37,9 +37,7 @@ def _settings_to_out(settings: UserSettings) -> UserSettingsOut:
         circadian_mode_start=settings.circadian_mode_start,
         onboarding_completed=settings.onboarding_completed,
         last_oura_sync=(
-            settings.last_oura_sync.replace(tzinfo=dt.UTC)
-            if settings.last_oura_sync
-            else None
+            settings.last_oura_sync.replace(tzinfo=dt.UTC) if settings.last_oura_sync else None
         ),
     )
 

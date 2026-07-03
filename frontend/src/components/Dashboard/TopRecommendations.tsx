@@ -1,16 +1,16 @@
 /** Top recommendations card for the dashboard. */
 
-import { useNavigate } from 'react-router-dom'
-import type { TopRecommendation } from '../../types'
+import { useNavigate } from "react-router-dom";
+import type { TopRecommendation } from "../../types";
 
 interface Props {
-  recommendations: TopRecommendation[]
+  recommendations: TopRecommendation[];
 }
 
 export function TopRecommendations({ recommendations }: Props) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  if (recommendations.length === 0) return null
+  if (recommendations.length === 0) return null;
 
   return (
     <div className="dashboard-card" data-testid="top-recommendations">
@@ -24,10 +24,10 @@ export function TopRecommendations({ recommendations }: Props) {
       </ul>
       <button
         className="top-recs-link"
-        onClick={() => navigate('/recommendations')}
+        onClick={() => navigate("/recommendations")}
       >
         View all &#8594;
       </button>
     </div>
-  )
+  );
 }

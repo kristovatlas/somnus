@@ -1,9 +1,9 @@
-import './Toggle.css'
+import "./Toggle.css";
 
 interface ToggleProps {
-  label: string
-  checked: boolean | null
-  onChange: (checked: boolean) => void
+  label: string;
+  checked: boolean | null;
+  onChange: (checked: boolean) => void;
 }
 
 export function Toggle({ label, checked, onChange }: ToggleProps) {
@@ -14,11 +14,11 @@ export function Toggle({ label, checked, onChange }: ToggleProps) {
         type="button"
         role="switch"
         aria-checked={checked ?? false}
-        className={`toggle-track ${checked ? 'toggle-track--on' : ''}`}
+        className={`toggle-track ${checked ? "toggle-track--on" : ""}`}
         onClick={() => onChange(!checked)}
       >
         <span className="toggle-thumb" />
       </button>
     </label>
-  )
+  );
 }

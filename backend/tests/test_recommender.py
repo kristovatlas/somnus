@@ -1,11 +1,11 @@
 """Tests for the recommendation engine service."""
 
 import datetime as dt
+from typing import Any, ClassVar
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-import pytest
 from sqlalchemy.orm import Session
 
 from backend.models import (
@@ -15,7 +15,6 @@ from backend.models import (
     ExperimentStatus,
     HabitEntry,
     HabitType,
-    NapEntry,
     SleepRecord,
     SunlightEntry,
 )
@@ -32,11 +31,10 @@ from backend.services.recommender import (
     list_experiments,
 )
 
-
 # --- Helpers ---
 
 
-def _make_sleep_record(db: Session, date: dt.date, **kwargs) -> SleepRecord:
+def _make_sleep_record(db: Session, date: dt.date, **kwargs: Any) -> SleepRecord:
     defaults = {
         "sleep_score": 80,
         "deep_minutes": 70,
@@ -55,7 +53,7 @@ def _make_sleep_record(db: Session, date: dt.date, **kwargs) -> SleepRecord:
     return rec
 
 
-def _seed_full_data(db: Session, n: int = 60):
+def _seed_full_data(db: Session, n: int = 60) -> None:
     """Seed n days of correlated sleep + daily log data for regression."""
     base = dt.date(2025, 1, 1)
     for i in range(n):
@@ -65,7 +63,8 @@ def _seed_full_data(db: Session, n: int = 60):
         score = max(50, 90 - i // 3)
 
         _make_sleep_record(
-            db, d,
+            db,
+            d,
             sleep_score=score,
             deep_minutes=60 + (i % 20),
             rem_minutes=80 + (i % 15),
@@ -73,37 +72,45 @@ def _seed_full_data(db: Session, n: int = 60):
         )
 
         db.add(DailyLog(date=d))
-        db.add(CaffeineEntry(
-            date=d,
-            time=dt.time(8, 0),
-            amount_mg=caffeine,
-            source="drip_coffee",
-        ))
+        db.add(
+            CaffeineEntry(
+                date=d,
+                time=dt.time(8, 0),
+                amount_mg=caffeine,
+                source="drip_coffee",
+            )
+        )
         # Add a late caffeine entry on some days
         if i % 3 == 0:
-            db.add(CaffeineEntry(
-                date=d,
-                time=dt.time(16, 0),
-                amount_mg=100,
-                source="drip_coffee",
-            ))
+            db.add(
+                CaffeineEntry(
+                    date=d,
+                    time=dt.time(16, 0),
+                    amount_mg=100,
+                    source="drip_coffee",
+                )
+            )
         # Exercise on even days
         if i % 2 == 0:
-            db.add(HabitEntry(
-                date=d,
-                habit_type=HabitType.EXERCISE,
-                duration_minutes=45,
-            ))
+            db.add(
+                HabitEntry(
+                    date=d,
+                    habit_type=HabitType.EXERCISE,
+                    duration_minutes=45,
+                )
+            )
         # Stress varying
-        db.add(HabitEntry(
-            date=d,
-            habit_type=HabitType.STRESS_LEVEL,
-            value=str(3 + (i % 5)),
-        ))
+        db.add(
+            HabitEntry(
+                date=d,
+                habit_type=HabitType.STRESS_LEVEL,
+                value=str(3 + (i % 5)),
+            )
+        )
     db.commit()
 
 
-def _seed_minimal_data(db: Session, n: int = 10):
+def _seed_minimal_data(db: Session, n: int = 10) -> None:
     """Seed n days — not enough for regression."""
     base = dt.date(2025, 1, 1)
     for i in range(n):
@@ -116,9 +123,10 @@ def _seed_minimal_data(db: Session, n: int = 10):
 
 
 class TestDataDrivenRecs:
-    def test_significant_coef_produces_rec(self, db: Session):
+    def test_significant_coef_produces_rec(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _data_driven_recs(df)
         # Should produce at least one recommendation
@@ -128,20 +136,22 @@ class TestDataDrivenRecs:
             assert r["factor"] in PREDICTOR_ACTIONS
             assert "n_days" in r
 
-    def test_non_significant_skipped(self):
+    def test_non_significant_skipped(self) -> None:
         """Non-significant coefficients should not produce recs."""
         # Create a DataFrame with random data (no real correlation)
         np.random.seed(42)
         n = 60
-        df = pd.DataFrame({
-            "sleep_score": np.random.randint(60, 90, n),
-            "deep_minutes": np.random.randint(50, 100, n),
-            "rem_minutes": np.random.randint(70, 120, n),
-            "avg_hrv": np.random.uniform(30, 60, n),
-            "total_caffeine_mg": np.random.randint(100, 400, n),
-            "last_caffeine_hour": np.random.uniform(8, 14, n),
-            "is_sick": [None] * n,
-        })
+        df = pd.DataFrame(
+            {
+                "sleep_score": np.random.randint(60, 90, n),
+                "deep_minutes": np.random.randint(50, 100, n),
+                "rem_minutes": np.random.randint(70, 120, n),
+                "avg_hrv": np.random.uniform(30, 60, n),
+                "total_caffeine_mg": np.random.randint(100, 400, n),
+                "last_caffeine_hour": np.random.uniform(8, 14, n),
+                "is_sick": [None] * n,
+            }
+        )
         df.index = pd.date_range("2025-01-01", periods=n)
         df.index.name = "date"
 
@@ -150,18 +160,20 @@ class TestDataDrivenRecs:
         for r in recs:
             assert "p=" in r["body"]
 
-    def test_lag1_terms_skipped(self, db: Session):
+    def test_lag1_terms_skipped(self, db: Session) -> None:
         """Lag1 autoregressive terms should not produce recommendations."""
         _seed_full_data(db, n=60)
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _data_driven_recs(df)
         for r in recs:
             assert not r["factor"].endswith("_lag1")
 
-    def test_priority_ordering(self, db: Session):
+    def test_priority_ordering(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _data_driven_recs(df)
         if len(recs) > 1:
@@ -169,9 +181,10 @@ class TestDataDrivenRecs:
             for r in recs:
                 assert r["priority"] >= 1
 
-    def test_rec_id_format(self, db: Session):
+    def test_rec_id_format(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _data_driven_recs(df)
         for r in recs:
@@ -184,22 +197,25 @@ class TestDataDrivenRecs:
 
 
 class TestScienceThresholdRecs:
-    def test_violated_threshold_produces_rec(self, db: Session):
+    def test_violated_threshold_produces_rec(self, db: Session) -> None:
         """Late caffeine should trigger a recommendation."""
         base = dt.date(2025, 1, 1)
         for i in range(14):
             d = base + dt.timedelta(days=i)
             _make_sleep_record(db, d)
             db.add(DailyLog(date=d))
-            db.add(CaffeineEntry(
-                date=d,
-                time=dt.time(16, 0),  # 4 PM = hour 16, > 14
-                amount_mg=200,
-                source="drip_coffee",
-            ))
+            db.add(
+                CaffeineEntry(
+                    date=d,
+                    time=dt.time(16, 0),  # 4 PM = hour 16, > 14
+                    amount_mg=200,
+                    source="drip_coffee",
+                )
+            )
         db.commit()
 
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _science_threshold_recs(df)
 
@@ -207,7 +223,7 @@ class TestScienceThresholdRecs:
         assert len(caffeine_recs) >= 1
         assert caffeine_recs[0]["category"] == "science_threshold"
 
-    def test_within_range_no_rec(self, db: Session):
+    def test_within_range_no_rec(self, db: Session) -> None:
         """Values within range should not produce recs."""
         base = dt.date(2025, 1, 1)
         for i in range(14):
@@ -215,37 +231,43 @@ class TestScienceThresholdRecs:
             _make_sleep_record(db, d)
             db.add(DailyLog(date=d))
             # Early caffeine, well under cutoff
-            db.add(CaffeineEntry(
-                date=d,
-                time=dt.time(7, 0),
-                amount_mg=100,
-                source="drip_coffee",
-            ))
+            db.add(
+                CaffeineEntry(
+                    date=d,
+                    time=dt.time(7, 0),
+                    amount_mg=100,
+                    source="drip_coffee",
+                )
+            )
         db.commit()
 
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _science_threshold_recs(df)
 
         caffeine_hour_recs = [r for r in recs if r["factor"] == "last_caffeine_hour"]
         assert len(caffeine_hour_recs) == 0
 
-    def test_insufficient_recent_data_skipped(self, db: Session):
+    def test_insufficient_recent_data_skipped(self, db: Session) -> None:
         """Less than 7 recent days should skip the threshold."""
         base = dt.date(2025, 1, 1)
         for i in range(5):
             d = base + dt.timedelta(days=i)
             _make_sleep_record(db, d)
             db.add(DailyLog(date=d))
-            db.add(CaffeineEntry(
-                date=d,
-                time=dt.time(16, 0),
-                amount_mg=500,
-                source="drip_coffee",
-            ))
+            db.add(
+                CaffeineEntry(
+                    date=d,
+                    time=dt.time(16, 0),
+                    amount_mg=500,
+                    source="drip_coffee",
+                )
+            )
         db.commit()
 
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _science_threshold_recs(df)
 
@@ -258,12 +280,14 @@ class TestScienceThresholdRecs:
 
 
 class TestUntriedRecs:
-    def test_fewer_than_7_days_suggests(self):
+    def test_fewer_than_7_days_suggests(self) -> None:
         """Factors with < 7 days should get untried suggestion."""
         # DataFrame with no sunlight data
-        df = pd.DataFrame({
-            "sleep_score": [80] * 60,
-        })
+        df = pd.DataFrame(
+            {
+                "sleep_score": [80] * 60,
+            }
+        )
         df.index = pd.date_range("2025-01-01", periods=60)
         df.index.name = "date"
 
@@ -273,21 +297,24 @@ class TestUntriedRecs:
         for r in recs:
             assert r["category"] == "untried"
 
-    def test_7_plus_days_no_suggestion(self, db: Session):
+    def test_7_plus_days_no_suggestion(self, db: Session) -> None:
         """Factors with 7+ recorded days should not get untried suggestion."""
         base = dt.date(2025, 1, 1)
         for i in range(10):
             d = base + dt.timedelta(days=i)
             _make_sleep_record(db, d)
             db.add(DailyLog(date=d))
-            db.add(SunlightEntry(
-                date=d,
-                start_time=dt.time(8, 0),
-                duration_minutes=20,
-            ))
+            db.add(
+                SunlightEntry(
+                    date=d,
+                    start_time=dt.time(8, 0),
+                    duration_minutes=20,
+                )
+            )
         db.commit()
 
         from backend.services.stats_engine import prepare_analysis_dataframe
+
         df = prepare_analysis_dataframe(db)
         recs = _untried_recs(df)
 
@@ -299,7 +326,7 @@ class TestUntriedRecs:
 
 
 class TestTimingRecs:
-    def test_social_jet_lag_above_60(self):
+    def test_social_jet_lag_above_60(self) -> None:
         """Social jet lag > 60 min should produce a rec."""
         timing_data = {
             "social_jet_lag_minutes": 75.0,
@@ -319,7 +346,7 @@ class TestTimingRecs:
         assert len(sjl_recs) == 1
         assert "75" in sjl_recs[0]["body"]
 
-    def test_bedtime_late_rec(self):
+    def test_bedtime_late_rec(self) -> None:
         """Bedtime later than optimal by 30+ min should produce a rec."""
         timing_data = {
             "social_jet_lag_minutes": 20.0,
@@ -338,7 +365,7 @@ class TestTimingRecs:
         bedtime_recs = [r for r in recs if r["factor"] == "bedtime_hour"]
         assert len(bedtime_recs) == 1
 
-    def test_no_jet_lag_no_rec(self):
+    def test_no_jet_lag_no_rec(self) -> None:
         """Social jet lag < 60 min should not produce a rec."""
         timing_data = {
             "social_jet_lag_minutes": 30.0,
@@ -361,19 +388,19 @@ class TestTimingRecs:
 
 
 class TestGenerateRecommendations:
-    def test_empty_db(self, db: Session):
+    def test_empty_db(self, db: Session) -> None:
         result = generate_recommendations(db)
         assert result["has_sufficient_data"] is False
         assert result["recommendations"] == []
         assert result["total_days"] == 0
 
-    def test_insufficient_data(self, db: Session):
+    def test_insufficient_data(self, db: Session) -> None:
         _seed_minimal_data(db, n=10)
         result = generate_recommendations(db)
         assert result["has_sufficient_data"] is False
         assert result["recommendations"] == []
 
-    def test_sufficient_data_produces_recs(self, db: Session):
+    def test_sufficient_data_produces_recs(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         result = generate_recommendations(db)
         assert result["has_sufficient_data"] is True
@@ -381,13 +408,13 @@ class TestGenerateRecommendations:
         # Should have at least untried recs
         assert len(result["recommendations"]) > 0
 
-    def test_dedup_by_id(self, db: Session):
+    def test_dedup_by_id(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         result = generate_recommendations(db)
         ids = [r["id"] for r in result["recommendations"]]
         assert len(ids) == len(set(ids))
 
-    def test_sorted_by_priority(self, db: Session):
+    def test_sorted_by_priority(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         result = generate_recommendations(db)
         recs = result["recommendations"]
@@ -395,12 +422,12 @@ class TestGenerateRecommendations:
             priorities = [r["priority"] for r in recs]
             assert priorities == sorted(priorities)
 
-    def test_cap_at_20(self, db: Session):
+    def test_cap_at_20(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         result = generate_recommendations(db)
         assert len(result["recommendations"]) <= 20
 
-    def test_recommendation_fields(self, db: Session):
+    def test_recommendation_fields(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         result = generate_recommendations(db)
         for rec in result["recommendations"]:
@@ -420,9 +447,9 @@ class TestGenerateRecommendations:
 class TestHedgedLanguage:
     """Verify no causal language in recommendations."""
 
-    BANNED_WORDS = ["causes", "improves", "worsens", "leads to", "will make"]
+    BANNED_WORDS: ClassVar[list[str]] = ["causes", "improves", "worsens", "leads to", "will make"]
 
-    def test_predictor_actions_hedged(self):
+    def test_predictor_actions_hedged(self) -> None:
         for predictor, actions in PREDICTOR_ACTIONS.items():
             for direction, text in actions.items():
                 for word in self.BANNED_WORDS:
@@ -431,12 +458,11 @@ class TestHedgedLanguage:
                         f"contains banned word {word!r}: {text}"
                     )
 
-    def test_science_thresholds_hedged(self):
+    def test_science_thresholds_hedged(self) -> None:
         for thresh in SCIENCE_THRESHOLDS:
             for word in self.BANNED_WORDS:
                 assert word not in thresh.body_template.lower(), (
-                    f"Threshold {thresh.column!r} body_template contains "
-                    f"banned word {word!r}"
+                    f"Threshold {thresh.column!r} body_template contains banned word {word!r}"
                 )
                 if thresh.untried_suggestion:
                     assert word not in thresh.untried_suggestion.lower(), (
@@ -444,7 +470,7 @@ class TestHedgedLanguage:
                         f"banned word {word!r}"
                     )
 
-    def test_generated_recs_hedged(self, db: Session):
+    def test_generated_recs_hedged(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         result = generate_recommendations(db)
         for rec in result["recommendations"]:
@@ -461,7 +487,7 @@ class TestHedgedLanguage:
 
 
 class TestTopRecommendations:
-    def test_returns_top_3(self, db: Session):
+    def test_returns_top_3(self, db: Session) -> None:
         _seed_full_data(db, n=60)
         top = get_top_recommendations(db)
         assert len(top) <= 3
@@ -470,7 +496,7 @@ class TestTopRecommendations:
             assert "title" in item
             assert "category" in item
 
-    def test_empty_when_insufficient(self, db: Session):
+    def test_empty_when_insufficient(self, db: Session) -> None:
         _seed_minimal_data(db, n=10)
         top = get_top_recommendations(db)
         assert top == []
@@ -506,24 +532,24 @@ class TestExperimentMetrics:
         db.refresh(exp)
         return exp
 
-    def test_baseline_14d_before(self, db: Session):
+    def test_baseline_14d_before(self, db: Session) -> None:
         exp = self._create_experiment(db)
         result = _build_experiment_out(db, exp, today=dt.date(2025, 3, 14))
         assert result["baseline_sleep_score"] == 75.0
         assert result["baseline_deep_minutes"] == 65.0
 
-    def test_result_in_period(self, db: Session):
+    def test_result_in_period(self, db: Session) -> None:
         exp = self._create_experiment(db)
         result = _build_experiment_out(db, exp, today=dt.date(2025, 3, 14))
         assert result["result_sleep_score"] == 82.0
         assert result["result_deep_minutes"] == 72.0
 
-    def test_days_completed(self, db: Session):
+    def test_days_completed(self, db: Session) -> None:
         exp = self._create_experiment(db)
         result = _build_experiment_out(db, exp, today=dt.date(2025, 3, 14))
         assert result["days_completed"] == 14
 
-    def test_auto_complete(self, db: Session):
+    def test_auto_complete(self, db: Session) -> None:
         exp = self._create_experiment(db)
         # Simulate checking after end_date
         result = get_experiment_by_id(db, exp.id)
@@ -532,18 +558,18 @@ class TestExperimentMetrics:
         assert result is not None
         assert result["status"] in (ExperimentStatus.ACTIVE, ExperimentStatus.COMPLETED)
 
-    def test_factor_label(self, db: Session):
+    def test_factor_label(self, db: Session) -> None:
         exp = self._create_experiment(db)
         result = _build_experiment_out(db, exp, today=dt.date(2025, 3, 14))
         assert result["factor_label"] == "Total Caffeine (mg)"
 
-    def test_list_experiments(self, db: Session):
+    def test_list_experiments(self, db: Session) -> None:
         self._create_experiment(db)
         results = list_experiments(db)
         assert len(results) == 1
         assert results[0]["factor"] == "total_caffeine_mg"
 
-    def test_no_baseline_data(self, db: Session):
+    def test_no_baseline_data(self, db: Session) -> None:
         """Experiment with no data before start should have None baselines."""
         exp = Experiment(
             factor="exercise_done",

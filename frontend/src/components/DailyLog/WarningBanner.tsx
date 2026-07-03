@@ -1,12 +1,12 @@
-import './WarningBanner.css'
+import "./WarningBanner.css";
 
 interface WarningBannerProps {
-  warnings: string[]
-  onDismiss: () => void
+  warnings: string[];
+  onDismiss: () => void;
 }
 
 export function WarningBanner({ warnings, onDismiss }: WarningBannerProps) {
-  if (warnings.length === 0) return null
+  if (warnings.length === 0) return null;
 
   return (
     <div className="warning-banner" role="alert">
@@ -15,9 +15,14 @@ export function WarningBanner({ warnings, onDismiss }: WarningBannerProps) {
           <p key={i}>{w}</p>
         ))}
       </div>
-      <button type="button" className="warning-banner-dismiss" onClick={onDismiss} aria-label="Dismiss warnings">
+      <button
+        type="button"
+        className="warning-banner-dismiss"
+        onClick={onDismiss}
+        aria-label="Dismiss warnings"
+      >
         &times;
       </button>
     </div>
-  )
+  );
 }
