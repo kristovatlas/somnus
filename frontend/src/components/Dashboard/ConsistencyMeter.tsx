@@ -117,6 +117,7 @@ export function ConsistencyMeter({
       <div className="consistency-pills">
         <span
           className="consistency-pill"
+          title="Variability (σ): how much your bedtime varies night to night over the last 7 nights. Under 30 min is consistent."
           style={{ color: ratingColor(consistency.sigma_rating) }}
         >
           σ {Math.round(consistency.sigma_minutes)}m
@@ -124,21 +125,28 @@ export function ConsistencyMeter({
         {consistency.delta_minutes != null && consistency.delta_rating && (
           <span
             className="consistency-pill"
+            title="Offset (δ): how far your average bedtime sits from your typical bedtime. Positive = later than usual."
             style={{ color: ratingColor(consistency.delta_rating) }}
           >
-            δ {Math.round(consistency.delta_minutes)}m
+            δ {consistency.delta_minutes > 0 ? "+" : ""}
+            {Math.round(consistency.delta_minutes)}m
           </span>
         )}
         {consistency.weekend_drift_minutes != null &&
           consistency.drift_rating && (
             <span
               className="consistency-pill"
+              title="Weekend drift (Δ): how much later you go to bed on weekends vs weekdays (social jet lag). Over 60 min is significant."
               style={{ color: ratingColor(consistency.drift_rating) }}
             >
               Δ {Math.round(consistency.weekend_drift_minutes)}m
             </span>
           )}
       </div>
+      <p className="consistency-legend">
+        σ variability · δ vs typical bedtime · Δ weekend drift — hover for
+        details
+      </p>
     </div>
   );
 }
