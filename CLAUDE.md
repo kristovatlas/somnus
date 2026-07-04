@@ -25,6 +25,11 @@ Somnus is a locally-run sleep optimization app. Python (FastAPI) backend + React
 - CORS restricted to localhost origins only.
 - Every PR needs security review per the checklist in PLAN.md.
 
+### Threat Model Gate (temporary — replace when PLAN.md Step 9 completes)
+- Agreed 2026-07-04: we code with a threat model. Once the PRs open as of that date (#32, #33, #34, #39) are merged, **do not open any new PRs** until PLAN.md Step 9 is complete: threat model authored (`docs/THREAT_MODEL.md`) → reviewed and approved by Kristov (not authoritative until human-approved) → existing code audited against it, findings fixed or explicitly accepted → practice wired into the PR security checklist.
+- Only exceptions during the gate: PRs implementing Step 9 itself, and fixes for red `dev` CI.
+- When Step 9 completes, replace this section with the standing rule: every PR is written and reviewed with `docs/THREAT_MODEL.md` in consideration, and any change altering trust boundaries or attack surface updates it in the same PR.
+
 ### Testing
 - 90%+ coverage on new code per commit, 75%+ project-wide floor.
 - Critical paths (stats engine, caffeine model, data import): 95%+.
