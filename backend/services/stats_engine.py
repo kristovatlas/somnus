@@ -294,7 +294,9 @@ def prepare_analysis_dataframe(db: Session) -> pd.DataFrame:
         if r.bedtime is not None and r.wake_time is not None:
             bed_h = _normalize_bedtime_hour(r.bedtime)
             wake_h = r.wake_time.hour + r.wake_time.minute / 60
-            if wake_h < 6:
+            # Ensure wake is always "after" bedtime in the 24+ hour space.
+            # E.g. bedtime 22.5, wake 6.5 → 6.5 < 22.5 → wake becomes 30.5
+            if wake_h < bed_h:
                 wake_h += 24
             row["sleep_midpoint_hour"] = (bed_h + wake_h) / 2
         else:
