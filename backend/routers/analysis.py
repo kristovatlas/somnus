@@ -12,9 +12,9 @@ from backend.schemas import (
     CorrelationResult,
     NapResponse,
     NapSegment,
+    RegressionCoefficient,
     RegressionResponse,
     RegressionResult,
-    RegressionCoefficient,
     SleepTimingResponse,
     VariableStatus,
 )
@@ -74,9 +74,7 @@ def analysis_regression(db: Session = Depends(get_db)) -> RegressionResponse:
                     n_days=result["n_days"],
                     r_squared=result["r_squared"],
                     adj_r_squared=result["adj_r_squared"],
-                    coefficients=[
-                        RegressionCoefficient(**c) for c in result["coefficients"]
-                    ],
+                    coefficients=[RegressionCoefficient(**c) for c in result["coefficients"]],
                     has_autocorrelation=result["has_autocorrelation"],
                     is_stationary=result["is_stationary"],
                     multicollinearity_warning=result["multicollinearity_warning"],

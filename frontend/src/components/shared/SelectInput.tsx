@@ -1,9 +1,9 @@
 interface SelectInputProps<T extends string> {
-  label: string
-  value: T
-  onChange: (value: T) => void
-  options: readonly T[]
-  labels: Record<T, string>
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: readonly T[];
+  labels: Record<T, string>;
 }
 
 export function SelectInput<T extends string>({
@@ -24,5 +24,5 @@ export function SelectInput<T extends string>({
         ))}
       </select>
     </div>
-  )
+  );
 }

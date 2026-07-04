@@ -6,35 +6,39 @@ import {
   useRegression,
   useTiming,
   useNaps,
-} from '../../hooks/useAnalysis'
-import { Explainer } from './Explainer'
-import { DataStatus } from './DataStatus'
-import { CorrelationList } from './CorrelationList'
-import { CorrelationHeatmap } from './CorrelationHeatmap'
-import { CoefficientChart } from './CoefficientChart'
-import { RegressionSummary } from './RegressionSummary'
-import { TimingView } from './TimingView'
-import { NapImpactView } from './NapImpactView'
-import './AnalysisPage.css'
+} from "../../hooks/useAnalysis";
+import { Explainer } from "./Explainer";
+import { DataStatus } from "./DataStatus";
+import { CorrelationList } from "./CorrelationList";
+import { CorrelationHeatmap } from "./CorrelationHeatmap";
+import { CoefficientChart } from "./CoefficientChart";
+import { RegressionSummary } from "./RegressionSummary";
+import { TimingView } from "./TimingView";
+import { NapImpactView } from "./NapImpactView";
+import "./AnalysisPage.css";
 
 export function AnalysisPage() {
-  const { data: status, loading, error } = useAnalysisStatus()
+  const { data: status, loading, error } = useAnalysisStatus();
 
-  const phaseA = status?.phase_a_unlocked ?? false
-  const phaseB = status?.phase_b_unlocked ?? false
-  const phaseC = status?.phase_c_unlocked ?? false
+  const phaseA = status?.phase_a_unlocked ?? false;
+  const phaseB = status?.phase_b_unlocked ?? false;
+  const phaseC = status?.phase_c_unlocked ?? false;
 
-  const { data: correlations } = useCorrelations(phaseA)
-  const { data: regression } = useRegression(phaseB)
-  const { data: timing } = useTiming(phaseC)
-  const { data: naps } = useNaps(phaseC)
+  const { data: correlations } = useCorrelations(phaseA);
+  const { data: regression } = useRegression(phaseB);
+  const { data: timing } = useTiming(phaseC);
+  const { data: naps } = useNaps(phaseC);
 
   if (loading) {
-    return <div className="analysis-loading">Loading analysis...</div>
+    return <div className="analysis-loading">Loading analysis...</div>;
   }
 
   if (error || !status) {
-    return <div className="analysis-error">{error ?? 'Failed to load analysis.'}</div>
+    return (
+      <div className="analysis-error">
+        {error ?? "Failed to load analysis."}
+      </div>
+    );
   }
 
   return (
@@ -94,5 +98,5 @@ export function AnalysisPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

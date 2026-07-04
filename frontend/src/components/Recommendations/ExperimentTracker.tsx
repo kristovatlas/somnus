@@ -1,40 +1,52 @@
 /** Active experiment tracker with progress bar and metric comparisons. */
 
-import type { ExperimentOut } from '../../types'
+import type { ExperimentOut } from "../../types";
 
 interface Props {
-  experiment: ExperimentOut
-  onComplete: () => void
-  onAbandon: () => void
+  experiment: ExperimentOut;
+  onComplete: () => void;
+  onAbandon: () => void;
 }
 
-function MetricPill({ label, baseline, result }: {
-  label: string
-  baseline: number | null
-  result: number | null
+function MetricPill({
+  label,
+  baseline,
+  result,
+}: {
+  label: string;
+  baseline: number | null;
+  result: number | null;
 }) {
-  if (baseline === null && result === null) return null
+  if (baseline === null && result === null) return null;
   return (
     <span className="experiment-metric">
       <span className="experiment-metric-label">{label}</span>
       <span className="experiment-metric-values">
-        {baseline !== null ? baseline.toFixed(0) : '—'}
-        {' → '}
-        {result !== null ? result.toFixed(0) : '—'}
+        {baseline !== null ? baseline.toFixed(0) : "—"}
+        {" → "}
+        {result !== null ? result.toFixed(0) : "—"}
       </span>
     </span>
-  )
+  );
 }
 
-export function ExperimentTracker({ experiment, onComplete, onAbandon }: Props) {
+export function ExperimentTracker({
+  experiment,
+  onComplete,
+  onAbandon,
+}: Props) {
   const totalDays = Math.max(
     1,
     Math.round(
-      (new Date(experiment.end_date).getTime() - new Date(experiment.start_date).getTime()) /
+      (new Date(experiment.end_date).getTime() -
+        new Date(experiment.start_date).getTime()) /
         (1000 * 60 * 60 * 24),
     ) + 1,
-  )
-  const progressPct = Math.min(100, Math.round((experiment.days_completed / totalDays) * 100))
+  );
+  const progressPct = Math.min(
+    100,
+    Math.round((experiment.days_completed / totalDays) * 100),
+  );
 
   return (
     <div className="experiment-tracker" data-testid="experiment-tracker">
@@ -77,16 +89,22 @@ export function ExperimentTracker({ experiment, onComplete, onAbandon }: Props) 
         />
       </div>
 
-      {experiment.status === 'active' && (
+      {experiment.status === "active" && (
         <div className="experiment-actions">
-          <button className="experiment-btn experiment-btn-complete" onClick={onComplete}>
+          <button
+            className="experiment-btn experiment-btn-complete"
+            onClick={onComplete}
+          >
             Complete
           </button>
-          <button className="experiment-btn experiment-btn-abandon" onClick={onAbandon}>
+          <button
+            className="experiment-btn experiment-btn-abandon"
+            onClick={onAbandon}
+          >
             Abandon
           </button>
         </div>
       )}
     </div>
-  )
+  );
 }

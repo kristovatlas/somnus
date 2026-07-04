@@ -1,28 +1,32 @@
 /** Single recommendation card with category badge and evidence level. */
 
-import type { Recommendation } from '../../types'
+import type { Recommendation } from "../../types";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  data_driven: 'Your Data',
-  science_threshold: 'Science',
-  untried: 'Try It',
-  timing: 'Timing',
-}
+  data_driven: "Your Data",
+  science_threshold: "Science",
+  untried: "Try It",
+  timing: "Timing",
+};
 
 const EVIDENCE_LABELS: Record<string, string> = {
-  very_high: 'Strong',
-  high: 'Good',
-  moderate: 'Moderate',
-  low: 'Preliminary',
-}
+  very_high: "Strong",
+  high: "Good",
+  moderate: "Moderate",
+  low: "Preliminary",
+};
 
 interface Props {
-  rec: Recommendation
-  canStartExperiment: boolean
-  onStartExperiment: (rec: Recommendation) => void
+  rec: Recommendation;
+  canStartExperiment: boolean;
+  onStartExperiment: (rec: Recommendation) => void;
 }
 
-export function RecommendationCard({ rec, canStartExperiment, onStartExperiment }: Props) {
+export function RecommendationCard({
+  rec,
+  canStartExperiment,
+  onStartExperiment,
+}: Props) {
   return (
     <div className="rec-card" data-testid="recommendation-card">
       <div className="rec-card-header">
@@ -47,5 +51,5 @@ export function RecommendationCard({ rec, canStartExperiment, onStartExperiment 
         </button>
       )}
     </div>
-  )
+  );
 }

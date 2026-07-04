@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import datetime as dt
 
-import pytest
 from sqlalchemy.orm import Session
 
 from backend.models import (
@@ -12,7 +11,6 @@ from backend.models import (
     DailyLog,
     HabitEntry,
     HabitType,
-    NapEntry,
     SleepRecord,
     SunlightEntry,
     UserSettings,
@@ -30,7 +28,6 @@ from backend.services.report_service import (
     render_monthly_html,
     render_weekly_html,
 )
-
 
 # ---------------------------------------------------------------------------
 # Date range helpers
@@ -137,33 +134,78 @@ class TestComputeMetricAverages:
 
 class TestComputeTrendArrows:
     def test_up(self) -> None:
-        current = {"avg_sleep_score": 90.0, "avg_hrv": 50.0, "avg_deep_minutes": 80.0, "avg_rem_minutes": 100.0}
-        prior = {"avg_sleep_score": 80.0, "avg_hrv": 40.0, "avg_deep_minutes": 70.0, "avg_rem_minutes": 85.0}
+        current = {
+            "avg_sleep_score": 90.0,
+            "avg_hrv": 50.0,
+            "avg_deep_minutes": 80.0,
+            "avg_rem_minutes": 100.0,
+        }
+        prior = {
+            "avg_sleep_score": 80.0,
+            "avg_hrv": 40.0,
+            "avg_deep_minutes": 70.0,
+            "avg_rem_minutes": 85.0,
+        }
         result = _compute_trend_arrows(current, prior)
         assert result["sleep_score"] == "up"
         assert result["avg_hrv"] == "up"
 
     def test_down(self) -> None:
-        current = {"avg_sleep_score": 70.0, "avg_hrv": 35.0, "avg_deep_minutes": 50.0, "avg_rem_minutes": 70.0}
-        prior = {"avg_sleep_score": 80.0, "avg_hrv": 45.0, "avg_deep_minutes": 70.0, "avg_rem_minutes": 90.0}
+        current = {
+            "avg_sleep_score": 70.0,
+            "avg_hrv": 35.0,
+            "avg_deep_minutes": 50.0,
+            "avg_rem_minutes": 70.0,
+        }
+        prior = {
+            "avg_sleep_score": 80.0,
+            "avg_hrv": 45.0,
+            "avg_deep_minutes": 70.0,
+            "avg_rem_minutes": 90.0,
+        }
         result = _compute_trend_arrows(current, prior)
         assert result["sleep_score"] == "down"
         assert result["avg_hrv"] == "down"
 
     def test_flat(self) -> None:
-        current = {"avg_sleep_score": 80.0, "avg_hrv": 45.0, "avg_deep_minutes": 70.0, "avg_rem_minutes": 90.0}
-        prior = {"avg_sleep_score": 80.5, "avg_hrv": 45.2, "avg_deep_minutes": 70.3, "avg_rem_minutes": 90.5}
+        current = {
+            "avg_sleep_score": 80.0,
+            "avg_hrv": 45.0,
+            "avg_deep_minutes": 70.0,
+            "avg_rem_minutes": 90.0,
+        }
+        prior = {
+            "avg_sleep_score": 80.5,
+            "avg_hrv": 45.2,
+            "avg_deep_minutes": 70.3,
+            "avg_rem_minutes": 90.5,
+        }
         result = _compute_trend_arrows(current, prior)
         assert result["sleep_score"] == "flat"
 
     def test_null_prior(self) -> None:
-        current = {"avg_sleep_score": 80.0, "avg_hrv": 45.0, "avg_deep_minutes": 70.0, "avg_rem_minutes": 90.0}
-        prior = {"avg_sleep_score": None, "avg_hrv": None, "avg_deep_minutes": None, "avg_rem_minutes": None}
+        current = {
+            "avg_sleep_score": 80.0,
+            "avg_hrv": 45.0,
+            "avg_deep_minutes": 70.0,
+            "avg_rem_minutes": 90.0,
+        }
+        prior = {
+            "avg_sleep_score": None,
+            "avg_hrv": None,
+            "avg_deep_minutes": None,
+            "avg_rem_minutes": None,
+        }
         result = _compute_trend_arrows(current, prior)
         assert result["sleep_score"] is None
 
     def test_zero_prior(self) -> None:
-        current = {"avg_sleep_score": 80.0, "avg_hrv": 45.0, "avg_deep_minutes": 70.0, "avg_rem_minutes": 90.0}
+        current = {
+            "avg_sleep_score": 80.0,
+            "avg_hrv": 45.0,
+            "avg_deep_minutes": 70.0,
+            "avg_rem_minutes": 90.0,
+        }
         prior = {"avg_sleep_score": 0, "avg_hrv": 0, "avg_deep_minutes": 0, "avg_rem_minutes": 0}
         result = _compute_trend_arrows(current, prior)
         # Zero prior means we can't compute delta
@@ -252,15 +294,17 @@ def _seed_week(db: Session, monday: dt.date, n: int = 7) -> None:
     """Seed n SleepRecords starting from monday."""
     for i in range(n):
         d = monday + dt.timedelta(days=i)
-        db.add(SleepRecord(
-            date=d,
-            sleep_score=80 + i,
-            avg_hrv=40.0 + i,
-            deep_minutes=60 + i * 2,
-            rem_minutes=85 + i,
-            bedtime=dt.datetime(d.year, d.month, d.day, 22, 30) - dt.timedelta(days=1),
-            wake_time=dt.datetime(d.year, d.month, d.day, 6, 30),
-        ))
+        db.add(
+            SleepRecord(
+                date=d,
+                sleep_score=80 + i,
+                avg_hrv=40.0 + i,
+                deep_minutes=60 + i * 2,
+                rem_minutes=85 + i,
+                bedtime=dt.datetime(d.year, d.month, d.day, 22, 30) - dt.timedelta(days=1),
+                wake_time=dt.datetime(d.year, d.month, d.day, 6, 30),
+            )
+        )
         db.add(DailyLog(date=d))
     db.commit()
 
@@ -330,13 +374,15 @@ class TestMonthlyReport:
     def test_full_month(self, db: Session) -> None:
         for i in range(15):
             d = dt.date(2026, 2, 1 + i)
-            db.add(SleepRecord(
-                date=d,
-                sleep_score=70 + i,
-                avg_hrv=40.0,
-                deep_minutes=60,
-                rem_minutes=85,
-            ))
+            db.add(
+                SleepRecord(
+                    date=d,
+                    sleep_score=70 + i,
+                    avg_hrv=40.0,
+                    deep_minutes=60,
+                    rem_minutes=85,
+                )
+            )
             db.add(DailyLog(date=d))
         db.commit()
         report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
@@ -357,12 +403,14 @@ class TestMonthlyReport:
         db.add(UserSettings(id=1, age=25))
         for i in range(5):
             d = dt.date(2026, 2, 1 + i)
-            db.add(SleepRecord(
-                date=d,
-                sleep_score=80,
-                deep_minutes=80 if i % 2 == 0 else 50,
-                rem_minutes=95 if i % 2 == 0 else 70,
-            ))
+            db.add(
+                SleepRecord(
+                    date=d,
+                    sleep_score=80,
+                    deep_minutes=80 if i % 2 == 0 else 50,
+                    rem_minutes=95 if i % 2 == 0 else 70,
+                )
+            )
         db.commit()
         report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
         assert report["stage_compliance"] is not None

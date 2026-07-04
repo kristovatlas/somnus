@@ -241,9 +241,7 @@ def export_sqlite() -> StreamingResponse:
     """Export the raw SQLite database file."""
     db_path = app_settings.db_path
     if str(db_path) == ":memory:" or not db_path.exists():
-        raise HTTPException(
-            status_code=409, detail="SQLite export unavailable in this environment"
-        )
+        raise HTTPException(status_code=409, detail="SQLite export unavailable in this environment")
     buf = io.BytesIO()
     with open(db_path, "rb") as f:
         shutil.copyfileobj(f, buf)

@@ -1,56 +1,61 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { getSettings } from '../../api/settings'
-import type { UserSettingsOut } from '../../types'
-import './Layout.css'
+import { useCallback, useEffect, useState } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { getSettings } from "../../api/settings";
+import type { UserSettingsOut } from "../../types";
+import "./Layout.css";
 
 export function Layout() {
-  const [settings, setSettings] = useState<UserSettingsOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const navigate = useNavigate()
-  const location = useLocation()
+  const [settings, setSettings] = useState<UserSettingsOut | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const fetchSettings = useCallback(() => {
     getSettings()
       .then(setSettings)
       .catch(() => setSettings(null))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
-    fetchSettings()
-  }, [fetchSettings])
+    fetchSettings();
+  }, [fetchSettings]);
 
   useEffect(() => {
-    if (loading || !settings) return
+    if (loading || !settings) return;
 
-    const onOnboarding = location.pathname.startsWith('/onboarding')
+    const onOnboarding = location.pathname.startsWith("/onboarding");
 
     if (!settings.onboarding_completed && !onOnboarding) {
-      navigate('/onboarding', { replace: true })
+      navigate("/onboarding", { replace: true });
     } else if (settings.onboarding_completed && onOnboarding) {
-      navigate('/log', { replace: true })
+      navigate("/log", { replace: true });
     }
-  }, [settings, loading, location.pathname, navigate])
+  }, [settings, loading, location.pathname, navigate]);
 
   if (loading) {
     return (
       <div className="layout">
         <div className="layout-loading">Loading...</div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="layout">
       <header className="layout-header">
-        <h1 className="layout-title" onClick={() => navigate('/log')} role="button" tabIndex={0}>
+        <h1
+          className="layout-title"
+          onClick={() => navigate("/log")}
+          role="button"
+          tabIndex={0}
+        >
           Somnus
         </h1>
         <nav className="layout-nav">
           <button
             className="layout-nav-btn"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate("/dashboard")}
             aria-label="Dashboard"
             title="Dashboard"
           >
@@ -58,7 +63,7 @@ export function Layout() {
           </button>
           <button
             className="layout-nav-btn"
-            onClick={() => navigate('/analysis')}
+            onClick={() => navigate("/analysis")}
             aria-label="Analysis"
             title="Analysis"
           >
@@ -66,7 +71,7 @@ export function Layout() {
           </button>
           <button
             className="layout-nav-btn"
-            onClick={() => navigate('/recommendations')}
+            onClick={() => navigate("/recommendations")}
             aria-label="Recommendations"
             title="Recommendations"
           >
@@ -74,7 +79,7 @@ export function Layout() {
           </button>
           <button
             className="layout-nav-btn"
-            onClick={() => navigate('/reports')}
+            onClick={() => navigate("/reports")}
             aria-label="Reports"
             title="Reports"
           >
@@ -82,7 +87,7 @@ export function Layout() {
           </button>
           <button
             className="layout-nav-btn"
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate("/settings")}
             aria-label="Settings"
             title="Settings"
           >
@@ -94,5 +99,5 @@ export function Layout() {
         <Outlet context={{ refreshSettings: fetchSettings }} />
       </main>
     </div>
-  )
+  );
 }
