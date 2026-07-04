@@ -2,9 +2,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { SleepProfileStep } from "./SleepProfileStep";
-import { CaffeineSensitivity } from "../../types/enums";
+import { CaffeineSensitivity, type Chronotype } from "../../types/enums";
 
-function renderStep(chronotype: "early" | "intermediate" | "late" | null) {
+function renderStep(chronotype: Chronotype | null) {
   const onUpdate = vi.fn();
   render(
     <SleepProfileStep

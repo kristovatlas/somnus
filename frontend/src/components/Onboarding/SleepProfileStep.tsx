@@ -4,8 +4,10 @@ import { StepNavigation } from "./StepNavigation";
 import {
   CaffeineSensitivity,
   CAFFEINE_SENSITIVITY_LABELS,
-  Chronotype,
-  CHRONOTYPE_LABELS,
+  type Chronotype,
+  CHRONOTYPE_CHOICES,
+  CHRONOTYPE_CHOICE_LABELS,
+  CHRONOTYPE_UNKNOWN,
 } from "../../types/enums";
 import type { UserSettingsUpdate } from "../../types";
 
@@ -18,18 +20,6 @@ interface SleepProfileStepProps {
   onNext: () => void;
   onBack: () => void;
 }
-
-// Synthetic select option representing "no self-assessment" (chronotype null)
-const CHRONOTYPE_UNKNOWN = "unknown";
-type ChronotypeChoice = Chronotype | typeof CHRONOTYPE_UNKNOWN;
-const CHRONOTYPE_CHOICES: readonly ChronotypeChoice[] = [
-  CHRONOTYPE_UNKNOWN,
-  ...Object.values(Chronotype),
-];
-const CHRONOTYPE_CHOICE_LABELS: Record<ChronotypeChoice, string> = {
-  [CHRONOTYPE_UNKNOWN]: "Not sure — infer it from my data",
-  ...CHRONOTYPE_LABELS,
-};
 
 const hintStyle = {
   color: "var(--color-text-muted)",

@@ -6,8 +6,9 @@ import type { UserSettingsOut, UserSettingsUpdate } from "../../types";
 import {
   CaffeineSensitivity,
   CAFFEINE_SENSITIVITY_LABELS,
-  Chronotype,
-  CHRONOTYPE_LABELS,
+  CHRONOTYPE_CHOICES,
+  CHRONOTYPE_CHOICE_LABELS,
+  CHRONOTYPE_UNKNOWN,
 } from "../../types";
 
 interface ProfileSectionProps {
@@ -15,11 +16,6 @@ interface ProfileSectionProps {
   onUpdate: (data: UserSettingsUpdate) => Promise<UserSettingsOut>;
 }
 
-const CHRONOTYPE_OPTIONS = [
-  Chronotype.EARLY,
-  Chronotype.INTERMEDIATE,
-  Chronotype.LATE,
-] as const;
 const SENSITIVITY_OPTIONS = [
   CaffeineSensitivity.FAST,
   CaffeineSensitivity.NORMAL,
@@ -77,24 +73,15 @@ export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
           onChange={(v) => handleChange({ target_wake_time: v })}
         />
 
-        {settings.chronotype && (
-          <SelectInput
-            label="Chronotype"
-            value={settings.chronotype}
-            onChange={(v) => handleChange({ chronotype: v })}
-            options={CHRONOTYPE_OPTIONS}
-            labels={CHRONOTYPE_LABELS}
-          />
-        )}
-        {!settings.chronotype && (
-          <SelectInput
-            label="Chronotype"
-            value={Chronotype.INTERMEDIATE}
-            onChange={(v) => handleChange({ chronotype: v })}
-            options={CHRONOTYPE_OPTIONS}
-            labels={CHRONOTYPE_LABELS}
-          />
-        )}
+        <SelectInput
+          label="Chronotype"
+          value={settings.chronotype ?? CHRONOTYPE_UNKNOWN}
+          onChange={(v) =>
+            handleChange({ chronotype: v === CHRONOTYPE_UNKNOWN ? null : v })
+          }
+          options={CHRONOTYPE_CHOICES}
+          labels={CHRONOTYPE_CHOICE_LABELS}
+        />
 
         <SelectInput
           label="Caffeine Sensitivity"

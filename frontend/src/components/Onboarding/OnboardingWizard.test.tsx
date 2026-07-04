@@ -90,6 +90,20 @@ describe("OnboardingWizard", () => {
     expect(screen.getByText("Oura Ring Integration")).toBeInTheDocument();
   });
 
+  it("back from the Oura step returns to data storage", async () => {
+    mockFetchResponses();
+    const user = userEvent.setup();
+    renderWizard();
+    await waitFor(() => {
+      expect(screen.getByText("Welcome to Somnus")).toBeInTheDocument();
+    });
+    await user.click(screen.getByText("Get Started"));
+    await user.click(screen.getByText("Next"));
+    expect(screen.getByText("Oura Ring Integration")).toBeInTheDocument();
+    await user.click(screen.getByText("Back"));
+    expect(screen.getByText("Your Data Stays Local")).toBeInTheDocument();
+  });
+
   it("can navigate back from data storage step", async () => {
     mockFetchResponses();
     const user = userEvent.setup();

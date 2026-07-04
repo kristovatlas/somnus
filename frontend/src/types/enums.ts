@@ -153,6 +153,19 @@ export const CHRONOTYPE_LABELS: Record<Chronotype, string> = {
   late: "Night Owl",
 };
 
+// "Not sure" sentinel for chronotype selects: renders as a real option but
+// stores null, so inference from sleep data stays authoritative (issue #10)
+export const CHRONOTYPE_UNKNOWN = "unknown";
+export type ChronotypeChoice = Chronotype | typeof CHRONOTYPE_UNKNOWN;
+export const CHRONOTYPE_CHOICES: readonly ChronotypeChoice[] = [
+  CHRONOTYPE_UNKNOWN,
+  ...Object.values(Chronotype),
+];
+export const CHRONOTYPE_CHOICE_LABELS: Record<ChronotypeChoice, string> = {
+  [CHRONOTYPE_UNKNOWN]: "Not sure — infer it from my data",
+  ...CHRONOTYPE_LABELS,
+};
+
 export const DisplayMode = {
   CIRCADIAN: "circadian",
   LIGHT: "light",

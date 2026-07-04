@@ -16,11 +16,12 @@ describe("Toggle", () => {
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
   });
 
-  it("treats null as off and toggles to on", async () => {
+  it("shows an indeterminate dash for null — not recorded is not Off (ADR 003)", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Toggle label="Naps" checked={null} onChange={onChange} />);
-    expect(screen.getByText("Off")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("Off")).not.toBeInTheDocument();
     await user.click(screen.getByRole("switch"));
     expect(onChange).toHaveBeenCalledWith(true);
   });
