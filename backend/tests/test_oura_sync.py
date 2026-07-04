@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import itertools
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -242,6 +243,44 @@ class TestOuraClient:
         assert chunks[1] == (dt.date(2026, 1, 31), dt.date(2026, 3, 1))
         assert chunks[2] == (dt.date(2026, 3, 2), dt.date(2026, 3, 31))
 
+    def test_requests_translate_inclusive_range_to_exclusive_end(self) -> None:
+        """Oura's end_date is an exclusive bound, so each chunk must be sent
+        with end_date = chunk_end + 1 or the API never returns the last day."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": []}
+
+        mock_get = MagicMock(return_value=mock_resp)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            client.get_daily_sleep(dt.date(2026, 1, 1), dt.date(2026, 3, 1))
+
+        sent = [c.kwargs["params"] for c in mock_get.call_args_list]
+        assert sent[0] == {"start_date": "2026-01-01", "end_date": "2026-01-31"}
+        assert sent[1] == {"start_date": "2026-01-31", "end_date": "2026-03-02"}
+        # The half-open request windows tile the range with no gap, so every
+        # day (2026-01-30 included) is requested by exactly one window.
+        for a, b in itertools.pairwise(sent):
+            assert b["start_date"] == a["end_date"]
+
+    def test_single_day_range_requests_next_day_as_end(self) -> None:
+        """start == end must still produce a non-empty exclusive window."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": []}
+
+        mock_get = MagicMock(return_value=mock_resp)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 15))
+
+        params = mock_get.call_args.kwargs["params"]
+        assert params == {"start_date": "2026-02-15", "end_date": "2026-02-16"}
+
     def test_date_chunks_single_chunk_for_small_range(self) -> None:
         chunks = OuraClient._date_chunks(dt.date(2026, 2, 1), dt.date(2026, 2, 10), 30)
         assert len(chunks) == 1
@@ -253,7 +292,7 @@ class TestOuraClient:
         assert chunks[0] == (dt.date(2026, 2, 15), dt.date(2026, 2, 15))
 
     def test_large_range_makes_multiple_api_calls(self) -> None:
-        """A 60-day range should produce 2 HTTP request chunks."""
+        """A 60-day range should produce multiple HTTP request chunks."""
         client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
         mock_resp = MagicMock()
         mock_resp.status_code = 200

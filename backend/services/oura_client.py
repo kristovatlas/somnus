@@ -84,7 +84,7 @@ class OuraClient:
     def _date_chunks(
         start_date: dt.date, end_date: dt.date, chunk_days: int
     ) -> list[tuple[dt.date, dt.date]]:
-        """Split a date range into chunks of at most chunk_days."""
+        """Split an inclusive date range into chunks of at most chunk_days."""
         chunks: list[tuple[dt.date, dt.date]] = []
         current = start_date
         while current <= end_date:
@@ -96,7 +96,13 @@ class OuraClient:
     def _get_chunked(
         self, path: str, start_date: dt.date, end_date: dt.date
     ) -> list[dict[str, Any]]:
-        """Fetch data across a large date range by chunking into smaller requests.
+        """Fetch data across a large inclusive date range by chunking requests.
+
+        Oura's end_date behaves as an exclusive bound in practice (observed
+        against the official API sandbox; the docs don't say), so each chunk
+        is sent with chunk_end + 1 day to actually receive chunk_end. Should
+        the API ever treat end_date inclusively, the extra day's records
+        merge harmlessly in build_sleep_records.
 
         A single HTTP client is shared across all chunks and pages so the
         connection is reused instead of paying a TCP+TLS handshake per request.
@@ -108,7 +114,10 @@ class OuraClient:
                 results = self._get_paginated(
                     client,
                     path,
-                    {"start_date": str(chunk_start), "end_date": str(chunk_end)},
+                    {
+                        "start_date": str(chunk_start),
+                        "end_date": str(chunk_end + dt.timedelta(days=1)),
+                    },
                 )
                 all_data.extend(results)
         return all_data
