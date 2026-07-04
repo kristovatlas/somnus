@@ -1,6 +1,11 @@
 """Tests for settings and red light panel HTTP endpoints."""
 
+import datetime as dt
+
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from backend.models import UserSettings
 
 # --- User Settings ---
 
@@ -50,6 +55,23 @@ def test_patch_settings_onboarding(client: TestClient) -> None:
     resp = client.patch("/api/settings", json={"onboarding_completed": True})
     assert resp.status_code == 200
     assert resp.json()["onboarding_completed"] is True
+
+
+def test_last_oura_sync_includes_utc_marker(client: TestClient, db: Session) -> None:
+    """last_oura_sync stored as naive UTC should be serialized with +00:00 offset."""
+    settings = db.get(UserSettings, 1)
+    if settings is None:
+        settings = UserSettings(id=1)
+        db.add(settings)
+    # Store as naive UTC (as the sync endpoint does after SQLAlchemy strips tzinfo)
+    settings.last_oura_sync = dt.datetime(2026, 2, 23, 15, 30, 0)
+    db.commit()
+
+    resp = client.get("/api/settings")
+    data = resp.json()
+    # Should include UTC offset so browsers interpret correctly
+    assert data["last_oura_sync"] is not None
+    assert "+00:00" in data["last_oura_sync"] or "Z" in data["last_oura_sync"]
 
 
 # --- Red Light Panels ---

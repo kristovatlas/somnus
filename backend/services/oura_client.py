@@ -146,12 +146,19 @@ def _seconds_to_minutes(seconds: int | None) -> int | None:
 
 
 def _parse_datetime(value: str | None) -> dt.datetime | None:
-    """Parse an ISO 8601 datetime string, or return None."""
+    """Parse an ISO 8601 datetime string, returning a naive local-time datetime.
+
+    Oura returns datetimes with timezone offsets (e.g. "2024-01-15T22:30:00-05:00").
+    We strip the tzinfo to store as naive local time, since the hour/minute values
+    already represent the user's local time and that's what we need for bedtime
+    calculations and display.
+    """
     if value is None:
         return None
     # Oura returns formats like "2024-01-15T22:30:00-05:00"
     # fromisoformat handles this in Python 3.11+
-    return dt.datetime.fromisoformat(value)
+    parsed = dt.datetime.fromisoformat(value)
+    return parsed.replace(tzinfo=None)
 
 
 def build_sleep_records(
