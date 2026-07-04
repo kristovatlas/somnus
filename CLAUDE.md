@@ -28,7 +28,7 @@ Somnus is a locally-run sleep optimization app. Python (FastAPI) backend + React
 ### Threat Model Gate (temporary — replace when PLAN.md Step 9 completes)
 - Agreed 2026-07-04: we code with a threat model. Once the PRs open as of that date (#32, #33, #34, #39) are merged, **do not open any new PRs** until PLAN.md Step 9 is complete: threat model authored (`docs/THREAT_MODEL.md`) → reviewed and approved by Kristov (not authoritative until human-approved) → existing code audited against it, findings fixed or explicitly accepted → practice wired into the PR security checklist.
 - Only exceptions during the gate: PRs implementing Step 9 itself, and fixes for red `dev` CI.
-- When Step 9 completes, replace this section with the standing rule: every PR is written and reviewed with `docs/THREAT_MODEL.md` in consideration, and any change altering trust boundaries or attack surface updates it in the same PR.
+- When Step 9 completes, replace this section with the standing rule: every PR is written and reviewed with `docs/THREAT_MODEL.md` in consideration; **every PR description includes a "Threat model impact" section** — "None" with a one-line justification, or a summary of what changed with the canonical `docs/THREAT_MODEL.md` updated in the same PR. The threat model must never lag the code; a missing or wrong impact statement blocks merge.
 
 ### Testing
 - 90%+ coverage on new code per commit, 75%+ project-wide floor.
