@@ -31,6 +31,13 @@ Somnus is a locally-run sleep optimization app. Python (FastAPI) backend + React
 - Backend: pytest. Frontend: Vitest + React Testing Library. E2E: Playwright.
 - Tests run with `make test`.
 
+### CI Health
+CI on `dev` was red from 2026-02 to 2026-07 because merges never verified it. These rules exist so that never happens again:
+- **`dev` CI must stay green.** At the start of any work session, check the latest run: `gh run list --branch dev --limit 1`. If it is red, fixing it preempts all other work — never build features on a broken base.
+- **Never merge a PR with failing or pending checks.** Verify with `gh pr checks <number>` immediately before merging. Never use `gh pr merge --admin` to bypass required checks.
+- **After merging to `dev`, wait for the post-merge run and confirm it is green** before starting the next task — two individually green PRs can still break `dev` in combination.
+- Branch protection on `dev` and `main` requires the `backend (3.11)`, `backend (3.12)`, `frontend`, and `security` checks. Keep it enabled. If job names in `ci.yml` change, update the protection rule in the same PR.
+
 ### Architecture Docs
 - ARCHITECTURE.md must be updated in the same commit as any structural change.
 - New ADRs created for significant architectural decisions.
