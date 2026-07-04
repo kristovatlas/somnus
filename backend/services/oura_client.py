@@ -27,19 +27,24 @@ class OuraClient:
         self._token = token
         self._base_url = base_url.rstrip("/")
 
-    # Oura API rejects date ranges wider than ~30 days.
+    # Oura's API docs recommend fetching historical data in "reasonable
+    # time spans (e.g., 1-3 months at a time)" rather than one huge range,
+    # so long ranges are split into 30-day windows.
     _CHUNK_DAYS = 30
 
-    def _get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
+    # Upper bound on pages per chunk, so a server that keeps returning
+    # page tokens cannot make _get_paginated loop forever.
+    _MAX_PAGES = 50
+
+    def _get(self, client: httpx.Client, path: str, params: dict[str, str]) -> dict[str, Any]:
         """Make an authenticated GET request to the Oura API."""
         try:
-            with httpx.Client(timeout=30.0) as client:
-                resp = client.get(
-                    f"{self._base_url}{path}",
-                    params=params,
-                    headers={"Authorization": f"Bearer {self._token}"},
-                )
-        except httpx.ConnectError as exc:
+            resp = client.get(
+                f"{self._base_url}{path}",
+                params=params,
+                headers={"Authorization": f"Bearer {self._token}"},
+            )
+        except httpx.TransportError as exc:
             raise OuraAPIError(
                 0, "Could not connect to Oura API. Check your internet connection."
             ) from exc
@@ -58,18 +63,22 @@ class OuraClient:
         data: dict[str, Any] = resp.json()
         return data
 
-    def _get_paginated(self, path: str, params: dict[str, str]) -> list[dict[str, Any]]:
+    def _get_paginated(
+        self, client: httpx.Client, path: str, params: dict[str, str]
+    ) -> list[dict[str, Any]]:
         """Fetch all pages of a paginated Oura API endpoint."""
         all_data: list[dict[str, Any]] = []
         current_params = dict(params)
-        while True:
-            data = self._get(path, current_params)
-            all_data.extend(data.get("data", []))
+        for _ in range(self._MAX_PAGES):
+            data = self._get(client, path, current_params)
+            all_data.extend(data.get("data") or [])
             next_token = data.get("next_token")
             if not next_token:
-                break
+                return all_data
+            if next_token == current_params.get("next_token"):
+                raise OuraAPIError(0, "Oura API returned a repeated page token.")
             current_params["next_token"] = next_token
-        return all_data
+        raise OuraAPIError(0, "Oura API returned too many pages for a single date range.")
 
     @staticmethod
     def _date_chunks(
@@ -87,14 +96,21 @@ class OuraClient:
     def _get_chunked(
         self, path: str, start_date: dt.date, end_date: dt.date
     ) -> list[dict[str, Any]]:
-        """Fetch data across a large date range by chunking into smaller requests."""
+        """Fetch data across a large date range by chunking into smaller requests.
+
+        A single HTTP client is shared across all chunks and pages so the
+        connection is reused instead of paying a TCP+TLS handshake per request.
+        """
         all_data: list[dict[str, Any]] = []
-        for chunk_start, chunk_end in self._date_chunks(start_date, end_date, self._CHUNK_DAYS):
-            results = self._get_paginated(
-                path,
-                {"start_date": str(chunk_start), "end_date": str(chunk_end)},
-            )
-            all_data.extend(results)
+        chunks = self._date_chunks(start_date, end_date, self._CHUNK_DAYS)
+        with httpx.Client(timeout=30.0) as client:
+            for chunk_start, chunk_end in chunks:
+                results = self._get_paginated(
+                    client,
+                    path,
+                    {"start_date": str(chunk_start), "end_date": str(chunk_end)},
+                )
+                all_data.extend(results)
         return all_data
 
     def get_daily_sleep(self, start_date: dt.date, end_date: dt.date) -> list[dict[str, Any]]:

@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from backend.models import SleepRecord, UserSettings
+from backend.routers import oura as oura_router
 from backend.services.oura_client import (
     OuraAPIError,
     OuraClient,
@@ -296,6 +297,77 @@ class TestOuraClient:
         second_call_params = mock_get.call_args_list[1].kwargs["params"]
         assert second_call_params["next_token"] == "abc123"
 
+    def test_reuses_one_http_client_across_chunks(self) -> None:
+        """All chunks of one endpoint call share a single httpx.Client."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": []}
+
+        mock_get = MagicMock(return_value=mock_resp)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            client.get_daily_sleep(dt.date(2026, 1, 1), dt.date(2026, 3, 1))
+
+        # 60 days → 2 chunk requests over one client (one connection)
+        assert mock_get.call_count == 2
+        assert mock_http.call_count == 1
+
+    def test_pagination_repeated_token_raises(self) -> None:
+        """A server that echoes the same next_token back must not loop forever."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": [], "next_token": "stuck"}
+
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            with pytest.raises(OuraAPIError) as exc_info:
+                client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
+
+        assert "repeated page token" in exc_info.value.message
+
+    def test_pagination_page_cap_raises(self) -> None:
+        """Endless unique page tokens stop at _MAX_PAGES instead of looping forever."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+
+        def _page(i: int) -> MagicMock:
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.json.return_value = {"data": [], "next_token": f"tok{i}"}
+            return resp
+
+        pages = [_page(i) for i in range(OuraClient._MAX_PAGES + 1)]
+        mock_get = MagicMock(side_effect=pages)
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(return_value=MagicMock(get=mock_get))
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            with pytest.raises(OuraAPIError) as exc_info:
+                client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
+
+        assert "too many pages" in exc_info.value.message
+        assert mock_get.call_count == OuraClient._MAX_PAGES
+
+    def test_null_data_treated_as_empty(self) -> None:
+        """A '"data": null' body is treated as an empty page, not a crash."""
+        client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": None}
+
+        with patch("httpx.Client") as mock_http:
+            mock_http.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(get=MagicMock(return_value=mock_resp))
+            )
+            mock_http.return_value.__exit__ = MagicMock(return_value=False)
+            result = client.get_daily_sleep(dt.date(2026, 2, 15), dt.date(2026, 2, 16))
+
+        assert result == []
+
     def test_generic_400_error(self) -> None:
         client = OuraClient(token="test-token", base_url="https://api.ouraring.com/v2")
         mock_resp = MagicMock()
@@ -579,3 +651,81 @@ class TestSyncEndpoint:
         # 0 falls through to 502
         assert resp.status_code == 502
         assert "Could not connect" in resp.json()["detail"]
+
+    def test_sync_reversed_range_returns_400(self, client: TestClient, db: Session) -> None:
+        """An explicit start_date after end_date is an error, not a silent no-op."""
+        self._set_token(db)
+
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            resp = client.get("/api/oura/sync?start_date=2026-02-16&end_date=2026-02-15")
+
+        assert resp.status_code == 400
+        assert "start_date" in resp.json()["detail"]
+        mock_client.assert_not_called()
+
+    def test_sync_clamps_future_last_sync_date(self, client: TestClient, db: Session) -> None:
+        """last_oura_sync is stored in UTC, so its date can be "tomorrow" for a
+        local evening sync; the derived range must clamp and still hit the API."""
+        self._set_token(db)
+        settings = db.get(UserSettings, 1)
+        assert settings is not None
+        today = dt.date.today()
+        settings.last_oura_sync = dt.datetime.combine(today + dt.timedelta(days=1), dt.time(0, 30))
+        db.commit()
+
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
+            instance.get_daily_sleep.return_value = []
+            instance.get_daily_readiness.return_value = []
+            instance.get_sleep_periods.return_value = []
+
+            resp = client.get("/api/oura/sync")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["start_date"] == today.isoformat()
+        assert data["end_date"] == today.isoformat()
+        # The clamped range still makes a real request, so problems like an
+        # invalid token are still surfaced.
+        instance.get_daily_sleep.assert_called_once_with(today, today)
+
+    def test_sync_partial_failure_keeps_watermark(self, client: TestClient, db: Session) -> None:
+        """A sync with a failed endpoint must not advance last_oura_sync,
+        or the failed range would silently never be re-fetched."""
+        self._set_token(db)
+        settings = db.get(UserSettings, 1)
+        assert settings is not None
+        previous = dt.datetime(2026, 2, 10, 12, 0, 0)
+        settings.last_oura_sync = previous
+        db.commit()
+
+        with patch("backend.routers.oura.OuraClient") as mock_client:
+            instance = mock_client.return_value
+            instance.get_daily_sleep.return_value = SAMPLE_DAILY_SLEEP["data"]
+            instance.get_daily_readiness.side_effect = OuraAPIError(500, "Server error")
+            instance.get_sleep_periods.return_value = SAMPLE_SLEEP_PERIODS["data"]
+
+            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["synced_count"] == 2
+        assert data["errors"] == ["Could not fetch readiness data"]
+
+        db.expire_all()
+        settings = db.get(UserSettings, 1)
+        assert settings is not None
+        assert settings.last_oura_sync == previous
+
+    def test_sync_conflict_returns_409(self, client: TestClient, db: Session) -> None:
+        """Only one sync may run at a time; a concurrent request gets a 409."""
+        self._set_token(db)
+
+        assert oura_router._sync_lock.acquire(blocking=False)
+        try:
+            resp = client.get("/api/oura/sync")
+        finally:
+            oura_router._sync_lock.release()
+
+        assert resp.status_code == 409
+        assert "already in progress" in resp.json()["detail"]
