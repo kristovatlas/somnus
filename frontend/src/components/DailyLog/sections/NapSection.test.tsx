@@ -141,4 +141,87 @@ describe("NapSection", () => {
 
     expect(getTimeInputs()).toHaveLength(0);
   });
+
+  it("clears duration when start and end are the same minute", () => {
+    render(
+      <Harness
+        initial={[
+          { start_time: "14:00:00", end_time: null, duration_minutes: null },
+        ]}
+      />,
+    );
+    const [, end] = getTimeInputs();
+    fireEvent.change(end, { target: { value: "14:00" } });
+    // A same-time pair is not a 1440-minute nap; leaving duration empty
+    // keeps the day's save from being rejected by the 240-minute cap
+    expect(getDurationInput().value).toBe("");
+  });
+
+  it("clears a stale duration for a backwards end time", () => {
+    render(
+      <Harness
+        initial={[
+          { start_time: "14:00:00", end_time: null, duration_minutes: 20 },
+        ]}
+      />,
+    );
+    const [, end] = getTimeInputs();
+    fireEvent.change(end, { target: { value: "13:00" } });
+    expect(getDurationInput().value).toBe("");
+  });
+
+  it("computes duration across midnight", () => {
+    render(
+      <Harness
+        initial={[
+          { start_time: "23:50:00", end_time: null, duration_minutes: null },
+        ]}
+      />,
+    );
+    const [, end] = getTimeInputs();
+    fireEvent.change(end, { target: { value: "00:10" } });
+    expect(getDurationInput().value).toBe("20");
+  });
+
+  it("rounds fractional durations instead of deriving :60 end times", () => {
+    render(
+      <Harness
+        initial={[
+          { start_time: "14:30:00", end_time: null, duration_minutes: null },
+        ]}
+      />,
+    );
+    fireEvent.change(getDurationInput(), { target: { value: "29.7" } });
+    expect(getDurationInput().value).toBe("30");
+    expect(getTimeInputs()[1].value).toBe("15:00");
+  });
+
+  it("does not rewrite end time from out-of-range durations", () => {
+    render(
+      <Harness
+        initial={[
+          {
+            start_time: "13:00:00",
+            end_time: "13:20:00",
+            duration_minutes: 20,
+          },
+        ]}
+      />,
+    );
+    fireEvent.change(getDurationInput(), { target: { value: "1500" } });
+    // Bad value stays quarantined in the duration field; end is untouched
+    expect(getTimeInputs()[1].value).toBe("13:20");
+  });
+
+  it("quick-add near midnight leaves end time unrecorded", async () => {
+    vi.setSystemTime(new Date("2026-07-03T23:50:00"));
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "+ 20 min nap" }));
+    const [start, end] = getTimeInputs();
+    expect(start.value).toBe("23:50");
+    // 00:10 belongs to tomorrow; a same-day end time would be wrong (ADR 003)
+    expect(end.value).toBe("");
+    expect(getDurationInput().value).toBe("20");
+  });
 });

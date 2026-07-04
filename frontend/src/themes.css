@@ -142,3 +142,15 @@ button {
 button:hover {
   background-color: var(--color-interactive-hover);
 }
+
+/* Shared quick-add chip used by daily-log sections (Caffeine, Nap, NSDR,
+   Supplement, Habit) */
+.quick-add-btn {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-accent);
+  border: 1px solid var(--color-border-light);
+  border-radius: 6px;
+  cursor: pointer;
+}

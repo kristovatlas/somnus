@@ -42,10 +42,7 @@ test.describe("Daily log", () => {
     await page.getByRole("button", { name: /Naps/ }).click();
     await page.getByRole("button", { name: "+ 20 min nap" }).click();
 
-    const napCard = page
-      .locator("div")
-      .filter({ has: page.getByRole("button", { name: "Remove" }) })
-      .last();
+    const napCard = page.getByTestId("nap-entry").last();
     const timeInputs = napCard.locator('input[type="time"]');
     const duration = napCard.locator('input[type="number"]');
 
@@ -65,10 +62,7 @@ test.describe("Daily log", () => {
     await page.reload();
     // localStorage is cleared on navigation by the fixture, so re-expand
     await page.getByRole("button", { name: /Naps/ }).click();
-    const reloadedCard = page
-      .locator("div")
-      .filter({ has: page.getByRole("button", { name: "Remove" }) })
-      .last();
+    const reloadedCard = page.getByTestId("nap-entry").last();
     await expect(reloadedCard.locator('input[type="number"]')).toHaveValue(
       "20",
     );

@@ -45,15 +45,7 @@ export function SupplementSection({
             key={name}
             type="button"
             onClick={() => addEntry(name)}
-            style={{
-              fontSize: "0.8rem",
-              padding: "4px 10px",
-              background: "var(--color-bg-elevated)",
-              color: "var(--color-text-accent)",
-              border: "1px solid var(--color-border-light)",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className="quick-add-btn"
           >
             + {name}
           </button>
