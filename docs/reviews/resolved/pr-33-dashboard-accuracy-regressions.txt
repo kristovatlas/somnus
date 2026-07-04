@@ -46,3 +46,11 @@ Findings:
    Display the bedtime delta as an unsigned absolute offset, or update the
    backend contract to provide a signed directional delta before using plus or
    minus signs and "earlier/later" language in the dashboard.
+
+Resolution (2026-07-04, fix/dashboard-clarity):
+1. TrendSparklines now takes the displayed "latest" from the actual most
+   recent day (null renders the "—" placeholder); min/max range still
+   computed from recorded days only. Regression test added.
+2. δ is displayed unsigned with direction-free tooltip wording, matching
+   the backend's mean-of-absolute-offsets metric. Signed/directional δ
+   deferred until the backend contract carries direction.

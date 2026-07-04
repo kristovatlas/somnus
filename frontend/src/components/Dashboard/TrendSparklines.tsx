@@ -21,7 +21,10 @@ function SparkCell({
   unit: string;
 }) {
   const values = points.filter((v): v is number => v != null);
-  const latest = values.length > 0 ? values[values.length - 1] : null;
+  // "Latest" must reflect the actual most recent day: when its value is
+  // missing, show the placeholder rather than an older reading
+  // masquerading as current
+  const latest = points.length > 0 ? points[points.length - 1] : null;
   const min = values.length > 0 ? Math.min(...values) : null;
   const max = values.length > 0 ? Math.max(...values) : null;
 

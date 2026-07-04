@@ -316,6 +316,23 @@ describe("DashboardPage", () => {
     expect(sparklines.getByText(/7d range: 70–80m/)).toBeInTheDocument();
   });
 
+  it("shows a dash when the latest trend day is missing a metric", async () => {
+    const trends = fullDashboard.trends.map((t, i, arr) =>
+      i === arr.length - 1 ? { ...t, avg_hrv: null } : t,
+    );
+    mockFetchWith({ ...fullDashboard, trends });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("trend-sparklines")).toBeInTheDocument();
+    });
+    const sparklines = within(screen.getByTestId("trend-sparklines"));
+    // Latest HRV is missing → placeholder, not yesterday's 42ms
+    expect(sparklines.getByText("—")).toBeInTheDocument();
+    expect(sparklines.queryByText("42ms")).not.toBeInTheDocument();
+    // Range still computed from the recorded days
+    expect(sparklines.getByText(/7d range: 40–42ms/)).toBeInTheDocument();
+  });
+
   it("explains the greek letters on consistency pills (issue #14)", async () => {
     mockFetchWith(fullDashboard);
     renderPage();
@@ -330,7 +347,8 @@ describe("DashboardPage", () => {
         /σ variability · δ vs typical bedtime · Δ weekend drift/,
       ),
     ).toBeInTheDocument();
-    // Positive delta is signed so "later than usual" is unambiguous
-    expect(screen.getByText(/δ \+15m/)).toBeInTheDocument();
+    // Delta is an absolute offset (backend takes mean of |bedtime - typical|),
+    // so it must render unsigned — no direction claim
+    expect(screen.getByText(/δ 15m/)).toBeInTheDocument();
   });
 });

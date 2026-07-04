@@ -125,11 +125,10 @@ export function ConsistencyMeter({
         {consistency.delta_minutes != null && consistency.delta_rating && (
           <span
             className="consistency-pill"
-            title="Offset (δ): how far your average bedtime sits from your typical bedtime. Positive = later than usual."
+            title="Offset (δ): average distance between your nightly bedtime and your typical bedtime, in either direction. Under 30 min is on target."
             style={{ color: ratingColor(consistency.delta_rating) }}
           >
-            δ {consistency.delta_minutes > 0 ? "+" : ""}
-            {Math.round(consistency.delta_minutes)}m
+            δ {Math.round(consistency.delta_minutes)}m
           </span>
         )}
         {consistency.weekend_drift_minutes != null &&
