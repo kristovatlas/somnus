@@ -64,9 +64,11 @@ ignore = [
 "backend/routers/**" = ["B008"]
 
 [tool.mypy]
-# Pin to the oldest supported interpreter so mypy verifies 3.11
-# compatibility regardless of which Python runs it.
-python_version = "3.11"
+# No python_version pin: numpy 2.5+ (which resolves on Python 3.12+)
+# ships PEP 695 stubs that mypy can only parse when analyzing as 3.12+,
+# while the 3.11 CI job resolves numpy 2.4.x and must analyze as 3.11.
+# Each CI matrix job therefore type-checks under its own interpreter;
+# only the 3.11 CI leg verifies 3.11 compatibility.
 strict = true
 warn_return_any = true
 warn_unused_configs = true
