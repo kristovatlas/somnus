@@ -771,6 +771,29 @@ Jet lag is a massive sleep disruptor. When a user travels, Oura data shifts but 
 - Reports tab in frontend
 - **Tests**: report generation with various data completeness levels, export format correctness
 
+### Step 9: Threat Model — Gate Before Any New PRs
+
+**Status: agreed 2026-07-04. Activates once the PRs open on that date (#32, #33, #34, plus the PR introducing this step) are merged. From that point, no new PRs may be opened until this step is complete.** Two exceptions only: PRs that implement this step itself, and fixes for a red `dev` CI run (which preempt everything, per CLAUDE.md).
+
+Somnus holds some of the most sensitive personal data an app can: sexual activity (including adult-content usage), illness, alcohol consumption, the user's nightly sleep schedule, and an Oura token granting access to cloud-stored health data. Security so far has been checklist-driven; this step adds an explicit, human-approved threat model that all future code is written against, to reduce the chance of introducing vulnerabilities.
+
+**9.1 — Author `docs/THREAT_MODEL.md`** (world-class, not boilerplate):
+- **Assets**: the SQLite DB (all health/behavioral data + Oura token) at a user-configurable path, data exports, logs, coarse location (zip code), and the analysis outputs themselves
+- **Trust boundaries & data flows**: browser ↔ backend (unauthenticated localhost API), backend ↔ Oura / Open-Meteo / NREL, backend ↔ filesystem (configurable DB path, export paths), dev/build/CI supply chain — drawn as Mermaid overlays on the existing ARCHITECTURE.md C4 diagrams
+- **Adversary model for a local-first app**: malicious website in the user's browser (CSRF / DNS rebinding against the localhost API), other processes or users on the same machine, compromised dependency or CI action, malicious/compromised external API responses, device theft or loss — with explicit out-of-scope declarations and rationale (e.g., compromise of Oura's cloud itself)
+- **Systematic enumeration**: STRIDE-per-element (or an equivalent systematic method) across every component and data flow — the method must make omissions visible, not just catalog known worries
+- **Mitigations & residual risks**: every identified threat maps to a concrete mitigation in code/config, a tracked issue, or an explicitly accepted residual risk — nothing silently dropped
+- **ADR** documenting the methodology and scope choices
+- Living document: same currency rule as ARCHITECTURE.md — updated in the same PR as any change that alters trust boundaries or attack surface
+
+**9.2 — Human review**: Kristov reviews and approves the threat model. It is not authoritative until human-approved; revise until it is.
+
+**9.3 — Audit existing code against the approved model**: full pass over backend, frontend, CI workflows, Makefile, and docker-compose. Every finding becomes either a fix PR referencing the threat-model section it enforces, or an explicitly documented accepted risk in the doc. Audit report committed under `docs/reviews/`.
+
+**9.4 — Bake into the workflow**: update CLAUDE.md and the security review checklist (below) so every future PR is written and reviewed with the threat model in consideration — which trust boundaries does this change touch, what new attack surface does it add, and does `docs/THREAT_MODEL.md` need updating in the same PR?
+
+**Done when**: doc merged and human-approved, all audit findings fixed or explicitly accepted, CLAUDE.md and the PR checklist updated. Then normal work resumes (dogfooding bugs, analysis cluster).
+
 ---
 
 ## Software Engineering Standards
@@ -875,6 +898,8 @@ main          ← Always reflects a complete, user-ready version (tagged release
 ### Security Review Process
 
 Every PR must pass a security review before merge. This is a health data application — security is non-negotiable.
+
+**Threat model**: `docs/THREAT_MODEL.md` (created in build-order Step 9) is the reference for what we defend against. Once it lands, every review below additionally verifies the change against it, and any PR that alters trust boundaries or attack surface must update the threat model in the same PR.
 
 **Automated checks (CI, run on every PR):**
 - **Dependency audit**: `pip-audit` (Python) + `npm audit` (Node) — flag known vulnerabilities in dependencies
