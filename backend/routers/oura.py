@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -17,6 +18,10 @@ from backend.services.oura_client import OuraAPIError, OuraClient, build_sleep_r
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["oura"])
+
+# A chunked sync can take a while; a second sync started meanwhile would
+# race the first on the same SleepRecord rows, so only one runs at a time.
+_sync_lock = threading.Lock()
 
 
 def _get_settings(db: Session) -> UserSettings:
@@ -41,6 +46,23 @@ def sync_oura(
     Fetches daily sleep, readiness, and detailed sleep period data
     for the given date range, then upserts into SleepRecord table.
     """
+    if not _sync_lock.acquire(blocking=False):
+        raise HTTPException(
+            status_code=409,
+            detail="An Oura sync is already in progress. Wait for it to finish.",
+        )
+    try:
+        return _run_sync(start_date, end_date, db)
+    finally:
+        _sync_lock.release()
+
+
+def _run_sync(
+    start_date: dt.date | None,
+    end_date: dt.date | None,
+    db: Session,
+) -> OuraSyncResponse:
+    """Perform the sync. Caller must hold _sync_lock."""
     settings = _get_settings(db)
 
     if not settings.oura_token:
@@ -54,9 +76,17 @@ def sync_oura(
         end_date = today
     if start_date is None:
         if settings.last_oura_sync:
-            start_date = settings.last_oura_sync.date()
+            # last_oura_sync is stored in UTC, so its calendar date can be
+            # ahead of the local date in the evening; clamp so the derived
+            # range stays valid instead of silently fetching nothing.
+            start_date = min(settings.last_oura_sync.date(), end_date)
         else:
             start_date = today - dt.timedelta(days=365)
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=400,
+            detail="start_date must be on or before end_date.",
+        )
 
     client = OuraClient(
         token=settings.oura_token,
@@ -97,7 +127,12 @@ def sync_oura(
             db.add(SleepRecord(**record_data))
         synced_count += 1
 
-    settings.last_oura_sync = dt.datetime.now(dt.UTC)
+    # Advance the sync watermark only when every endpoint succeeded. A
+    # partial sync must be re-fetched next time — otherwise the failed
+    # range would be skipped forever and its NULLs would read as "not
+    # recorded" (see ADR 003).
+    if not errors:
+        settings.last_oura_sync = dt.datetime.now(dt.UTC)
     db.commit()
 
     return OuraSyncResponse(

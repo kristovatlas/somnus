@@ -60,12 +60,15 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"backend/tests/**" = ["S101", "S106", "S107"]
+"backend/tests/**" = ["S101", "S105", "S106", "S107"]
 "backend/routers/**" = ["B008"]
 
 [tool.mypy]
-# No python_version pin: each CI matrix job type-checks under its own
-# interpreter (numpy>=2.4 ships PEP 695 stubs that require 3.12+ analysis).
+# No python_version pin: numpy 2.5+ (which resolves on Python 3.12+)
+# ships PEP 695 stubs that mypy can only parse when analyzing as 3.12+,
+# while the 3.11 CI job resolves numpy 2.4.x and must analyze as 3.11.
+# Each CI matrix job therefore type-checks under its own interpreter;
+# only the 3.11 CI leg verifies 3.11 compatibility.
 strict = true
 warn_return_any = true
 warn_unused_configs = true
