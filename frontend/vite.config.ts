@@ -5,6 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // T-01 (docs/THREAT_MODEL.md): only accept loopback Host headers so a rebound
+    // attacker host served to :5173 cannot proxy into the backend (changeOrigin
+    // would otherwise rewrite the Host and slip past backend TrustedHost checks).
+    allowedHosts: ['localhost', '127.0.0.1'],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

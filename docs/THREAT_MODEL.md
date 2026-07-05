@@ -140,14 +140,14 @@ Cross-cutting: **T‑16** (logging discipline) is a standing control, verified c
 
 Status legend: **Mitigated** (control in place, cited) · **Partial** (control reduces but does not close) · **Accepted** (residual risk Kristov signs off on) · **Open** (no adequate control yet → must become a fix or an explicit acceptance in the Step 9.3 audit).
 
-### T‑01 — DNS rebinding / CSRF against the localhost API — **Open** — *Critical*
-`backend/main.py` (no Host validation); `backend/config.py:16` (CORS)
+### T‑01 — DNS rebinding / CSRF against the localhost API — **Mitigated** — *Critical*
+`backend/main.py` (`TrustedHostMiddleware`); `backend/config.py` (`allowed_hosts`); `frontend/vite.config.ts` (`server.allowedHosts`)
 
 **STRIDE:** Spoofing / Elevation. **Adversary:** AD1.
 
-CORS pins the *readable* origin to `http://localhost:5173`, which stops an ordinary cross-origin site from **reading** API responses. It does **not** stop a browser from **reaching** `127.0.0.1:8000`, and it is fully bypassed by DNS rebinding: the attacker serves a page from a host they control, then rebinds that hostname's DNS to `127.0.0.1`. The page's requests to `http://attacker-host:8000/…` are now **same-origin** with the rebound host, so CORS does not apply at all, and the page reads every response. There is **no `TrustedHostMiddleware`** and no other Host-header check anywhere (`backend/main.py:33` registers only `CORSMiddleware`), so uvicorn accepts any `Host`. Result: a website the user merely visits can read all health data, exfiltrate the SQLite dump **including the plaintext token** (T‑03), tamper with settings, and — if test mode is on — wipe the DB (T‑15). PLAN.md:782-783 explicitly names this adversary as in-scope.
+CORS pins the *readable* origin to `http://localhost:5173`, which stops an ordinary cross-origin site from **reading** API responses. It does **not** stop a browser from **reaching** `127.0.0.1:8000`, and it is fully bypassed by DNS rebinding: the attacker serves a page from a host they control, then rebinds that hostname's DNS to `127.0.0.1`. The page's requests to `http://attacker-host:8000/…` are now **same-origin** with the rebound host, so CORS does not apply at all, and the page reads every response. Without a Host check, a website the user merely visits could read all health data, exfiltrate the SQLite dump **including the plaintext token** (T‑03), tamper with settings, and — if test mode is on — wipe the DB (T‑15); PLAN.md:782-783 names this adversary as in-scope. **This is now blocked:** `TrustedHostMiddleware` rejects any request whose `Host` is not `localhost`/`127.0.0.1` (400), and Vite's `server.allowedHosts` applies the same restriction to the `:5173` dev-proxy ingress (whose `changeOrigin` would otherwise rewrite the Host past the backend check).
 
-**Required mitigation (Step 9.3):** add `TrustedHostMiddleware` allowing only `localhost`/`127.0.0.1` (+ configured port); this closes *direct* reachability of `:8000` for T‑02/T‑03. **It does not cover the Vite dev-proxy path (F1p):** `changeOrigin: true` rewrites the `Host` to `localhost:8000`, so proxied requests always pass the check — the `:5173` ingress must be closed separately (set Vite `server.allowedHosts`, and/or in the packaged build serve the SPA statically same-origin with the API so no dev proxy exists). Consider a startup log line if a non-loopback Host is ever seen.
+**Mitigation (implemented):** `TrustedHostMiddleware` with `allowed_hosts = ["localhost", "127.0.0.1"]` (`main.py` + `config.py`), added as the outermost middleware so bad hosts are rejected first; the port is ignored when matching. Vite `server.allowedHosts` is pinned to the same loopback names (`vite.config.ts`) to close the F1p proxy path, and `SOMNUS_ALLOWED_HOSTS` allows overriding for non-default deployments. Verified by `backend/tests/test_host_validation.py` (loopback + port accepted; non-loopback → 400). **Residual:** this addresses *reachability* only — it does not add per-request auth (see T‑03, Accepted) and does not by itself make state-changing GETs idempotent (see T‑02, still Open).
 
 ### T‑02 — State-changing GET enables CSRF side effects — **Open** — *High*
 `backend/routers/oura.py:38` (`GET /api/oura/sync`); also `recommendations.py`/`recommender.py:345,414,429`, `settings.py:47-52`
@@ -163,7 +163,7 @@ Several **GET** endpoints mutate state, so a "simple" cross-origin GET — *sent
 
 **STRIDE:** Information disclosure. **Adversary:** AD1.
 
-No endpoint requires authentication (verified: no `Security`/`Depends(auth)` anywhere). `GET /api/export/sqlite` streams the entire DB file — health data **and** the plaintext token — in one request; `GET /api/export?format=csv|json` and `/api/dashboard` expose the same data. The absence of per-request auth is an **accepted design choice** for a single-user local app — but **no ADR records it yet; a dedicated ADR is recommended as part of 9.2/9.3** (ADR 009 covers Oura PAT auth, not this decision). The acceptance is *conditional*: it is safe only once T‑01 confines reachability to loopback. **Until T‑01 lands, the data is fully exposed to AD1 — that live exposure is tracked as T‑01 (Open, Critical), not accepted here.**
+No endpoint requires authentication (verified: no `Security`/`Depends(auth)` anywhere). `GET /api/export/sqlite` streams the entire DB file — health data **and** the plaintext token — in one request; `GET /api/export?format=csv|json` and `/api/dashboard` expose the same data. The absence of per-request auth is an **accepted design choice** for a single-user local app — but **no ADR records it yet; a dedicated ADR is recommended as part of 9.2/9.3** (ADR 009 covers Oura PAT auth, not this decision). The acceptance is *conditional*: it is safe only once T‑01 confines reachability to loopback. **T‑01 has now landed (`TrustedHostMiddleware` + Vite `allowedHosts`), so DNS-rebinding reads are blocked and ordinary cross-origin reads are stopped by CORS — the acceptance now holds.**
 
 **Mitigation:** primarily T‑01 (Host validation confines reachability to loopback). Residual after T‑01 — a co-resident user connecting directly to `127.0.0.1:8000` — is tracked as AD2/T‑08 and accepted for the local-first model. No per-request auth is planned; revisit if Somnus ever grows a remote/multi-device mode.
 
@@ -286,7 +286,7 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 | T‑15 | Destructive endpoint if `SOMNUS_TESTING=1` is set on a real DB | Accepted + path-guard recommended |
 | Open-Meteo/NREL | No surface today (unimplemented) | Deferred — **when implemented, add F-flows, model SSRF/base-URL/response-trust (mirror T‑10/T‑11), and update this doc in the same PR** |
 
-**Open items requiring action in the Step 9.3 audit:** T‑01, T‑02, T‑04, T‑05, T‑08, T‑09, T‑12, T‑14, T‑17, and the T‑13 supply-chain gaps (npm audit in CI, backend lockfile, install cooldown). Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
+**Open items requiring action in the Step 9.3 audit:** T‑02, T‑04, T‑05, T‑08, T‑09, T‑12, T‑14, T‑17, and the T‑13 supply-chain gaps (npm audit in CI, backend lockfile, install cooldown). Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
 
 ---
 

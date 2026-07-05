@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     db_path: Path = Path.home() / ".somnus" / "somnus.db"
     cors_origins: list[str] = ["http://localhost:5173"]
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
     oura_api_base_url: str = "https://api.ouraring.com/v2"
     open_meteo_base_url: str = "https://archive-api.open-meteo.com"
 

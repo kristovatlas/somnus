@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from backend.config import settings
 from backend.database import init_db
@@ -36,6 +37,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# T-01 (docs/THREAT_MODEL.md): reject non-loopback Host headers to defend the
+# unauthenticated localhost API against DNS rebinding / cross-origin reachability.
+# Added last so it is the outermost middleware and bad hosts are rejected first.
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.allowed_hosts,
 )
 
 
