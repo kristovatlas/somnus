@@ -33,6 +33,9 @@ export async function completeOnboarding(page: Page): Promise<void> {
   await page.getByRole("heading", { name: "You're All Set!" }).waitFor();
   await page.getByRole("button", { name: "Start Logging" }).click();
 
-  // Wait for redirect to /log
+  // Wait for redirect to /log and let its data fetches settle — an
+  // in-flight daily-log 404 (empty day) must not bleed into the
+  // caller's console/network assertions.
   await page.waitForURL(/\/log\//);
+  await page.waitForLoadState("networkidle");
 }

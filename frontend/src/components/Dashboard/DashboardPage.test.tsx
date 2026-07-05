@@ -1,7 +1,9 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardPage } from "./DashboardPage";
+import { addDays, todayStr } from "../../utils/date";
 import type { DashboardData } from "../../types";
 
 const fullDashboard: DashboardData = {
@@ -272,6 +274,23 @@ describe("DashboardPage", () => {
     });
   });
 
+  it("does not claim 'Last night' for a future-dated record", async () => {
+    // Reachable when the server's calendar day is ahead of the browser's
+    // (e.g. UTC container, browser in a western timezone in the evening)
+    mockFetchWith({
+      ...fullDashboard,
+      sleep_record: {
+        ...fullDashboard.sleep_record!,
+        date: addDays(todayStr(), 1),
+      },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText(/Night ending/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Last night/)).not.toBeInTheDocument();
+  });
+
   it("explains missing metrics instead of bare dashes (issue #14)", async () => {
     mockFetchWith({
       ...fullDashboard,
@@ -341,7 +360,10 @@ describe("DashboardPage", () => {
     });
     expect(screen.getByTitle(/Variability \(σ\)/)).toBeInTheDocument();
     expect(screen.getByTitle(/Offset \(δ\)/)).toBeInTheDocument();
-    expect(screen.getByTitle(/Weekend drift \(Δ\)/)).toBeInTheDocument();
+    // Δ is |weekend − weekday| on the backend — no direction claim allowed
+    expect(
+      screen.getByTitle(/Weekend drift \(Δ\).*either direction/),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         /σ variability · δ vs typical bedtime · Δ weekend drift/,
@@ -350,5 +372,19 @@ describe("DashboardPage", () => {
     // Delta is an absolute offset (backend takes mean of |bedtime - typical|),
     // so it must render unsigned — no direction claim
     expect(screen.getByText(/δ 15m/)).toBeInTheDocument();
+  });
+
+  it("makes σ/δ/Δ threshold guidance reachable without hover", async () => {
+    // title tooltips never fire on touch; the disclosure must carry the
+    // same guidance for keyboard/touch users (bedside tablet case)
+    const user = userEvent.setup();
+    mockFetchWith(fullDashboard);
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("consistency-meter")).toBeInTheDocument();
+    });
+    await user.click(screen.getByText(/what do these mean\?/));
+    expect(screen.getByText(/Under 30 min is consistent/)).toBeVisible();
+    expect(screen.getByText(/social jet lag/)).toBeVisible();
   });
 });

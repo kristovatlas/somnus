@@ -7,10 +7,7 @@ import { AnalysisPage } from "./components/Analysis/AnalysisPage";
 import { RecommendationsPage } from "./components/Recommendations/RecommendationsPage";
 import { ReportsPage } from "./components/Reports/ReportsPage";
 import { SettingsPage } from "./components/Settings/SettingsPage";
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+import { todayStr } from "./utils/date";
 
 export const router = createBrowserRouter([
   {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { copyDay } from "../../api/dailyLog";
 import type { DailyLogOut } from "../../types";
+import { addDays } from "../../utils/date";
 import "./CopyDayButton.css";
 
 interface CopyDayButtonProps {
@@ -8,15 +9,9 @@ interface CopyDayButtonProps {
   onCopied: (log: DailyLogOut) => void;
 }
 
-function yesterdayStr(dateStr: string): string {
-  const d = new Date(dateStr + "T12:00:00");
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
 export function CopyDayButton({ targetDate, onCopied }: CopyDayButtonProps) {
   const [showPicker, setShowPicker] = useState(false);
-  const [sourceDate, setSourceDate] = useState(yesterdayStr(targetDate));
+  const [sourceDate, setSourceDate] = useState(addDays(targetDate, -1));
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

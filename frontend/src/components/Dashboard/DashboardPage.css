@@ -183,10 +183,30 @@
   cursor: help;
 }
 
-.consistency-legend {
+.consistency-details {
   margin: 0.4rem 0 0;
+}
+
+.consistency-legend {
   font-size: 0.65rem;
   color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.consistency-glossary {
+  margin: 0.4rem 0 0;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.consistency-glossary dt {
+  margin-top: 0.3rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.consistency-glossary dd {
+  margin: 0;
 }
 
 /* Streak */
