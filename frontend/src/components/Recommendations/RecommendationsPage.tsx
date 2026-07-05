@@ -5,6 +5,7 @@ import { useRecommendations } from "../../hooks/useRecommendations";
 import { RecommendationCard } from "./RecommendationCard";
 import { ExperimentTracker } from "./ExperimentTracker";
 import type { Recommendation } from "../../types";
+import { todayStr } from "../../utils/date";
 import "./RecommendationsPage.css";
 
 export function RecommendationsPage() {
@@ -44,7 +45,7 @@ export function RecommendationsPage() {
   const hasActiveExperiment = data.active_experiment !== null;
 
   const handleStartExperiment = async (rec: Recommendation) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayStr();
     await createExperiment({
       factor: rec.factor,
       hypothesis: rec.suggested_experiment ?? rec.title,

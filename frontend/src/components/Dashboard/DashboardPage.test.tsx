@@ -1,7 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardPage } from "./DashboardPage";
+import { addDays, todayStr } from "../../utils/date";
 import type { DashboardData } from "../../types";
 
 const fullDashboard: DashboardData = {
@@ -167,7 +169,9 @@ describe("DashboardPage", () => {
     mockFetchWith(fullDashboard);
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText("87")).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId("sleep-score-card")).getByText("87"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -246,5 +250,141 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/No trend data yet/)).toBeInTheDocument();
     });
+  });
+
+  it("labels the sleep score with the night it describes (issue #14)", async () => {
+    mockFetchWith(fullDashboard);
+    renderPage();
+    await waitFor(() => {
+      // record date 2025-06-21 is in the past → explicit night label
+      expect(screen.getByText(/Night ending Jun 21/)).toBeInTheDocument();
+    });
+  });
+
+  it("says 'Last night' when the record is from today", async () => {
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    mockFetchWith({
+      ...fullDashboard,
+      sleep_record: { ...fullDashboard.sleep_record!, date: iso },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText(/Last night/)).toBeInTheDocument();
+    });
+  });
+
+  it("does not claim 'Last night' for a future-dated record", async () => {
+    // Reachable when the server's calendar day is ahead of the browser's
+    // (e.g. UTC container, browser in a western timezone in the evening)
+    mockFetchWith({
+      ...fullDashboard,
+      sleep_record: {
+        ...fullDashboard.sleep_record!,
+        date: addDays(todayStr(), 1),
+      },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText(/Night ending/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Last night/)).not.toBeInTheDocument();
+  });
+
+  it("explains missing metrics instead of bare dashes (issue #14)", async () => {
+    mockFetchWith({
+      ...fullDashboard,
+      sleep_record: {
+        ...fullDashboard.sleep_record!,
+        avg_hrv: null,
+        lowest_hr: null,
+        sleep_efficiency: null,
+      },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Oura didn't return that metric/),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("hides the missing-metric note when all metrics present", async () => {
+    mockFetchWith(fullDashboard);
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("sleep-score-card")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(/Oura didn't return that metric/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows latest values and ranges next to sparklines (issue #14)", async () => {
+    mockFetchWith(fullDashboard);
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("trend-sparklines")).toBeInTheDocument();
+    });
+    const sparklines = within(screen.getByTestId("trend-sparklines"));
+    // Latest HRV is 45ms; 7-day range 40–45ms
+    expect(sparklines.getByText("45ms")).toBeInTheDocument();
+    expect(sparklines.getByText(/7d range: 40–45ms/)).toBeInTheDocument();
+    // Deep sleep latest 80m, range 70–80m
+    expect(sparklines.getByText("80m")).toBeInTheDocument();
+    expect(sparklines.getByText(/7d range: 70–80m/)).toBeInTheDocument();
+  });
+
+  it("shows a dash when the latest trend day is missing a metric", async () => {
+    const trends = fullDashboard.trends.map((t, i, arr) =>
+      i === arr.length - 1 ? { ...t, avg_hrv: null } : t,
+    );
+    mockFetchWith({ ...fullDashboard, trends });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("trend-sparklines")).toBeInTheDocument();
+    });
+    const sparklines = within(screen.getByTestId("trend-sparklines"));
+    // Latest HRV is missing → placeholder, not yesterday's 42ms
+    expect(sparklines.getByText("—")).toBeInTheDocument();
+    expect(sparklines.queryByText("42ms")).not.toBeInTheDocument();
+    // Range still computed from the recorded days
+    expect(sparklines.getByText(/7d range: 40–42ms/)).toBeInTheDocument();
+  });
+
+  it("explains the greek letters on consistency pills (issue #14)", async () => {
+    mockFetchWith(fullDashboard);
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("consistency-meter")).toBeInTheDocument();
+    });
+    expect(screen.getByTitle(/Variability \(σ\)/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Offset \(δ\)/)).toBeInTheDocument();
+    // Δ is |weekend − weekday| on the backend — no direction claim allowed
+    expect(
+      screen.getByTitle(/Weekend drift \(Δ\).*either direction/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /σ variability · δ vs typical bedtime · Δ weekend drift/,
+      ),
+    ).toBeInTheDocument();
+    // Delta is an absolute offset (backend takes mean of |bedtime - typical|),
+    // so it must render unsigned — no direction claim
+    expect(screen.getByText(/δ 15m/)).toBeInTheDocument();
+  });
+
+  it("makes σ/δ/Δ threshold guidance reachable without hover", async () => {
+    // title tooltips never fire on touch; the disclosure must carry the
+    // same guidance for keyboard/touch users (bedside tablet case)
+    const user = userEvent.setup();
+    mockFetchWith(fullDashboard);
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("consistency-meter")).toBeInTheDocument();
+    });
+    await user.click(screen.getByText(/what do these mean\?/));
+    expect(screen.getByText(/Under 30 min is consistent/)).toBeVisible();
+    expect(screen.getByText(/social jet lag/)).toBeVisible();
   });
 });

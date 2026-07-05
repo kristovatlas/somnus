@@ -13,6 +13,15 @@ const PAD = { left: 40, right: 20, top: 10, bottom: 20 };
 const CHART_W = WIDTH - PAD.left - PAD.right;
 const CHART_H = HEIGHT - PAD.top - PAD.bottom;
 
+// σ, δ and Δ are all absolute magnitudes on the backend (means of |…|),
+// so every explanation must stay direction-neutral.
+const SIGMA_HELP =
+  "How much your bedtime varies night to night over the last 7 nights. Under 30 min is consistent.";
+const DELTA_HELP =
+  "Average distance between your nightly bedtime and your typical bedtime, in either direction. Under 30 min is on target.";
+const DRIFT_HELP =
+  "How far weekend bedtimes shift from weekday bedtimes, in either direction (social jet lag). Over 60 min is significant.";
+
 function ratingColor(rating: string): string {
   const good = ["consistent", "on_target", "minimal"];
   const mid = ["somewhat_inconsistent", "drifting", "moderate"];
@@ -117,6 +126,7 @@ export function ConsistencyMeter({
       <div className="consistency-pills">
         <span
           className="consistency-pill"
+          title={`Variability (σ): ${SIGMA_HELP}`}
           style={{ color: ratingColor(consistency.sigma_rating) }}
         >
           σ {Math.round(consistency.sigma_minutes)}m
@@ -124,6 +134,7 @@ export function ConsistencyMeter({
         {consistency.delta_minutes != null && consistency.delta_rating && (
           <span
             className="consistency-pill"
+            title={`Offset (δ): ${DELTA_HELP}`}
             style={{ color: ratingColor(consistency.delta_rating) }}
           >
             δ {Math.round(consistency.delta_minutes)}m
@@ -133,12 +144,27 @@ export function ConsistencyMeter({
           consistency.drift_rating && (
             <span
               className="consistency-pill"
+              title={`Weekend drift (Δ): ${DRIFT_HELP}`}
               style={{ color: ratingColor(consistency.drift_rating) }}
             >
               Δ {Math.round(consistency.weekend_drift_minutes)}m
             </span>
           )}
       </div>
+      <details className="consistency-details">
+        <summary className="consistency-legend">
+          σ variability · δ vs typical bedtime · Δ weekend drift — what do these
+          mean?
+        </summary>
+        <dl className="consistency-glossary">
+          <dt>σ — Variability</dt>
+          <dd>{SIGMA_HELP}</dd>
+          <dt>δ — Offset from typical</dt>
+          <dd>{DELTA_HELP}</dd>
+          <dt>Δ — Weekend drift</dt>
+          <dd>{DRIFT_HELP}</dd>
+        </dl>
+      </details>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useWeeklyReport } from "../../hooks/useReports";
 import { weeklyExportUrl } from "../../api/reports";
+import { parseDateStr } from "../../utils/date";
 import { MetricsComparisonCard } from "./MetricsComparisonCard";
 import { TopFactorsCard } from "./TopFactorsCard";
 
@@ -12,8 +13,8 @@ interface Props {
 }
 
 function formatWeekRange(start: string, end: string): string {
-  const s = new Date(start + "T00:00:00");
-  const e = new Date(end + "T00:00:00");
+  const s = parseDateStr(start);
+  const e = parseDateStr(end);
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${s.toLocaleDateString("en-US", opts)} \u2013 ${e.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
 }

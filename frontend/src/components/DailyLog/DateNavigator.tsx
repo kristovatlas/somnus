@@ -1,3 +1,4 @@
+import { formatDate } from "../../utils/date";
 import "./DateNavigator.css";
 
 interface DateNavigatorProps {
@@ -6,16 +7,6 @@ interface DateNavigatorProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export function DateNavigator({
@@ -36,7 +27,14 @@ export function DateNavigator({
         &larr;
       </button>
       <div className="date-nav-center">
-        <span className="date-nav-date">{formatDate(date)}</span>
+        <span className="date-nav-date">
+          {formatDate(date, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
         {isToday && <span className="date-nav-today-badge">Today</span>}
       </div>
       <button

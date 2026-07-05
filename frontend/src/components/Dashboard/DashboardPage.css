@@ -56,6 +56,18 @@
 }
 
 /* Sleep Score Card */
+.dashboard-card-subtitle {
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard-missing-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
 .sleep-score-ring-wrapper {
   display: flex;
   justify-content: center;
@@ -130,9 +142,24 @@
 }
 
 .sparkline-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
   font-size: 0.7rem;
   color: var(--color-text-muted);
   text-transform: uppercase;
+}
+
+.sparkline-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: none;
+}
+
+.sparkline-range {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
 }
 
 /* Consistency */
@@ -153,6 +180,33 @@
   padding: 0.15rem 0.4rem;
   background: var(--color-bg-elevated);
   border-radius: 4px;
+  cursor: help;
+}
+
+.consistency-details {
+  margin: 0.4rem 0 0;
+}
+
+.consistency-legend {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.consistency-glossary {
+  margin: 0.4rem 0 0;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.consistency-glossary dt {
+  margin-top: 0.3rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.consistency-glossary dd {
+  margin: 0;
 }
 
 /* Streak */
