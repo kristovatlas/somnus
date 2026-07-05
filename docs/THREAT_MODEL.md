@@ -231,9 +231,11 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **STRIDE:** all. **Adversary:** AD3. A malicious PyPI/npm package or GitHub Action runs with build/run privileges.
 
-**Existing mitigation (Partial):** CI runs `pip-audit` and `bandit` on the backend and `gitleaks` secret-scanning (`ci.yml:46-50,88-100`); ruff enables the `S` (bandit) and `T20` (print) rule sets; the frontend has only **three** runtime deps (`react`, `react-dom`, `react-router-dom`); lockfiles are committed. 
+**Existing mitigation (Partial):** CI runs `pip-audit` and `bandit` on the backend and `gitleaks` secret-scanning (`ci.yml:46-50,88-100`); ruff enables the `S` (bandit) and `T20` (print) rule sets; the frontend has only **three** runtime deps (`react`, `react-dom`, `react-router-dom`); the frontend lockfile (`package-lock.json`) is committed and installed with `npm ci`. 
 
-**Gap (Open sub-item):** **`npm audit` is not run in CI** — it exists only in `make audit` (`Makefile:57-59`), so a vulnerable frontend dependency is not caught automatically. GitHub Actions are not pinned to commit SHAs. **Recommended:** add `npm audit` to the CI `frontend` job; pin actions by SHA. (Matches the CLAUDE.md/MEMORY rule: audit deps before install.)
+**Gap (Open sub-item):** **`npm audit` is not run in CI** — it exists only in `make audit` (`Makefile:57-59`), so a vulnerable frontend dependency is not caught automatically. **The backend has no committed lockfile** — `pyproject.toml` uses floating `>=` ranges (`pyproject.toml:7-13`), so CI and `make setup` resolve the newest matching PyPI releases on every run, unpinned. And there is **no minimum-release-age ("cooldown") gate** on installs in either ecosystem, so a freshly-published malicious version is consumed before the community can detect and yank it — the dominant publish-then-yank supply-chain vector. GitHub Actions are not pinned to commit SHAs.
+
+**Recommended:** add `npm audit` to the CI `frontend` job; pin actions by SHA. **Planned (Step 9.3):** commit a backend lockfile and set a ~7-day minimum release age on both ecosystems — `min-release-age` in `frontend/.npmrc` (needs npm ≥ 11.10) and a relative `exclude-newer` cooldown on the backend resolver (candidate: adopt `uv`, which also produces the missing lockfile), with per-package overrides so security fixes are not delayed. Native package-manager release-age gates are the primary control; Socket's existing PR alerts remain as malware detection. (Matches the CLAUDE.md/MEMORY rule: audit deps before install.)
 
 ### T‑14 — No Content-Security-Policy — **Open** — *Low*
 `frontend/index.html:1-13` (no CSP meta); no CSP header on API/report responses
@@ -267,7 +269,7 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 | T‑15 | Destructive endpoint if `SOMNUS_TESTING=1` is set on a real DB | Accepted + path-guard recommended |
 | Open-Meteo/NREL | No surface today (unimplemented) | Deferred — **when implemented, add F-flows, model SSRF/base-URL/response-trust (mirror T‑10/T‑11), and update this doc in the same PR** |
 
-**Open items requiring action in the Step 9.3 audit:** T‑01, T‑02, T‑04, T‑05, T‑08, T‑09, T‑12, T‑14, and the T‑13 npm-audit gap. Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
+**Open items requiring action in the Step 9.3 audit:** T‑01, T‑02, T‑04, T‑05, T‑08, T‑09, T‑12, T‑14, and the T‑13 supply-chain gaps (npm audit in CI, backend lockfile, install cooldown). Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
 
 ---
 
