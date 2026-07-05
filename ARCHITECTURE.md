@@ -2,6 +2,8 @@
 
 This document describes the architecture of Somnus using C4 model diagrams (rendered in Mermaid). It is a living document — updated with every commit that changes the system's structure.
 
+> **Security view:** the trust boundaries and adversary model layered over this decomposition live in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). It is built element-by-element against the containers and data flows below and must be kept in sync with them.
+
 ---
 
 ## Level 1: System Context
