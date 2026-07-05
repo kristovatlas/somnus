@@ -135,9 +135,9 @@ export type CaffeineSensitivity =
 
 export const CAFFEINE_SENSITIVITY_LABELS: Record<CaffeineSensitivity, string> =
   {
-    fast: "Fast (2.5h half-life)",
-    normal: "Normal (4h half-life)",
-    slow: "Slow (6h half-life)",
+    fast: "Fast — evening coffee doesn't keep me up (2.5h half-life)",
+    normal: "Normal — afternoon coffee is fine, evening isn't (4h half-life)",
+    slow: "Slow — coffee after noon keeps me up (6h half-life)",
   };
 
 export const Chronotype = {
@@ -151,6 +151,19 @@ export const CHRONOTYPE_LABELS: Record<Chronotype, string> = {
   early: "Early Bird",
   intermediate: "Intermediate",
   late: "Night Owl",
+};
+
+// "Not sure" sentinel for chronotype selects: renders as a real option but
+// stores null, so inference from sleep data stays authoritative (issue #10)
+export const CHRONOTYPE_UNKNOWN = "unknown";
+export type ChronotypeChoice = Chronotype | typeof CHRONOTYPE_UNKNOWN;
+export const CHRONOTYPE_CHOICES: readonly ChronotypeChoice[] = [
+  CHRONOTYPE_UNKNOWN,
+  ...Object.values(Chronotype),
+];
+export const CHRONOTYPE_CHOICE_LABELS: Record<ChronotypeChoice, string> = {
+  [CHRONOTYPE_UNKNOWN]: "Not sure — infer it from my data",
+  ...CHRONOTYPE_LABELS,
 };
 
 export const DisplayMode = {

@@ -4,8 +4,10 @@ import { StepNavigation } from "./StepNavigation";
 import {
   CaffeineSensitivity,
   CAFFEINE_SENSITIVITY_LABELS,
-  Chronotype,
-  CHRONOTYPE_LABELS,
+  type Chronotype,
+  CHRONOTYPE_CHOICES,
+  CHRONOTYPE_CHOICE_LABELS,
+  CHRONOTYPE_UNKNOWN,
 } from "../../types/enums";
 import type { UserSettingsUpdate } from "../../types";
 
@@ -18,6 +20,12 @@ interface SleepProfileStepProps {
   onNext: () => void;
   onBack: () => void;
 }
+
+const hintStyle = {
+  color: "var(--color-text-muted)",
+  fontSize: "0.8rem",
+  margin: "-0.5rem 0 0",
+} as const;
 
 export function SleepProfileStep({
   typicalBedtime,
@@ -58,13 +66,25 @@ export function SleepProfileStep({
           options={Object.values(CaffeineSensitivity)}
           labels={CAFFEINE_SENSITIVITY_LABELS}
         />
+        <p style={hintStyle}>
+          Rule of thumb: if coffee at 5 PM doesn't affect your sleep you're
+          fast; if coffee after noon keeps you up you're slow. Not sure? Leave
+          it on normal — your data will tell.
+        </p>
         <SelectInput
           label="Chronotype"
-          value={chronotype ?? Chronotype.INTERMEDIATE}
-          onChange={(v) => onUpdate({ chronotype: v })}
-          options={Object.values(Chronotype)}
-          labels={CHRONOTYPE_LABELS}
+          value={chronotype ?? CHRONOTYPE_UNKNOWN}
+          onChange={(v) =>
+            onUpdate({ chronotype: v === CHRONOTYPE_UNKNOWN ? null : v })
+          }
+          options={CHRONOTYPE_CHOICES}
+          labels={CHRONOTYPE_CHOICE_LABELS}
         />
+        <p style={hintStyle}>
+          "Not sure" is a great default: after ~30 days Somnus infers your
+          chronotype from when you actually sleep. Self-labels like "night owl"
+          often reflect habits rather than biology and can bias your analysis.
+        </p>
       </div>
 
       <StepNavigation

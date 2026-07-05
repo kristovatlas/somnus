@@ -73,10 +73,38 @@ describe("OnboardingWizard", () => {
       expect(screen.getByText("Welcome to Somnus")).toBeInTheDocument();
     });
     await user.click(screen.getByText("Get Started"));
+    // Storage explanation now precedes the Oura token step (issue #8) so the
+    // user can relocate the DB before any secret is written
+    expect(screen.getByText("Your Data Stays Local")).toBeInTheDocument();
+  });
+
+  it("shows Oura step only after data storage", async () => {
+    mockFetchResponses();
+    const user = userEvent.setup();
+    renderWizard();
+    await waitFor(() => {
+      expect(screen.getByText("Welcome to Somnus")).toBeInTheDocument();
+    });
+    await user.click(screen.getByText("Get Started"));
+    await user.click(screen.getByText("Next"));
     expect(screen.getByText("Oura Ring Integration")).toBeInTheDocument();
   });
 
-  it("can navigate back from Oura step", async () => {
+  it("back from the Oura step returns to data storage", async () => {
+    mockFetchResponses();
+    const user = userEvent.setup();
+    renderWizard();
+    await waitFor(() => {
+      expect(screen.getByText("Welcome to Somnus")).toBeInTheDocument();
+    });
+    await user.click(screen.getByText("Get Started"));
+    await user.click(screen.getByText("Next"));
+    expect(screen.getByText("Oura Ring Integration")).toBeInTheDocument();
+    await user.click(screen.getByText("Back"));
+    expect(screen.getByText("Your Data Stays Local")).toBeInTheDocument();
+  });
+
+  it("can navigate back from data storage step", async () => {
     mockFetchResponses();
     const user = userEvent.setup();
     renderWizard();
@@ -96,6 +124,7 @@ describe("OnboardingWizard", () => {
       expect(screen.getByText("Welcome to Somnus")).toBeInTheDocument();
     });
     await user.click(screen.getByText("Get Started"));
+    await user.click(screen.getByText("Next"));
     await user.click(screen.getByText("Skip"));
     expect(screen.getByText("Sleep Profile")).toBeInTheDocument();
   });
@@ -107,15 +136,15 @@ describe("OnboardingWizard", () => {
     await waitFor(() => {
       expect(screen.getByText("Welcome to Somnus")).toBeInTheDocument();
     });
-    // Welcome → Oura
+    // Welcome → Data Storage
     await user.click(screen.getByText("Get Started"));
+    // Data Storage → Oura
+    await user.click(screen.getByText("Next"));
     // Oura → Sleep Profile
     await user.click(screen.getByText("Skip"));
     // Sleep Profile → Tracking Setup
     await user.click(screen.getByText("Next"));
-    // Tracking Setup → Data Storage
-    await user.click(screen.getByText("Next"));
-    // Data Storage → Done
+    // Tracking Setup → Done
     await user.click(screen.getByText("Next"));
     expect(screen.getByText("You're All Set!")).toBeInTheDocument();
   });

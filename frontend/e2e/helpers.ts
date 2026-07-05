@@ -9,23 +9,24 @@ export async function completeOnboarding(page: Page): Promise<void> {
   await page.getByRole("heading", { name: "Welcome to Somnus" }).waitFor();
   await page.getByRole("button", { name: "Get Started" }).click();
 
-  // Step 1: Oura — click "Skip"
-  await page.getByRole("heading", { name: "Oura Ring Integration" }).waitFor();
-  await page.getByRole("button", { name: "Skip" }).click();
-
-  // Step 2: Sleep Profile — click "Next"
-  await page.getByRole("heading", { name: "Sleep Profile" }).waitFor();
-  await page.getByRole("button", { name: "Next" }).click();
-
-  // Step 3: Tracking Setup — click "Next"
+  // Step 1: Data Storage (before Oura so the DB location — where the token
+  // will live — can be changed first; issue #8) — click "Next"
   await page
-    .getByRole("heading", { name: "What do you want to track?" })
+    .getByRole("heading", { name: "Your Data Stays Local" })
     .waitFor();
   await page.getByRole("button", { name: "Next" }).click();
 
-  // Step 4: Data Storage — click "Next"
+  // Step 2: Oura — click "Skip"
+  await page.getByRole("heading", { name: "Oura Ring Integration" }).waitFor();
+  await page.getByRole("button", { name: "Skip" }).click();
+
+  // Step 3: Sleep Profile — click "Next"
+  await page.getByRole("heading", { name: "Sleep Profile" }).waitFor();
+  await page.getByRole("button", { name: "Next" }).click();
+
+  // Step 4: Tracking Setup — click "Next"
   await page
-    .getByRole("heading", { name: "Your Data Stays Local" })
+    .getByRole("heading", { name: "What do you want to track?" })
     .waitFor();
   await page.getByRole("button", { name: "Next" }).click();
 
