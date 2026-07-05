@@ -158,15 +158,7 @@ export function HabitSection({ entries, onChange }: HabitSectionProps) {
               key={ht}
               type="button"
               onClick={() => addEntry(ht)}
-              style={{
-                fontSize: "0.8rem",
-                padding: "4px 10px",
-                background: "var(--color-bg-elevated)",
-                color: "var(--color-text-accent)",
-                border: "1px solid var(--color-border-light)",
-                borderRadius: "6px",
-                cursor: "pointer",
-              }}
+              className="quick-add-btn"
             >
               + {HABIT_TYPE_LABELS[ht]}
             </button>

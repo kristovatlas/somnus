@@ -37,15 +37,7 @@ export function NSDRSection({ entries, onChange }: NSDRSectionProps) {
             key={min}
             type="button"
             onClick={() => addQuick(min)}
-            style={{
-              fontSize: "0.8rem",
-              padding: "4px 10px",
-              background: "var(--color-bg-elevated)",
-              color: "var(--color-text-accent)",
-              border: "1px solid var(--color-border-light)",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className="quick-add-btn"
           >
             + {min} min
           </button>

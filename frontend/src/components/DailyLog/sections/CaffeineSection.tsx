@@ -44,7 +44,7 @@ export function CaffeineSection({ entries, onChange }: CaffeineSectionProps) {
           <button
             key={qa.source}
             type="button"
-            className="caffeine-quick-btn"
+            className="quick-add-btn"
             onClick={() =>
               addEntry({
                 time: nowTimeStr(),
