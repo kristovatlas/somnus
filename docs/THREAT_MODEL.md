@@ -6,8 +6,8 @@
 > [ADR 013](adr/013-threat-model-methodology.md).
 
 - **Version:** 0.1 (draft) · **Authored:** 2026-07-05 · **Method:** STRIDE-per-element over the C4 decomposition in [ARCHITECTURE.md](../ARCHITECTURE.md)
-- **Scope of code reviewed:** `backend/`, `frontend/`, `.github/workflows/`, `Makefile`, `alembic.ini` at `dev` @ `67d37f3`.
-- **Currency rule:** this is a living document with the same status as ARCHITECTURE.md — it must never lag the code. Every PR carries a "Threat model impact" statement (PLAN.md Step 9.4); a missing or wrong statement blocks merge.
+- **Scope of code reviewed:** `backend/`, `frontend/`, `.github/workflows/`, `Makefile`, `alembic.ini` + `alembic/` (migrations) at `dev` @ `67d37f3`.
+- **Currency rule:** this is a living document with the same status as ARCHITECTURE.md — it must never lag the code. Every PR carries a "Threat model impact" statement (PLAN.md Step 9.4); a missing or wrong statement blocks merge. `file:line` citations are anchored to the reviewed commit above and are re-verified at each audit and version bump (prefer symbol names where practical).
 
 ---
 
@@ -43,11 +43,12 @@ Elements are the C4 containers plus each data flow that crosses a trust boundary
 ```mermaid
 flowchart TB
     subgraph browser["🌐 Browser (user's machine) — TRUST ZONE: hostile-capable"]
-        spa["Frontend SPA<br/>React, localhost:5173<br/>token in memory only"]
+        spa["Frontend SPA<br/>React, runs in page<br/>token in memory only"]
         evil["⚠ Any other tab /<br/>malicious website"]
     end
 
     subgraph host["💻 User's machine — TRUST ZONE: local"]
+        vite["Vite dev server<br/>localhost:5173<br/>serves SPA + proxies /api → :8000<br/>changeOrigin rewrites Host"]
         api["Backend API<br/>FastAPI/uvicorn<br/>127.0.0.1:8000<br/>NO AUTH"]
         db[("SQLite DB<br/>~/.somnus/somnus.db<br/>plaintext token + health data")]
         fs["Other local processes /<br/>co-resident OS users"]
@@ -55,13 +56,15 @@ flowchart TB
 
     subgraph cloud["☁ External — TRUST ZONE: untrusted"]
         oura["Oura Cloud API v2<br/>HTTPS + Bearer PAT"]
-        planned["Open-Meteo / NREL<br/>(config-only, not implemented)"]
+        planned["Open-Meteo / NREL<br/>(planned, not implemented)"]
     end
 
     supply["🏭 Dev / build / CI<br/>PyPI, npm, GitHub Actions"]
 
-    spa -->|"F1: HTTP/JSON<br/>localhost, unauthenticated"| api
-    evil -.->|"F1': CSRF / DNS-rebinding<br/>(the primary threat)"| api
+    spa -->|"F1: relative /api/* calls"| vite
+    vite -->|"F1p: dev proxy → :8000<br/>Host rewritten, bypasses TrustedHost"| api
+    evil -.->|"F1': CSRF / DNS-rebinding<br/>reaches :8000 and :5173"| api
+    evil -.-> vite
     api -->|"F2: SQLAlchemy ORM +<br/>file I/O"| db
     fs -.->|"F2': direct file read<br/>(no perm hardening)"| db
     api -->|"F3: HTTPS, Bearer token"| oura
@@ -75,12 +78,18 @@ flowchart TB
 
 **Boundaries, explicitly:**
 
-- **B1 — Browser ↔ Backend (F1):** the crown-jewel boundary. An unauthenticated HTTP API on `127.0.0.1:8000`. The *legitimate* client is the SPA on `localhost:5173`; the *threat* is any other browser context on the same machine (another tab, a malicious ad, a link the user clicked). CORS pins the readable origin to `http://localhost:5173` (`backend/main.py:33-39`, `backend/config.py:16`), but CORS governs *who may read responses*, not *who may reach the port* — see T‑01.
-- **B2 — Backend ↔ SQLite (F2):** in-process SQLAlchemy plus the DB file on disk. The file is also reachable by **any other process or OS user** with filesystem access (F2′).
+- **B1 — Browser ↔ Backend (F1):** the crown-jewel boundary. An unauthenticated HTTP API on `127.0.0.1:8000`. The *legitimate* client is the SPA, which in dev is served by the **Vite dev server on `localhost:5173`** and reaches the API through Vite's `/api` **proxy** (`frontend/vite.config.ts` → target `:8000`, `changeOrigin: true`). This makes `:5173` a **second ingress** to the API (F1p); and because `changeOrigin` rewrites the `Host` header to `localhost:8000`, a backend Host check sees a valid Host for all proxied traffic — so protecting `:5173` is Vite's job (`server.allowedHosts`), not the backend's (see T‑01). The *threat* is any other browser context on the same machine (another tab, a malicious ad, a link the user clicked). CORS pins the readable origin to `http://localhost:5173` (`backend/main.py:33-39`, `backend/config.py:16`), but CORS governs *who may read responses*, not *who may reach the port* — see T‑01.
+- **B2 — Backend ↔ SQLite (F2):** in-process SQLAlchemy plus the DB file on disk, including **Alembic migrations** (`alembic/`) that run DDL/DML directly against the DB on startup (auto-migration in `main.py`). The file is also reachable by **any other process or OS user** with filesystem access (F2′).
 - **B3 — Backend ↔ Oura (F3):** the only live outbound integration. HTTPS, token in the `Authorization` header, TLS verification on (`backend/services/oura_client.py:45,112`).
 - **B4 — Backend ↔ Filesystem/exports (F4):** export endpoints serialize A1–A4 and stream them to the browser (which typically writes them to `~/Downloads`).
 - **B5 — Supply chain (F5):** PyPI + npm dependencies and GitHub Actions that run with repo access.
-- **Not a live boundary:** Open-Meteo / NREL. `open_meteo_base_url` is defined but unused and **no weather/solar client exists in `backend/`** (only `oura_client.py` makes outbound calls). ARCHITECTURE.md describes these as planned; they carry **no attack surface today** and are modeled as future work (see §7).
+- **Not a live boundary:** Open-Meteo / NREL. `open_meteo_base_url` is defined but unused and **no weather/solar client exists in `backend/`** (only `oura_client.py` makes outbound calls). ARCHITECTURE.md marks these as planned (not implemented); they carry **no attack surface today** and are modeled as future work (see §7).
+
+**Elements (the STRIDE matrix rows in §5):** the C4 containers — **E1** Frontend SPA, **E2** Backend API, **E3** SQLite DB — plus the boundary-crossing flows **F1–F5** above, plus two call-out rows the decomposition surfaces: the **Vite dev proxy** (`:5173`, F1p) and the **Test router** (`/api/test/*`, mounted only under `SOMNUS_TESTING=1`).
+
+**Data shared with third parties by design** (the privacy view STRIDE folds into Information Disclosure, per ADR 013): Somnus is read-mostly toward the cloud.
+- **Oura (B3, live):** Somnus sends the user's own PAT (authenticating them to their own Oura account) and the requested date ranges, and *pulls* sleep/readiness data — it writes nothing back. Oura learns only that the account is being synced and for which dates, i.e. data it already holds; **no Somnus-entered health/behavioral data (A1) is ever sent to Oura.**
+- **Open-Meteo / NREL (planned):** when built, these would receive the user's coarse location (zip code, A4) and dates to fetch weather/solar data — a by-design disclosure of A4 to a third party that must be surfaced to the user and modeled here at that time (see §7).
 
 ---
 
@@ -113,14 +122,15 @@ Every cell is populated with a threat ID or marked **n/a** with a reason. Empty 
 
 | Element | Spoofing | Tampering | Repudiation | Info disclosure | DoS | Elevation |
 |---------|----------|-----------|-------------|-----------------|-----|-----------|
-| **F1 Browser↔Backend** | **T‑01** (rebinding defeats origin) | **T‑02** (CSRF write via GET) | n/a — single user, no accounts | **T‑03** (unauth read / bulk exfil) | n/a — owner restarts; not a security property | **T‑04** (XSS in API origin → full API) |
-| **E2 Backend API** | n/a — no identities to spoof | **T‑05** (unhandled 500 on update path) | n/a — see F1 | **T‑06** (`/docs`, OpenAPI exposed) | accepted — local, single user | ✓ clean — no `eval`/`exec`/`pickle`/`subprocess` (verified) |
+| **F1 Browser↔Backend** | **T‑01** (rebinding defeats origin) | **T‑02** (CSRF write via GET) | n/a — single user, no accounts | **T‑03** (unauth read / bulk exfil) | out of scope — owner restarts; not a security property (§4) | **T‑04** (XSS in SPA origin → full API via proxy) |
+| **E2 Backend API** | n/a — no identities to spoof | **T‑05** (unhandled 500 on update path) | n/a — see F1 | **T‑06** (`/docs`, OpenAPI exposed) | out of scope — local, single user (§4) | ✓ clean — no `eval`/`exec`/`pickle`/`subprocess` (verified) |
 | **E3 SQLite DB** | n/a — file, not a principal | **T‑09** (FK not enforced → integrity) | n/a | **T‑07** (plaintext at rest) · **T‑08** (file perms) | n/a — local file | n/a — no in-DB privilege model |
-| **F3 Backend↔Oura** | **T‑11** (base-URL override redirects token) | **T‑10** (blind trust of response shape/range) | n/a | ✓ TLS verified, token in header not URL (verified) | accepted — sync is user-initiated, 30s timeout, 50-page cap | n/a |
-| **F4 Exports** | n/a | **T‑12** (CSV formula injection) | n/a | folds into **T‑03/T‑07** (dump contains token) | n/a | n/a |
-| **E1 Frontend SPA** | n/a — no client identity | ✓ no `dangerouslySetInnerHTML`/`eval` (verified) | n/a | ✓ token in memory only, not in web storage (verified) | n/a | **T‑14** (no CSP — defense-in-depth gap) |
+| **F3 Backend↔Oura** | **T‑11** (base-URL override redirects token) | **T‑10** (blind trust of response shape/range) | n/a | ✓ TLS verified, token in header not URL (verified) | out of scope — user-initiated; 30s timeout, 50-page cap (§4) | n/a |
+| **F4 Exports** | n/a | **T‑12** (CSV formula injection) · **T‑17** (torn export copy) | n/a | folds into **T‑03/T‑07** (dump contains token) | n/a | n/a |
+| **E1 Frontend SPA** | n/a — no client identity | ✓ SPA code: no `dangerouslySetInnerHTML`/`eval` — **but T‑04's server-rendered report executes in this origin** (via the `:5173` proxy) | n/a | ✓ token in memory only, not in web storage (verified) | n/a | **T‑14** (no CSP — defense-in-depth gap) |
 | **F5 Supply chain** | **T‑13** (malicious dep/action) | folds into T‑13 | n/a | folds into T‑13 | n/a | folds into T‑13 |
-| **Test router** | — | **T‑15** (unauth DB-wipe when `SOMNUS_TESTING=1`) | n/a | — | — | — |
+| **Vite dev proxy (:5173)** | folds into **T‑01** (Host rewrite defeats backend check) | folds into **T‑02** (same CSRF surface via `:5173`) | n/a | folds into **T‑03** (proxied reads) | n/a — dev-only | **T‑04** (report renders here) · **T‑14** (no CSP) |
+| **Test router** | n/a — no identity (unauth, like all endpoints) | **T‑15** (unauth DB-wipe when `SOMNUS_TESTING=1`) | n/a | n/a — returns only an ack | n/a — not mounted in normal runs | n/a — no privilege model |
 
 Cross-cutting: **T‑16** (logging discipline) is a standing control, verified clean, that keeps the Info-disclosure row of E2/E3 from regressing.
 
@@ -137,34 +147,34 @@ Status legend: **Mitigated** (control in place, cited) · **Partial** (control r
 
 CORS pins the *readable* origin to `http://localhost:5173`, which stops an ordinary cross-origin site from **reading** API responses. It does **not** stop a browser from **reaching** `127.0.0.1:8000`, and it is fully bypassed by DNS rebinding: the attacker serves a page from a host they control, then rebinds that hostname's DNS to `127.0.0.1`. The page's requests to `http://attacker-host:8000/…` are now **same-origin** with the rebound host, so CORS does not apply at all, and the page reads every response. There is **no `TrustedHostMiddleware`** and no other Host-header check anywhere (`backend/main.py:33` registers only `CORSMiddleware`), so uvicorn accepts any `Host`. Result: a website the user merely visits can read all health data, exfiltrate the SQLite dump **including the plaintext token** (T‑03), tamper with settings, and — if test mode is on — wipe the DB (T‑15). PLAN.md:782-783 explicitly names this adversary as in-scope.
 
-**Required mitigation (Step 9.3):** add `TrustedHostMiddleware` allowing only `localhost`/`127.0.0.1` (+ configured port); this single control also closes the *reachability* half of T‑02 and T‑03. Consider a startup log line if a non-loopback Host is ever seen.
+**Required mitigation (Step 9.3):** add `TrustedHostMiddleware` allowing only `localhost`/`127.0.0.1` (+ configured port); this closes *direct* reachability of `:8000` for T‑02/T‑03. **It does not cover the Vite dev-proxy path (F1p):** `changeOrigin: true` rewrites the `Host` to `localhost:8000`, so proxied requests always pass the check — the `:5173` ingress must be closed separately (set Vite `server.allowedHosts`, and/or in the packaged build serve the SPA statically same-origin with the API so no dev proxy exists). Consider a startup log line if a non-loopback Host is ever seen.
 
 ### T‑02 — State-changing GET enables CSRF side effects — **Open** — *High*
-`backend/routers/oura.py:38` (`GET /api/oura/sync`)
+`backend/routers/oura.py:38` (`GET /api/oura/sync`); also `recommendations.py`/`recommender.py:345,414,429`, `settings.py:47-52`
 
 **STRIDE:** Tampering. **Adversary:** AD1.
 
-`GET /api/oura/sync` mutates state (upserts `SleepRecord`s, sets `last_oura_sync`, spends the token against Oura — `oura.py:117-136`). A "simple" cross-origin GET is *sent* by the browser without a preflight even when CORS will block *reading* the response, so an attacker page can trigger a sync (and outbound token use) as a pure side effect, no rebinding required. JSON-body writes (`PATCH /api/settings`, `PUT /api/daily-log`) are better protected because their `application/json` content-type forces a CORS preflight that the pinned origin fails — but they become writable under T‑01 rebinding.
+Several **GET** endpoints mutate state, so a "simple" cross-origin GET — *sent* by the browser without a preflight even when CORS blocks *reading* the response — triggers the side effect with no rebinding required: `GET /api/oura/sync` upserts `SleepRecord`s, sets `last_oura_sync`, and spends the token against Oura (`oura.py:117-136`); `GET /api/recommendations` and `GET /api/experiments[/{id}]` auto-complete experiments and `db.commit()` (`recommender.py:345,414,429`); `GET /api/settings` creates and commits the singleton settings row (`settings.py:47-52`). (So experiment-lifecycle state *is* persisted on read — narrower than asset A5's "not persisted".) JSON-body writes (`PATCH /api/settings`, `PUT /api/daily-log`) are better protected — but **not** by content-type: `PATCH`/`PUT` are **non-simple methods**, so the browser always preflights them and the pinned origin fails the preflight. They still become writable under T‑01 rebinding.
 
-**Required mitigation:** make sync a `POST` (removing it from the simple-GET CSRF surface); T‑01's Host validation covers the rebinding path for all writes. A CSRF token is unnecessary once Host validation is in place and the state-changer is non-simple.
+**Required mitigation:** the durable fix is T‑01's Host validation (it covers every cross-origin request that reaches `:8000`, reads and writes alike) — **plus closing the F1p proxy path** per T‑01. Note that *converting a GET to a bodiless `POST` does **not** remove it from the CSRF surface*: a `POST` with no body (or a form/`text/plain` body) is itself a CORS-simple request sent without preflight. To make a state-changer non-simple you must require a custom header or a JSON body (or add a CSRF token); better still, **make reads idempotent** — the experiment auto-complete and settings-row creation should not fire on a GET.
 
-### T‑03 — Unauthenticated read & bulk exfiltration — **Partial** (design) / mitigated-by **T‑01** — *High*
+### T‑03 — Unauthenticated read & bulk exfiltration — **Accepted** (design) — *High*
 `backend/routers/export.py:239` (`/api/export/sqlite`), `:25` (`/api/export`); all read endpoints
 
 **STRIDE:** Information disclosure. **Adversary:** AD1.
 
-No endpoint requires authentication (verified: no `Security`/`Depends(auth)` anywhere). `GET /api/export/sqlite` streams the entire DB file — health data **and** the plaintext token — in one request; `GET /api/export?format=csv|json` and `/api/dashboard` expose the same data. Absence of auth is an **accepted design choice** for a single-user local app (ADR 009), and is defensible *as long as the port is only reachable by the local user*. The real exposure is therefore the *reachability* gap in T‑01. 
+No endpoint requires authentication (verified: no `Security`/`Depends(auth)` anywhere). `GET /api/export/sqlite` streams the entire DB file — health data **and** the plaintext token — in one request; `GET /api/export?format=csv|json` and `/api/dashboard` expose the same data. The absence of per-request auth is an **accepted design choice** for a single-user local app — but **no ADR records it yet; a dedicated ADR is recommended as part of 9.2/9.3** (ADR 009 covers Oura PAT auth, not this decision). The acceptance is *conditional*: it is safe only once T‑01 confines reachability to loopback. **Until T‑01 lands, the data is fully exposed to AD1 — that live exposure is tracked as T‑01 (Open, Critical), not accepted here.**
 
 **Mitigation:** primarily T‑01 (Host validation confines reachability to loopback). Residual after T‑01 — a co-resident user connecting directly to `127.0.0.1:8000` — is tracked as AD2/T‑08 and accepted for the local-first model. No per-request auth is planned; revisit if Somnus ever grows a remote/multi-device mode.
 
 ### T‑04 — Stored HTML/JS injection in the monthly HTML report — **Open** — *High*
 `backend/services/report_service.py:661` (unescaped f-string), `:658`; served inline by `backend/routers/reports.py:59`
 
-**STRIDE:** Elevation (script execution in the API origin) / Tampering. **Adversary:** AD1 chained, AD4.
+**STRIDE:** Elevation (script execution in the SPA origin, via the dev proxy) / Tampering. **Adversary:** AD1 chained, AD4.
 
-`render_monthly_html` interpolates user-controlled free text — `exp.get("hypothesis", "")` (unbounded, `schemas.py:623`) and `factor_label`, which falls back to the raw `experiment.factor` (`recommender.py:385`) — directly into a `text/html` response with **no escaping** (Python f-strings, no autoescape). The report is served `Content-Disposition: inline` from `localhost:8000` and opened via `target="_blank"` (`WeeklyReportView.tsx`/`MonthlyReportView.tsx`), so any injected `<script>`/`<img onerror>` **executes in the API's own origin** — which, being unauthenticated, means the script can then read/write every endpoint (exfiltrate A1/A2, wipe data). The planting vector is normally the user's own text (self-XSS, low value), but it becomes an attacker path when chained with T‑01/T‑02 (a rebound page POSTs a malicious `hypothesis`, the user later exports the month) or when hostile external data reaches a report field (AD4). The weekly report and the fixed contributing-factor labels use only numbers/enum strings and are not affected.
+`render_monthly_html` interpolates user-controlled free text — `exp.get("hypothesis", "")` (unbounded, `schemas.py:623`) and `factor_label`, which falls back to the raw `experiment.factor` (`recommender.py:385`) — directly into a `text/html` response with **no escaping** (Python f-strings, no autoescape). The report is served `Content-Disposition: inline` (`reports.py:55,68`) and opened from a **relative** `/api/reports/...` URL (`frontend/src/api/reports.ts:33,41`) via `target="_blank"`, so in the dev flow it is fetched **through the Vite proxy and renders at the SPA origin `http://localhost:5173`** — same-origin with the SPA and, through the proxy, with every `/api` endpoint. Any injected `<script>`/`<img onerror>` therefore runs with full access to the unauthenticated API (exfiltrate A1/A2, wipe data) and to SPA state. The planting vector is normally the user's own text (self-XSS, low value), but it becomes an attacker path when chained with T‑01/T‑02 (a rebound page POSTs a malicious `hypothesis`, the user later exports the month) or when hostile external data reaches a report field (AD4). The weekly report and the fixed contributing-factor labels use only numbers/enum strings and are not affected.
 
-**Required mitigation:** HTML-escape all interpolated values (stdlib `html.escape` or a templating engine with autoescaping) in `render_weekly_html`/`render_monthly_html`; add a length bound to `hypothesis`. Consider `Content-Disposition: attachment` and/or a restrictive `Content-Security-Policy` on the report response.
+**Required mitigation:** HTML-escape all interpolated values (stdlib `html.escape` or a templating engine with autoescaping) in `render_weekly_html`/`render_monthly_html`; add a length bound to `hypothesis`. Consider `Content-Disposition: attachment` and/or a restrictive `Content-Security-Policy` — noting the CSP must apply where the report actually renders (the SPA origin, via the proxy), so it and the SPA's own CSP (T‑14) must be consistent.
 
 ### T‑05 — Unhandled exception on the entry-update path — **Open** — *Low*
 `backend/routers/daily_log.py:161-171` (no `try/except`), vs `:151-154` (add path wraps)
@@ -187,14 +197,14 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **Existing mitigation (Partial):** Somnus is designed for a **user-supplied DB path** (`SOMNUS_DB_PATH`, `config.py:20`) so the file can live on an encrypted volume; onboarding deliberately orders the *Data Storage* step **before** the *Oura* step and instructs the user to relaunch with `SOMNUS_DB_PATH` on an encrypted volume before connecting Oura (`DataStorageStep.tsx:18-39`, `useOnboarding.ts:3`). This pushes encryption-at-rest to the OS/volume layer.
 
-**Residual (accept or schedule):** users who ignore the guidance store secrets in the clear at `~/.somnus/somnus.db`. Options for a future ADR: application-level encryption of the token column, or OS keychain storage. Recommend **Accepted with documented residual** for v0.1, tracked for reconsideration.
+**Residual (needs your call):** users who ignore the guidance store secrets in the clear at `~/.somnus/somnus.db`. Options for a future ADR: application-level encryption of the token column, or OS keychain storage. **Proposed disposition: accept the plaintext-at-rest residual for v0.1 with this documented residual — but this needs your explicit 9.2 sign-off (it is not pre-decided), since A1/A2 are the top-sensitivity assets.**
 
 ### T‑08 — DB file has no permission hardening — **Open** — *Medium*
 `backend/database.py:45-52` (`mkdir` + `create_all`, no `chmod`/`umask`)
 
 **STRIDE:** Information disclosure. **Adversary:** AD2. `init_db` creates `~/.somnus/` and the DB file under the process's default umask; on a multi-user machine with a permissive umask, other local users may read the token and health data directly (bypassing all API controls).
 
-**Required mitigation:** create the directory `0700` and the DB file `0600` (explicit `chmod` after create, or set umask around creation). Cheap, closes the co-resident direct-file path.
+**Required mitigation:** create the directory `0700` and the DB file `0600` (explicit `chmod` after create, or set umask around creation). This closes the **other-OS-user** read path; note it does **not** stop a process running as the *same* user (which AD2 also names) — a same-user process reads a `0600` file, and that residual is inherent to the local-first model (a same-user process is inside the user's trust domain), accepted rather than closed.
 
 ### T‑09 — SQLite foreign keys not enforced — **Open** — *Low*
 `backend/database.py:21-29` (no `PRAGMA foreign_keys=ON`)
@@ -256,6 +266,13 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **STRIDE:** Information disclosure (preventive). Verified: **no log call sites and no `print`** in non-test backend; the token and health data never reach logs; `flake8-print` (`T20`) in CI would fail a stray `print`. uvicorn access logs record request lines only — dates/format in query strings, never the token or bodies (`oura.py:40`, `export.py:26`). This is the control that keeps the E2/E3 info-disclosure rows closed; **any PR that adds logging must preserve it** (see checklist §8).
 
+### T‑17 — SQLite export may capture a torn / inconsistent copy — **Open** — *Low*
+`backend/routers/export.py:239-253` (`GET /api/export/sqlite`)
+
+**STRIDE:** Tampering (integrity of A3). **Adversary:** self / concurrent write. The endpoint byte-copies the *live* DB file (`open(db_path, "rb")` + `shutil.copyfileobj`) with no SQLite backup API, no lock, and no `-wal`/`-journal` handling. If a write is in flight (e.g. an Oura sync upserting `SleepRecord`s) the streamed copy can capture a torn page set or miss journal state, yielding a `.db` that fails `PRAGMA integrity_check` or silently drops the in-flight transaction — and the user relies on this export as their backup of otherwise-unrecoverable data.
+
+**Required mitigation:** produce a consistent snapshot via SQLite's online backup API (`sqlite3.Connection.backup`) or `VACUUM INTO`, or serialize the export against concurrent writes.
+
 ---
 
 ## 7. Residual & accepted risks (summary)
@@ -264,12 +281,12 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 |----|---------------------------|-------------|
 | T‑03 | Co-resident user connecting directly to `127.0.0.1:8000` after T‑01 | Accepted (local-first model); revisit if remote mode is added |
 | T‑06 | API shape visible via `/docs` | Accepted |
-| T‑07 | Secrets in clear if user ignores encrypted-volume guidance | Accepted with documented residual — candidate for app-level encryption ADR |
+| T‑07 | Secrets in clear if user ignores encrypted-volume guidance | Partial; residual **proposed for acceptance — needs explicit 9.2 sign-off**; candidate for app-level encryption ADR |
 | T‑11 | Token misdirected if the app env is attacker-controlled | Accepted (implies machine control) |
 | T‑15 | Destructive endpoint if `SOMNUS_TESTING=1` is set on a real DB | Accepted + path-guard recommended |
 | Open-Meteo/NREL | No surface today (unimplemented) | Deferred — **when implemented, add F-flows, model SSRF/base-URL/response-trust (mirror T‑10/T‑11), and update this doc in the same PR** |
 
-**Open items requiring action in the Step 9.3 audit:** T‑01, T‑02, T‑04, T‑05, T‑08, T‑09, T‑12, T‑14, and the T‑13 supply-chain gaps (npm audit in CI, backend lockfile, install cooldown). Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
+**Open items requiring action in the Step 9.3 audit:** T‑01, T‑02, T‑04, T‑05, T‑08, T‑09, T‑12, T‑14, T‑17, and the T‑13 supply-chain gaps (npm audit in CI, backend lockfile, install cooldown). Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
 
 ---
 

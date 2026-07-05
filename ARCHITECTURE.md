@@ -19,16 +19,18 @@ C4Context
     System(somnus, "Somnus", "Local sleep optimization app that combines wearable data with habit tracking and statistical analysis")
 
     System_Ext(oura, "Oura Cloud API v2", "Provides sleep, readiness, and activity data from Oura Ring")
-    System_Ext(openmeteo, "Open-Meteo API", "Provides historical weather data, solar radiation, cloud cover, sunrise/sunset")
-    System_Ext(nrel, "NREL NSRDB API", "Provides high-quality solar irradiance data for US locations")
+    System_Ext(openmeteo, "Open-Meteo API", "PLANNED (not implemented) — historical weather data, solar radiation, cloud cover, sunrise/sunset")
+    System_Ext(nrel, "NREL NSRDB API", "PLANNED (not implemented) — high-quality solar irradiance data for US locations")
 
     Rel(user, somnus, "Logs daily habits, views dashboard and analysis", "Browser (localhost)")
     Rel(somnus, oura, "Syncs sleep records", "HTTPS, Personal Access Token")
-    Rel(somnus, openmeteo, "Fetches weather/solar data by location", "HTTPS, no auth")
-    Rel(somnus, nrel, "Fetches solar irradiance (US)", "HTTPS, API key")
+    Rel(somnus, openmeteo, "PLANNED: fetch weather/solar data by location", "HTTPS, no auth")
+    Rel(somnus, nrel, "PLANNED: fetch solar irradiance (US)", "HTTPS, API key")
 ```
 
 ---
+
+> **Not yet implemented:** the Open-Meteo / NREL weather-solar integration and the `Sunlight` service are **planned** — no such client exists in `backend/` today (only `oura_client.py` makes outbound calls). They are shown for the target architecture and flagged *PLANNED* in the diagrams; see `docs/THREAT_MODEL.md` §3.
 
 ## Level 2: Container Diagram
 
@@ -54,8 +56,8 @@ C4Container
     Rel(frontend, backend, "API calls", "HTTP/JSON, localhost")
     Rel(backend, db, "Reads/writes", "SQLAlchemy ORM")
     Rel(backend, oura, "Syncs sleep data", "HTTPS")
-    Rel(backend, openmeteo, "Fetches weather data", "HTTPS")
-    Rel(backend, nrel, "Fetches solar data", "HTTPS")
+    Rel(backend, openmeteo, "PLANNED: fetch weather data", "HTTPS")
+    Rel(backend, nrel, "PLANNED: fetch solar data", "HTTPS")
 ```
 
 ---
@@ -90,7 +92,7 @@ C4Component
             Component(caffeine_svc, "Caffeine Model", "Python", "Exponential decay pharmacokinetics. Sensitivity-adjusted half-life.")
             Component(sleep_timing_svc, "Sleep Timing", "Python", "Chronotype inference. Optimal bedtime window. 3-component consistency model (σ, δ, Δ).")
             Component(sleep_stages_svc, "Sleep Stages", "Python", "Age-adjusted REM/deep targets. Deficiency detection. 7-day rolling averages.")
-            Component(sunlight_svc, "Sunlight", "httpx", "Morning light tracking. Solar intensity estimation via Open-Meteo/NREL.")
+            Component(sunlight_svc, "Sunlight (PLANNED)", "httpx", "PLANNED — not implemented. Morning light tracking; solar intensity estimation via Open-Meteo/NREL.")
             Component(red_light_svc, "Red Light", "Python", "Dose calculation (J/cm²). Panel presets. Inverse square law adjustment.")
             Component(nap_svc, "Nap Analysis", "Python", "Nap impact on subsequent night. Timing/duration segmented analysis.")
             Component(seasonal_svc, "Seasonal", "Python", "Daylight hours, season, DST from zip+date. Regression covariates.")
@@ -131,8 +133,8 @@ C4Component
     Rel(report_svc, dashboard_svc, "Reuses consistency")
     Rel(report_svc, stats_engine, "Top factors")
     Rel(report_svc, recommender, "Active experiment")
-    Rel(sunlight_svc, openmeteo, "Weather API")
-    Rel(sunlight_svc, nrel, "Solar API")
+    Rel(sunlight_svc, openmeteo, "PLANNED: weather API")
+    Rel(sunlight_svc, nrel, "PLANNED: solar API")
 ```
 
 ---
