@@ -1,7 +1,7 @@
 # ADR 013: Threat Model Methodology and Scope
 
 ## Status
-Proposed — becomes Accepted when Kristov approves `docs/THREAT_MODEL.md` (PLAN.md Step 9.2). The threat model is not authoritative until then.
+Accepted — Kristov approved `docs/THREAT_MODEL.md` on 2026-07-05 (PLAN.md Step 9.2); the threat model is now authoritative.
 
 ## Context
 Somnus stores some of the most sensitive personal data an app can hold: sexual activity (including adult-content usage), illness, alcohol consumption, nightly sleep schedules, coarse location (zip code), and an Oura personal access token that grants read access to cloud-stored health data. Security so far has been checklist-driven (PLAN.md "Security Review Process"): useful, but a checklist only catches what someone already thought to write down. PLAN.md Step 9 requires an explicit, human-approved threat model that all future code is written and reviewed against, using a systematic method that "makes omissions visible, not just catalogs known worries."

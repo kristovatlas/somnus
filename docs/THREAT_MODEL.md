@@ -1,11 +1,11 @@
 # Somnus — Threat Model
 
-> **Status: DRAFT — not yet authoritative.** Per PLAN.md Step 9.2, this document
-> governs how Somnus is built and reviewed only after Kristov reviews and approves it.
-> Until then it is a proposal. Methodology and scope choices are recorded in
-> [ADR 013](adr/013-threat-model-methodology.md).
+> **Status: APPROVED — authoritative.** Reviewed and approved by Kristov on 2026-07-05
+> (PLAN.md Step 9.2). This document now governs how Somnus is built and reviewed; per the
+> currency rule below it must never lag the code. Methodology and scope choices are recorded
+> in [ADR 013](adr/013-threat-model-methodology.md).
 
-- **Version:** 0.1 (draft) · **Authored:** 2026-07-05 · **Method:** STRIDE-per-element over the C4 decomposition in [ARCHITECTURE.md](../ARCHITECTURE.md)
+- **Version:** 1.0 · **Authored:** 2026-07-05 · **Approved:** 2026-07-05 (Step 9.2) · **Method:** STRIDE-per-element over the C4 decomposition in [ARCHITECTURE.md](../ARCHITECTURE.md)
 - **Scope of code reviewed:** `backend/`, `frontend/`, `.github/workflows/`, `Makefile`, `alembic.ini` + `alembic/` (migrations) at `dev` @ `67d37f3`.
 - **Currency rule:** this is a living document with the same status as ARCHITECTURE.md — it must never lag the code. Every PR carries a "Threat model impact" statement (PLAN.md Step 9.4); a missing or wrong statement blocks merge. `file:line` citations are anchored to the reviewed commit above and are re-verified at each audit and version bump (prefer symbol names where practical).
 
