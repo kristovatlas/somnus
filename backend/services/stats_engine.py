@@ -54,6 +54,8 @@ VARIABLE_LABELS: dict[str, str] = {
     "sigma_7d": "Bedtime Variability (7d σ)",
     "delta_7d": "Bedtime Drift (7d δ)",
     "bedtime_hour": "Bedtime (hour)",
+    # Derived timing factor emitted by the recommender, not a data column
+    "social_jet_lag": "Social Jet Lag",
 }
 
 OUTCOME_COLUMNS = [
