@@ -104,6 +104,29 @@ class TestExperimentCRUD:
         assert data["end_date"] == "2027-03-15"
         assert data["status"] == "active"
 
+    def test_create_hypothesis_too_long_422(self, client: TestClient) -> None:
+        # T-04: hypothesis is rendered into the monthly HTML report — bounded
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": "total_caffeine_mg",
+                "hypothesis": "x" * 501,
+                "start_date": "2027-03-01",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_create_hypothesis_at_length_bound(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": "total_caffeine_mg",
+                "hypothesis": "x" * 500,
+                "start_date": "2027-03-01",
+            },
+        )
+        assert resp.status_code == 201
+
     def test_create_conflict_409(self, client: TestClient) -> None:
         # Create first (future dates so it stays active)
         client.post(

@@ -115,3 +115,45 @@ class TestMonthlyHTMLExport:
         resp = client.get("/api/reports/monthly/export-html?year=2026&month=2")
         assert "<!DOCTYPE html>" in resp.text
         assert "Monthly Report" in resp.text
+
+
+class TestHTMLExportSecurityHeaders:
+    """T-04 defense-in-depth: reports render at the SPA origin via the proxy,
+    so the response must carry a script-blocking, origin-isolating CSP."""
+
+    def test_weekly_csp_sandbox(self, client: TestClient) -> None:
+        resp = client.get("/api/reports/weekly/export-html")
+        csp = resp.headers.get("content-security-policy", "")
+        assert "default-src 'none'" in csp
+        assert "sandbox" in csp
+        assert resp.headers.get("x-content-type-options") == "nosniff"
+
+    def test_monthly_csp_sandbox(self, client: TestClient) -> None:
+        resp = client.get("/api/reports/monthly/export-html")
+        csp = resp.headers.get("content-security-policy", "")
+        assert "default-src 'none'" in csp
+        assert "sandbox" in csp
+        assert resp.headers.get("x-content-type-options") == "nosniff"
+
+    def test_monthly_export_escapes_stored_hypothesis(
+        self, client: TestClient, db: Session
+    ) -> None:
+        """End-to-end T-04: a hostile hypothesis stored via the API must not
+        reach the rendered monthly report unescaped."""
+        # Enough records that the report takes the full path (which includes
+        # the active experiment), not the insufficient-data early return
+        _seed_week(client, db)
+        payload = "<script>fetch('/api/export/sqlite')</script>"
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": "total_caffeine_mg",
+                "hypothesis": payload,
+                "start_date": "2027-03-01",
+            },
+        )
+        assert resp.status_code == 201
+        resp = client.get("/api/reports/monthly/export-html?year=2026&month=2")
+        assert resp.status_code == 200
+        assert payload not in resp.text
+        assert "&lt;script&gt;" in resp.text

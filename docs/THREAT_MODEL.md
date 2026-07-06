@@ -127,7 +127,7 @@ Every cell is populated with a threat ID or marked **n/a** with a reason. Empty 
 | **E3 SQLite DB** | n/a — file, not a principal | **T‑09** (FK not enforced → integrity) | n/a | **T‑07** (plaintext at rest) · **T‑08** (file perms) | n/a — local file | n/a — no in-DB privilege model |
 | **F3 Backend↔Oura** | **T‑11** (base-URL override redirects token) | **T‑10** (blind trust of response shape/range) | n/a | ✓ TLS verified, token in header not URL (verified) | out of scope — user-initiated; 30s timeout, 50-page cap (§4) | n/a |
 | **F4 Exports** | n/a | **T‑12** (CSV formula injection) · **T‑17** (torn export copy) | n/a | folds into **T‑03/T‑07** (dump contains token) | n/a | n/a |
-| **E1 Frontend SPA** | n/a — no client identity | ✓ SPA code: no `dangerouslySetInnerHTML`/`eval` — **but T‑04's server-rendered report executes in this origin** (via the `:5173` proxy) | n/a | ✓ token in memory only, not in web storage (verified) | n/a | **T‑14** (no CSP — defense-in-depth gap) |
+| **E1 Frontend SPA** | n/a — no client identity | ✓ SPA code: no `dangerouslySetInnerHTML`/`eval` — T‑04's server-rendered report formerly executed in this origin via the `:5173` proxy (now Mitigated: escaped + CSP `sandbox` opaque origin) | n/a | ✓ token in memory only, not in web storage (verified) | n/a | **T‑14** (no CSP — defense-in-depth gap) |
 | **F5 Supply chain** | **T‑13** (malicious dep/action) | folds into T‑13 | n/a | folds into T‑13 | n/a | folds into T‑13 |
 | **Vite dev proxy (:5173)** | folds into **T‑01** (Host rewrite defeats backend check) | folds into **T‑02** (same CSRF surface via `:5173`) | n/a | folds into **T‑03** (proxied reads) | n/a — dev-only | **T‑04** (report renders here) · **T‑14** (no CSP) |
 | **Test router** | n/a — no identity (unauth, like all endpoints) | **T‑15** (unauth DB-wipe when `SOMNUS_TESTING=1`) | n/a | n/a — returns only an ack | n/a — not mounted in normal runs | n/a — no privilege model |
@@ -169,14 +169,14 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **Mitigation:** primarily T‑01 (Host validation confines reachability to loopback). Residual after T‑01 — a co-resident user connecting directly to `127.0.0.1:8000` — is tracked as AD2/T‑08 and accepted for the local-first model. No per-request auth is planned; revisit if Somnus ever grows a remote/multi-device mode.
 
-### T‑04 — Stored HTML/JS injection in the monthly HTML report — **Open** — *High*
-`backend/services/report_service.py:661` (unescaped f-string), `:658`; served inline by `backend/routers/reports.py:59`
+### T‑04 — Stored HTML/JS injection in the monthly HTML report — **Mitigated** — *High*
+`backend/services/report_service.py` (`_esc` at every non-numeric interpolation); served with CSP by `backend/routers/reports.py` (`_html_report_response`)
 
 **STRIDE:** Elevation (script execution in the SPA origin, via the dev proxy) / Tampering. **Adversary:** AD1 chained, AD4.
 
 `render_monthly_html` interpolates user-controlled free text — `exp.get("hypothesis", "")` (unbounded, `schemas.py:623`) and `factor_label`, which falls back to the raw `experiment.factor` (`recommender.py:385`) — directly into a `text/html` response with **no escaping** (Python f-strings, no autoescape). The report is served `Content-Disposition: inline` (`reports.py:55,68`) and opened from a **relative** `/api/reports/...` URL (`frontend/src/api/reports.ts:33,41`) via `target="_blank"`, so in the dev flow it is fetched **through the Vite proxy and renders at the SPA origin `http://localhost:5173`** — same-origin with the SPA and, through the proxy, with every `/api` endpoint. Any injected `<script>`/`<img onerror>` therefore runs with full access to the unauthenticated API (exfiltrate A1/A2, wipe data) and to SPA state. The planting vector is normally the user's own text (self-XSS, low value), but it becomes an attacker path when chained with T‑01/T‑02 (a rebound page POSTs a malicious `hypothesis`, the user later exports the month) or when hostile external data reaches a report field (AD4). The weekly report and the fixed contributing-factor labels use only numbers/enum strings and are not affected.
 
-**Required mitigation:** HTML-escape all interpolated values (stdlib `html.escape` or a templating engine with autoescaping) in `render_weekly_html`/`render_monthly_html`; add a length bound to `hypothesis`. Consider `Content-Disposition: attachment` and/or a restrictive `Content-Security-Policy` — noting the CSP must apply where the report actually renders (the SPA origin, via the proxy), so it and the SPA's own CSP (T‑14) must be consistent.
+**Mitigation (implemented):** all non-numeric interpolations in `render_weekly_html`/`render_monthly_html` (and helpers) go through stdlib `html.escape` via `_esc` — the invariant is documented on `_esc` itself: every f-string hole that is not a numeric format spec must be escaped. `ExperimentCreate.hypothesis` is length-bounded (500). Defense-in-depth: both `export-html` endpoints send `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; sandbox` plus `X-Content-Type-Options: nosniff` — the `sandbox` directive renders the report in an opaque origin with scripts blocked, so even a future missed escape cannot reach the API through the proxy. Regression tests cover escaping (unit + end-to-end through a stored hypothesis), the headers, and the length bound. The SPA's own CSP remains T‑14 (open, defense-in-depth).
 
 ### T‑05 — Unhandled exception on the entry-update path — **Open** — *Low*
 `backend/routers/daily_log.py:161-171` (no `try/except`), vs `:151-154` (add path wraps)
@@ -289,7 +289,7 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 | T‑15 | Destructive endpoint if `SOMNUS_TESTING=1` is set on a real DB | Accepted + path-guard recommended |
 | Open-Meteo/NREL | No surface today (unimplemented) | Deferred — **when implemented, add F-flows, model SSRF/base-URL/response-trust (mirror T‑10/T‑11), and update this doc in the same PR** |
 
-**Open items requiring action in the Step 9.3 audit:** T‑02, T‑04, T‑05, T‑08, T‑09, T‑12, T‑14, T‑17, and the T‑13 supply-chain gaps (npm audit in CI, backend lockfile, Action SHA-pinning; the install cooldown is done — ADR 014). Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
+**Open items requiring action in the Step 9.3 audit:** T‑02, T‑05, T‑08, T‑09, T‑12, T‑14, T‑17, and the T‑13 supply-chain gaps (npm audit in CI, backend lockfile, Action SHA-pinning; the install cooldown is done — ADR 014). T‑04 is Mitigated (escaping + report CSP; T‑14's SPA CSP still open). Each becomes a fix PR citing its threat ID, or an explicitly documented acceptance here.
 
 ---
 

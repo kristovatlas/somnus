@@ -20,6 +20,29 @@ from backend.services.report_service import (
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
+def _html_report_response(html: str, filename: str) -> StreamingResponse:
+    """Serve a rendered report with T-04 defense-in-depth headers.
+
+    The report renders at the SPA origin via the Vite proxy, so even with
+    output escaping a missed injection would reach the whole API. The CSP
+    `sandbox` directive puts the document in an opaque origin with script
+    execution blocked (the report is static HTML + inline CSS only), and
+    the explicit source lists deny everything but the inline stylesheet.
+    """
+    return StreamingResponse(
+        iter([html]),
+        media_type="text/html",
+        headers={
+            "Content-Disposition": f"inline; filename={filename}",
+            "Content-Security-Policy": (
+                "default-src 'none'; style-src 'unsafe-inline'; "
+                "base-uri 'none'; form-action 'none'; sandbox"
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.get("/weekly", response_model=WeeklyReportResponse)
 def weekly_report(
     year: int | None = Query(default=None, ge=1, le=9999),
@@ -49,11 +72,7 @@ def weekly_html(
     """Export weekly report as printable HTML."""
     report = get_week_report(db, iso_year=year, iso_week=week)
     html = render_weekly_html(report)
-    return StreamingResponse(
-        iter([html]),
-        media_type="text/html",
-        headers={"Content-Disposition": "inline; filename=weekly_report.html"},
-    )
+    return _html_report_response(html, "weekly_report.html")
 
 
 @router.get("/monthly/export-html", response_model=None)
@@ -65,8 +84,4 @@ def monthly_html(
     """Export monthly report as printable HTML."""
     report = get_month_report(db, year=year, month=month)
     html = render_monthly_html(report)
-    return StreamingResponse(
-        iter([html]),
-        media_type="text/html",
-        headers={"Content-Disposition": "inline; filename=monthly_report.html"},
-    )
+    return _html_report_response(html, "monthly_report.html")

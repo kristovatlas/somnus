@@ -620,7 +620,8 @@ class RecommendationsResponse(BaseModel):
 
 class ExperimentCreate(BaseModel):
     factor: str = Field(max_length=100)
-    hypothesis: str
+    # Length-bounded per T-04: rendered into the monthly HTML report
+    hypothesis: str = Field(max_length=500)
     start_date: dt.date
     end_date: dt.date | None = None
     notes: str | None = None
