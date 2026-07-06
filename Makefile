@@ -1,11 +1,17 @@
 .PHONY: setup setup-backend setup-frontend dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate clean
 
 # --- Setup ---
+# T-13 (docs/THREAT_MODEL.md, ADR 014): the 7-day install cooldown lives in
+# pyproject.toml [tool.uv.pip]. uv itself is pinned so the gating tool can't
+# be hit by publish-then-yank; bump the pin via a reviewed PR. Urgent security
+# fix inside the window: UV_EXCLUDE_NEWER="0 days" make setup-backend
+UV_VERSION := 0.11.26
+
 setup: setup-backend setup-frontend
 
 setup-backend:
-	python -m pip install --quiet uv
-	UV_EXCLUDE_NEWER="7 days" uv pip install -e ".[dev]"
+	python -m pip install --quiet uv==$(UV_VERSION)
+	uv pip install $(if $(VIRTUAL_ENV),,--system) -e ".[dev]"
 
 setup-frontend:
 	cd frontend && npm install
