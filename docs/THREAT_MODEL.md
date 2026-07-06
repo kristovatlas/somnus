@@ -192,14 +192,14 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **Acceptance rationale:** shape disclosure adds nothing an attacker with port access lacks. Optionally disable in a future packaged build; not required.
 
-### T‑07 — Plaintext sensitive data at rest — **Partial** — *High (device theft) / Medium (co-resident)*
+### T‑07 — Plaintext sensitive data at rest — **Accepted** (with documented residual + user guidance) — *High (device theft) / Medium (co-resident)*
 `backend/models.py:390` (token, plaintext `Text`); DB at `backend/config.py:15`
 
 **STRIDE:** Information disclosure. **Adversary:** AD5, AD2. The DB stores the Oura token and all health data unencrypted. On a lost/stolen device with an unencrypted disk, or to a co-resident user (T‑08), everything is readable.
 
-**Existing mitigation (Partial):** Somnus is designed for a **user-supplied DB path** (`SOMNUS_DB_PATH`, `config.py:20`) so the file can live on an encrypted volume; onboarding deliberately orders the *Data Storage* step **before** the *Oura* step and instructs the user to relaunch with `SOMNUS_DB_PATH` on an encrypted volume before connecting Oura (`DataStorageStep.tsx:18-39`, `useOnboarding.ts:3`). This pushes encryption-at-rest to the OS/volume layer.
+**Mitigation:** Somnus is designed for a **user-supplied DB path** (`SOMNUS_DB_PATH`, `config.py:20`) so the file can live on an encrypted volume; onboarding deliberately orders the *Data Storage* step **before** the *Oura* step. As of the T‑07 disposition that step carries a prominent, non-dismissible security notice that (a) states plainly the DB is unencrypted and names the sensitive assets at risk, (b) recommends **full-disk encryption** as the baseline (FileVault / BitLocker / LUKS), and (c) recommends an **additional encrypted volume such as VeraCrypt** with the `SOMNUS_DB_PATH` relocation steps (`DataStorageStep.tsx`). The same guidance is in `README.md` (§ *Encryption at rest*). This pushes encryption-at-rest to the OS/volume layer, where it belongs for a local-first app.
 
-**Residual (needs your call):** users who ignore the guidance store secrets in the clear at `~/.somnus/somnus.db`. Options for a future ADR: application-level encryption of the token column, or OS keychain storage. **Proposed disposition: accept the plaintext-at-rest residual for v0.1 with this documented residual — but this needs your explicit 9.2 sign-off (it is not pre-decided), since A1/A2 are the top-sensitivity assets.**
+**Disposition — Accepted for v0.1 (Kristov, 2026‑07‑06).** Application-level encryption is **not** implemented for v0.1: without a real key store it only relocates the plaintext, and the device-theft vector is only genuinely closed by full-disk encryption regardless. The accepted residual is therefore a user who declines both full-disk encryption and an encrypted volume on their own machine; the acceptance is conditioned on the loud, specific user guidance above (and pairs with **T‑08**'s `0600`/`0700` hardening, which closes the *other-OS-user* read path). Revisit if Somnus grows a multi-device/remote mode or a first-class key store; a future app-level-encryption ADR (OS keychain or user passphrase) remains the candidate escalation.
 
 ### T‑08 — DB file has no permission hardening — **Open** — *Medium*
 `backend/database.py:45-52` (`mkdir` + `create_all`, no `chmod`/`umask`)
@@ -284,7 +284,7 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 | T‑01 | F1p closure is dev-server-scoped (a packaged-build proxy could reopen it); `--host` exposes `/api` to the LAN; IPv6-literal binds unsupported | Documented residual — re-close F1p same-origin in any packaged build |
 | T‑03 | Co-resident user connecting directly to `127.0.0.1:8000` after T‑01 | Accepted (local-first model); revisit if remote mode is added |
 | T‑06 | API shape visible via `/docs` | Accepted |
-| T‑07 | Secrets in clear if user ignores encrypted-volume guidance | Partial; residual **proposed for acceptance — needs explicit 9.2 sign-off**; candidate for app-level encryption ADR |
+| T‑07 | Secrets in clear if user declines full-disk encryption *and* an encrypted volume | Accepted for v0.1 (Kristov, 2026‑07‑06), conditioned on loud onboarding + README guidance (full-disk encryption baseline + VeraCrypt-style volume) and paired with T‑08 file-perm hardening; app-level-encryption ADR is the candidate escalation |
 | T‑11 | Token misdirected if the app env is attacker-controlled | Accepted (implies machine control) |
 | T‑15 | Destructive endpoint if `SOMNUS_TESTING=1` is set on a real DB | Accepted + path-guard recommended |
 | Open-Meteo/NREL | No surface today (unimplemented) | Deferred — **when implemented, add F-flows, model SSRF/base-URL/response-trust (mirror T‑10/T‑11), and update this doc in the same PR** |

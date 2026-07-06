@@ -82,6 +82,15 @@ Somnus defaults to a **circadian display mode** — an amber/red color palette t
 - **Correlation is not causation.** All analysis uses hedged language ("associated with," never "causes"). See [ADR 005](docs/adr/005-correlation-not-causation.md).
 - **Your data is yours.** Export anytime as CSV, JSON, or raw SQLite.
 
+## Encryption at rest — protect your database
+
+The SQLite database holds your Oura API token and every health entry — sleep, and sensitive categories like alcohol, illness, and sexual activity — **as plain text; Somnus does not encrypt the file itself** (see threat [T-07](docs/THREAT_MODEL.md)). Anyone who can read `somnus.db` can read all of it: a lost or stolen device without disk encryption, or another user account on a shared machine.
+
+- **Baseline: turn on full-disk encryption** — FileVault (macOS), BitLocker (Windows), or LUKS/dm-crypt (Linux). This protects the file if the device is lost or stolen.
+- **Extra layer: keep the database on an encrypted volume** such as [VeraCrypt](https://veracrypt.io/), then point Somnus at it by launching with `SOMNUS_DB_PATH=/your/encrypted/path/somnus.db` **before connecting Oura**, so the token is never written to the default `~/.somnus/somnus.db`.
+
+The onboarding wizard surfaces this same guidance before the Oura step.
+
 ## License
 
 Private — not yet licensed for distribution.
