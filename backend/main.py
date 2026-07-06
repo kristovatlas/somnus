@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from backend.config import settings
+from backend.config import codespaces_hosts, settings
 from backend.database import init_db
 from backend.routers import analysis, daily_log, dashboard, export, oura, recommendations, reports
 from backend.routers import settings as settings_router
@@ -42,9 +42,10 @@ app.add_middleware(
 # T-01 (docs/THREAT_MODEL.md): reject non-loopback Host headers to defend the
 # unauthenticated localhost API against DNS rebinding / cross-origin reachability.
 # Added last so it is the outermost middleware and bad hosts are rejected first.
+# codespaces_hosts() appends the forwarded Codespaces host in dev (empty in prod).
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=settings.allowed_hosts,
+    allowed_hosts=list(dict.fromkeys(settings.allowed_hosts + codespaces_hosts())),
 )
 
 

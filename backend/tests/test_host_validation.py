@@ -10,21 +10,17 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def test_default_localhost_host_accepted(client: TestClient) -> None:
-    """The normal loopback Host (set by the client fixture) is accepted."""
-    resp = client.get("/api/health", headers={"host": "localhost"})
-    assert resp.status_code == 200
-
-
-def test_loopback_ip_host_accepted(client: TestClient) -> None:
-    """127.0.0.1 is an allowed host."""
-    resp = client.get("/api/health", headers={"host": "127.0.0.1"})
-    assert resp.status_code == 200
-
-
-def test_host_with_port_accepted(client: TestClient) -> None:
-    """The port is ignored when matching, so localhost:8000 is accepted."""
-    resp = client.get("/api/health", headers={"host": "localhost:8000"})
+@pytest.mark.parametrize(
+    "good_host",
+    [
+        "localhost",
+        "127.0.0.1",
+        "localhost:8000",  # port is stripped before matching
+    ],
+)
+def test_loopback_host_accepted(client: TestClient, good_host: str) -> None:
+    """Loopback Hosts (with or without a port) are accepted."""
+    resp = client.get("/api/health", headers={"host": good_host})
     assert resp.status_code == 200
 
 
