@@ -96,8 +96,8 @@ export function DataStorageStep({ onNext, onBack }: DataStorageStepProps) {
         </li>
         <li>
           To store it on an encrypted volume, quit and relaunch with{" "}
-          <code>SOMNUS_DB_PATH=/your/encrypted/path/somnus.db</code> now — before
-          connecting Oura — so your token is never written to the default
+          <code>SOMNUS_DB_PATH=/your/encrypted/path/somnus.db</code> now —
+          before connecting Oura — so your token is never written to the default
           location. The wizard saves your answers from the first screen, so
           after relaunching also delete <code>~/.somnus/somnus.db</code> and
           re-enter the few fields you have filled in so far.
