@@ -4,7 +4,8 @@
 setup: setup-backend setup-frontend
 
 setup-backend:
-	pip install -e ".[dev]"
+	python -m pip install --quiet uv
+	UV_EXCLUDE_NEWER="7 days" uv pip install -e ".[dev]"
 
 setup-frontend:
 	cd frontend && npm install
