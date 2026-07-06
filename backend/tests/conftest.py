@@ -39,6 +39,6 @@ def test_client(db: Session) -> Generator[TestClient, None, None]:
         yield db
 
     app.dependency_overrides[get_db] = _override_get_db
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost") as client:
         yield client
     app.dependency_overrides.clear()
