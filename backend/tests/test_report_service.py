@@ -494,3 +494,121 @@ class TestHTMLRendering:
         report = get_week_report(db, 2026, 8, today=dt.date(2026, 2, 19))
         html = render_weekly_html(report)
         assert "Insufficient data" in html
+
+
+# ---------------------------------------------------------------------------
+# HTML escaping (T-04 — docs/THREAT_MODEL.md)
+# ---------------------------------------------------------------------------
+
+_XSS = "<script>alert(1)</script>"
+
+
+def _minimal_monthly_report(**overrides: object) -> dict[str, object]:
+    report: dict[str, object] = {
+        "current": {},
+        "prior": {},
+        "trends": {},
+        "month_name": "February",
+        "year": 2026,
+        "period_start": dt.date(2026, 2, 1),
+        "period_end": dt.date(2026, 2, 28),
+        "logging_completeness": "5/28 days",
+        "has_insufficient_data": False,
+    }
+    report.update(overrides)
+    return report
+
+
+def _minimal_weekly_report(**overrides: object) -> dict[str, object]:
+    report: dict[str, object] = {
+        "current": {},
+        "prior": {},
+        "trends": {},
+        "iso_year": 2026,
+        "iso_week": 8,
+        "period_start": dt.date(2026, 2, 16),
+        "period_end": dt.date(2026, 2, 22),
+        "logging_completeness": "5/7 days",
+        "has_insufficient_data": False,
+    }
+    report.update(overrides)
+    return report
+
+
+class TestHTMLEscaping:
+    """Every user-controllable value must be escaped before interpolation."""
+
+    def test_monthly_escapes_hypothesis(self) -> None:
+        report = _minimal_monthly_report(
+            active_experiment={
+                "factor_label": "Caffeine",
+                "hypothesis": _XSS,
+                "start_date": dt.date(2026, 2, 1),
+                "end_date": dt.date(2026, 2, 15),
+                "days_completed": 5,
+            }
+        )
+        html = render_monthly_html(report)
+        assert _XSS not in html
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+
+    def test_monthly_escapes_raw_factor_fallback(self) -> None:
+        # factor_label missing -> falls back to the raw user-supplied factor
+        report = _minimal_monthly_report(
+            active_experiment={
+                "factor": '<img src=x onerror="alert(1)">',
+                "hypothesis": "h",
+                "days_completed": 0,
+            }
+        )
+        html = render_monthly_html(report)
+        assert "<img" not in html
+        assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in html
+
+    def test_monthly_escapes_contributing_factor_tags(self) -> None:
+        report = _minimal_monthly_report(
+            best_night={
+                "date": dt.date(2026, 2, 3),
+                "sleep_score": 90,
+                "contributing_factors": [_XSS],
+            }
+        )
+        html = render_monthly_html(report)
+        assert _XSS not in html
+        assert "&lt;script&gt;" in html
+
+    def test_weekly_escapes_factor_label(self) -> None:
+        report = _minimal_weekly_report(
+            top_positive_factor={"label": _XSS, "pearson_r": 0.5},
+            top_negative_factor={"label": _XSS, "pearson_r": -0.5},
+        )
+        html = render_weekly_html(report)
+        assert _XSS not in html
+        assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 2
+
+    def test_weekly_escapes_consistency_ratings(self) -> None:
+        report = _minimal_weekly_report(
+            consistency={
+                "sigma_minutes": 30.0,
+                "sigma_rating": _XSS,
+                "delta_minutes": 10.0,
+                "delta_rating": _XSS,
+                "weekend_drift_minutes": 5.0,
+                "drift_rating": _XSS,
+            }
+        )
+        html = render_weekly_html(report)
+        assert _XSS not in html
+        assert html.count("&lt;script&gt;") == 3
+
+    def test_escaped_output_preserves_plain_text(self) -> None:
+        report = _minimal_monthly_report(
+            active_experiment={
+                "factor_label": "Caffeine (mg)",
+                "hypothesis": "Less caffeine → deeper sleep & higher HRV",
+                "days_completed": 3,
+            }
+        )
+        html = render_monthly_html(report)
+        assert "Caffeine (mg)" in html
+        assert "Less caffeine → deeper sleep &amp; higher HRV" in html

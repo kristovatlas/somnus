@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
@@ -18,6 +18,30 @@ from backend.services.report_service import (
 )
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
+
+
+def _html_report_response(html: str, filename: str) -> HTMLResponse:
+    """Serve a rendered report with T-04 defense-in-depth headers.
+
+    The report renders at the SPA origin via the Vite proxy, so even with
+    output escaping a missed injection would reach the whole API. The CSP
+    `sandbox` directive puts the document in an opaque origin with script
+    execution blocked (the report is static HTML + inline CSS only), and
+    the explicit source lists deny everything but the inline stylesheet.
+    `frame-ancestors` does not fall back to `default-src`, so it must be
+    stated explicitly or any page could still iframe the report.
+    """
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Content-Disposition": f"inline; filename={filename}",
+            "Content-Security-Policy": (
+                "default-src 'none'; style-src 'unsafe-inline'; "
+                "base-uri 'none'; form-action 'none'; frame-ancestors 'none'; sandbox"
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/weekly", response_model=WeeklyReportResponse)
@@ -45,15 +69,11 @@ def weekly_html(
     year: int | None = Query(default=None, ge=1, le=9999),
     week: int | None = Query(default=None, ge=1, le=53),
     db: Session = Depends(get_db),
-) -> StreamingResponse:
+) -> HTMLResponse:
     """Export weekly report as printable HTML."""
     report = get_week_report(db, iso_year=year, iso_week=week)
     html = render_weekly_html(report)
-    return StreamingResponse(
-        iter([html]),
-        media_type="text/html",
-        headers={"Content-Disposition": "inline; filename=weekly_report.html"},
-    )
+    return _html_report_response(html, "weekly_report.html")
 
 
 @router.get("/monthly/export-html", response_model=None)
@@ -61,12 +81,8 @@ def monthly_html(
     year: int | None = Query(default=None, ge=1, le=9999),
     month: int | None = Query(default=None, ge=1, le=12),
     db: Session = Depends(get_db),
-) -> StreamingResponse:
+) -> HTMLResponse:
     """Export monthly report as printable HTML."""
     report = get_month_report(db, year=year, month=month)
     html = render_monthly_html(report)
-    return StreamingResponse(
-        iter([html]),
-        media_type="text/html",
-        headers={"Content-Disposition": "inline; filename=monthly_report.html"},
-    )
+    return _html_report_response(html, "monthly_report.html")

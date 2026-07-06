@@ -2,6 +2,7 @@
 
 import datetime as dt
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -103,6 +104,60 @@ class TestExperimentCRUD:
         assert data["start_date"] == "2027-03-01"
         assert data["end_date"] == "2027-03-15"
         assert data["status"] == "active"
+
+    def test_create_hypothesis_too_long_422(self, client: TestClient) -> None:
+        # T-04: hypothesis is rendered into the monthly HTML report — bounded
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": "total_caffeine_mg",
+                "hypothesis": "x" * 501,
+                "start_date": "2027-03-01",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_create_hypothesis_at_length_bound(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": "total_caffeine_mg",
+                "hypothesis": "x" * 500,
+                "start_date": "2027-03-01",
+            },
+        )
+        assert resp.status_code == 201
+
+    @pytest.mark.parametrize(
+        "factor",
+        ["not_a_real_variable", '<img src=x onerror="alert(1)">', ""],
+    )
+    def test_create_unknown_factor_422(self, client: TestClient, factor: str) -> None:
+        # T-04: factor is an enum of analyzable variables, not free text —
+        # an unknown value would become the active experiment's report label
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": factor,
+                "hypothesis": "h",
+                "start_date": "2027-03-01",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_create_social_jet_lag_factor_accepted(self, client: TestClient) -> None:
+        # social_jet_lag is a derived factor the recommender emits — it must
+        # pass factor validation like any data-column variable
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": "social_jet_lag",
+                "hypothesis": "Aligning weekend bedtime will improve sleep",
+                "start_date": "2027-03-01",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["factor_label"] == "Social Jet Lag"
 
     def test_create_conflict_409(self, client: TestClient) -> None:
         # Create first (future dates so it stays active)

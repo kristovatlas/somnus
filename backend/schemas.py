@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.models import (
     CaffeineSensitivity,
@@ -619,11 +619,26 @@ class RecommendationsResponse(BaseModel):
 
 
 class ExperimentCreate(BaseModel):
+    # Semantically an enum of analyzable variables, not free text (T-04):
+    # an unknown factor would become the single active experiment and its
+    # raw key would be the report label. Validated against VARIABLE_LABELS.
     factor: str = Field(max_length=100)
-    hypothesis: str
+    # Length-bounded per T-04: rendered into the monthly HTML report
+    hypothesis: str = Field(max_length=500)
     start_date: dt.date
     end_date: dt.date | None = None
     notes: str | None = None
+
+    @field_validator("factor")
+    @classmethod
+    def _factor_is_known_variable(cls, v: str) -> str:
+        # Imported here: services import schemas, so a module-level import
+        # of a service from schemas would risk an import cycle
+        from backend.services.stats_engine import VARIABLE_LABELS
+
+        if v not in VARIABLE_LABELS:
+            raise ValueError(f"unknown factor {v!r}; must be a known analyzable variable")
+        return v
 
 
 class ExperimentUpdate(BaseModel):
