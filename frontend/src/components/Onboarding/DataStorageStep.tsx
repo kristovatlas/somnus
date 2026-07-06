@@ -37,7 +37,11 @@ export function DataStorageStep({ onNext, onBack }: DataStorageStepProps) {
             margin: "0 0 0.5rem",
           }}
         >
-          ⚠ This database is not encrypted — protect it before you connect Oura
+          {/* U+FE0E forces text (monochrome) presentation so the glyph
+              inherits --color-warning instead of rendering as a yellow
+              color emoji, which would violate the circadian palette (ADR 004). */}
+          {"⚠︎ "}This database is not encrypted — protect it before you connect
+          Oura
         </p>
         <p
           style={{
