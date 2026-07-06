@@ -29,6 +29,13 @@ dev = [
     "pip-audit>=2.7.0",
 ]
 
+# T-13 (docs/THREAT_MODEL.md, ADR 014): dependency-install cooldown.
+# Committed here so it gates every `uv pip install` in the repo (CI, make,
+# direct invocations). Urgent security fix inside the window: override with
+# UV_EXCLUDE_NEWER="0 days" (env beats this file) or exclude-newer-package.
+[tool.uv.pip]
+exclude-newer = "7 days"
+
 [tool.setuptools.packages.find]
 include = ["backend*"]
 
