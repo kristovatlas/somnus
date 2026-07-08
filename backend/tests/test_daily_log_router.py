@@ -328,3 +328,35 @@ def test_invalid_entry_data(client: TestClient) -> None:
         json={"amount_mg": 0},  # Below minimum
     )
     assert resp.status_code == 422
+
+
+def _assert_no_sql_leak(detail: str) -> None:
+    """T-05: a DB fault must never echo SQL text or bound parameters."""
+    for marker in ("SQL", "sqlite3", "INSERT", "UPDATE", "FOREIGN KEY", "parameters"):
+        assert marker not in detail
+
+
+def test_add_entry_unknown_panel_id_409_without_sql_leak(client: TestClient) -> None:
+    # T-05 × T-09: the enforced red_light_entries.panel_id FK makes an
+    # IntegrityError reachable from a client body — it must surface as a clean
+    # 409, not a 422 echoing the failed statement.
+    resp = client.post(
+        "/api/daily-log/2025-06-15/red-light",
+        json={"panel_id": 999, "duration_minutes": 10},
+    )
+    assert resp.status_code == 409
+    _assert_no_sql_leak(resp.json()["detail"])
+
+
+def test_update_entry_unknown_panel_id_409_without_sql_leak(client: TestClient) -> None:
+    resp = client.post(
+        "/api/daily-log/2025-06-15/red-light",
+        json={"duration_minutes": 10},
+    )
+    entry_id = resp.json()["id"]
+    resp = client.put(
+        f"/api/daily-log/2025-06-15/red-light/{entry_id}",
+        json={"panel_id": 999, "duration_minutes": 10},
+    )
+    assert resp.status_code == 409
+    _assert_no_sql_leak(resp.json()["detail"])
