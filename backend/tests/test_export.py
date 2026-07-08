@@ -2,9 +2,13 @@
 
 import csv
 import io
+import sqlite3
 import zipfile
+from pathlib import Path
 
 from fastapi.testclient import TestClient
+
+from backend.routers.export import _consistent_sqlite_snapshot
 
 
 def _seed_data(client: TestClient) -> None:
@@ -159,3 +163,22 @@ def test_export_sqlite_responds(client: TestClient) -> None:
     if resp.status_code == 200:
         assert resp.headers["content-type"] == "application/octet-stream"
         assert "somnus.db" in resp.headers.get("content-disposition", "")
+
+
+def test_consistent_sqlite_snapshot_is_valid(tmp_path: Path) -> None:
+    """T-17: the backup-API snapshot is a valid, internally consistent DB."""
+    db_file = tmp_path / "t.db"
+    con = sqlite3.connect(str(db_file))
+    con.execute("CREATE TABLE t (x INTEGER)")
+    con.execute("INSERT INTO t VALUES (42)")
+    con.commit()
+    con.close()
+
+    data = _consistent_sqlite_snapshot(db_file)
+    assert data.startswith(b"SQLite format 3")
+
+    restored = sqlite3.connect(":memory:")
+    restored.deserialize(data)
+    assert restored.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert restored.execute("SELECT x FROM t").fetchone()[0] == 42
+    restored.close()

@@ -268,12 +268,12 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **STRIDE:** Information disclosure (preventive). Verified: **no log call sites and no `print`** in non-test backend; the token and health data never reach logs; `flake8-print` (`T20`) in CI would fail a stray `print`. uvicorn access logs record request lines only — dates/format in query strings, never the token or bodies (`oura.py:40`, `export.py:26`). This is the control that keeps the E2/E3 info-disclosure rows closed; **any PR that adds logging must preserve it** (see checklist §8).
 
-### T‑17 — SQLite export may capture a torn / inconsistent copy — **Open** — *Low*
-`backend/routers/export.py:239-253` (`GET /api/export/sqlite`)
+### T‑17 — SQLite export may capture a torn / inconsistent copy — **Mitigated** — *Low*
+`backend/routers/export.py` (`_consistent_sqlite_snapshot`, `GET /api/export/sqlite`)
 
-**STRIDE:** Tampering (integrity of A3). **Adversary:** self / concurrent write. The endpoint byte-copies the *live* DB file (`open(db_path, "rb")` + `shutil.copyfileobj`) with no SQLite backup API, no lock, and no `-wal`/`-journal` handling. If a write is in flight (e.g. an Oura sync upserting `SleepRecord`s) the streamed copy can capture a torn page set or miss journal state, yielding a `.db` that fails `PRAGMA integrity_check` or silently drops the in-flight transaction — and the user relies on this export as their backup of otherwise-unrecoverable data.
+**STRIDE:** Tampering (integrity of A3). **Adversary:** self / concurrent write. The endpoint byte-copied the *live* DB file (`open(db_path, "rb")` + `shutil.copyfileobj`) with no SQLite backup API, no lock, and no `-wal`/`-journal` handling. If a write was in flight (e.g. an Oura sync upserting `SleepRecord`s) the streamed copy could capture a torn page set or miss journal state, yielding a `.db` that fails `PRAGMA integrity_check` or silently drops the in-flight transaction — and the user relies on this export as their backup of otherwise-unrecoverable data.
 
-**Required mitigation:** produce a consistent snapshot via SQLite's online backup API (`sqlite3.Connection.backup`) or `VACUUM INTO`, or serialize the export against concurrent writes.
+**Mitigation (implemented):** `_consistent_sqlite_snapshot` uses SQLite's online backup API (`sqlite3.Connection.backup` into an in-memory DB, then `serialize()`), which copies pages under a read transaction, so the snapshot is internally consistent even under concurrent writes. Regression test creates a DB, snapshots it, and asserts the bytes are a valid SQLite file that passes `PRAGMA integrity_check` with data intact.
 
 ---
 
