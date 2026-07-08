@@ -330,21 +330,34 @@ def get_top_recommendations(db: Session, limit: int = 3) -> list[dict[str, str]]
     ]
 
 
-def _get_active_experiment(db: Session) -> dict[str, Any] | None:
-    """Get the current active experiment with computed metrics."""
-    today = dt.date.today()
+def complete_stale_experiments(db: Session) -> None:
+    """Persist COMPLETED for any ACTIVE experiment past its end_date.
 
+    T-02: experiment completion must be written on a **write** path, never on
+    a GET (a GET that commits is a CSRF/idempotency hazard). Call this from
+    mutating endpoints (e.g. create) so the single-active invariant stays
+    correct; reads compute the *displayed* status without persisting.
+    """
+    today = dt.date.today()
+    stale = (
+        db.query(Experiment)
+        .filter(Experiment.status == ExperimentStatus.ACTIVE, Experiment.end_date < today)
+        .all()
+    )
+    for exp in stale:
+        exp.status = ExperimentStatus.COMPLETED
+    if stale:
+        db.commit()
+
+
+def _get_active_experiment(db: Session) -> dict[str, Any] | None:
+    """Get the current active experiment with computed metrics (read-only)."""
     experiment = db.query(Experiment).filter(Experiment.status == ExperimentStatus.ACTIVE).first()
 
     if experiment is None:
         return None
 
-    # Auto-complete if end_date has passed
-    if experiment.end_date < today:
-        experiment.status = ExperimentStatus.COMPLETED
-        db.commit()
-
-    return _build_experiment_out(db, experiment, today)
+    return _build_experiment_out(db, experiment)
 
 
 def _build_experiment_out(
@@ -373,6 +386,12 @@ def _build_experiment_out(
 
     days_completed = len(result_records)
 
+    # T-02: display COMPLETED once end_date has passed without persisting on a
+    # read; the DB row is flipped on a write path (complete_stale_experiments).
+    effective_status = experiment.status
+    if experiment.status == ExperimentStatus.ACTIVE and experiment.end_date < today:
+        effective_status = ExperimentStatus.COMPLETED
+
     def _mean_or_none(records: list[SleepRecord], attr: str) -> float | None:
         vals = [getattr(r, attr) for r in records if getattr(r, attr) is not None]
         if not vals:
@@ -386,7 +405,7 @@ def _build_experiment_out(
         "hypothesis": experiment.hypothesis,
         "start_date": experiment.start_date,
         "end_date": experiment.end_date,
-        "status": experiment.status,
+        "status": effective_status,
         "notes": experiment.notes,
         "baseline_sleep_score": _mean_or_none(baseline_records, "sleep_score"),
         "baseline_deep_minutes": _mean_or_none(baseline_records, "deep_minutes"),
@@ -401,31 +420,18 @@ def _build_experiment_out(
 
 
 def get_experiment_by_id(db: Session, experiment_id: int) -> dict[str, Any] | None:
-    """Get a single experiment with computed metrics."""
+    """Get a single experiment with computed metrics (read-only)."""
     experiment = db.get(Experiment, experiment_id)
     if experiment is None:
         return None
 
-    today = dt.date.today()
-
-    # Auto-complete if end_date has passed and still active
-    if experiment.status == ExperimentStatus.ACTIVE and experiment.end_date < today:
-        experiment.status = ExperimentStatus.COMPLETED
-        db.commit()
-
-    return _build_experiment_out(db, experiment, today)
+    return _build_experiment_out(db, experiment)
 
 
 def list_experiments(db: Session) -> list[dict[str, Any]]:
-    """List all experiments with computed metrics."""
-    today = dt.date.today()
+    """List all experiments with computed metrics (read-only)."""
     experiments = db.query(Experiment).order_by(Experiment.created_at.desc()).all()
 
-    # Auto-complete any that have passed their end_date
-    for exp in experiments:
-        if exp.status == ExperimentStatus.ACTIVE and exp.end_date < today:
-            exp.status = ExperimentStatus.COMPLETED
-    if experiments:
-        db.commit()
-
-    return [_build_experiment_out(db, exp, today) for exp in experiments]
+    # T-02: completion is displayed effectively (see _build_experiment_out) and
+    # persisted on write paths, so listing does not mutate/commit.
+    return [_build_experiment_out(db, exp) for exp in experiments]

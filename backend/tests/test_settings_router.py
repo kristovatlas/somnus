@@ -21,6 +21,15 @@ def test_get_settings_defaults(client: TestClient) -> None:
     assert data["onboarding_completed"] is False
 
 
+def test_get_settings_does_not_persist(client: TestClient, db: Session) -> None:
+    # T-02: GET must be idempotent — it must not create the settings row.
+    client.get("/api/settings")
+    assert db.get(UserSettings, 1) is None
+    # A write (PATCH) is what actually persists the row.
+    client.patch("/api/settings", json={"age": 30})
+    assert db.get(UserSettings, 1) is not None
+
+
 def test_patch_settings(client: TestClient) -> None:
     resp = client.patch(
         "/api/settings",

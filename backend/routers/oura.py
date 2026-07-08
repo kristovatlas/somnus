@@ -13,6 +13,7 @@ from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.models import SleepRecord, UserSettings
 from backend.schemas import OuraSyncResponse
+from backend.security import require_json_content_type
 from backend.services.oura_client import OuraAPIError, OuraClient, build_sleep_records
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,11 @@ def _get_settings(db: Session) -> UserSettings:
     return settings
 
 
-@router.get("/oura/sync", response_model=OuraSyncResponse)
+@router.post(
+    "/oura/sync",
+    response_model=OuraSyncResponse,
+    dependencies=[Depends(require_json_content_type)],
+)
 def sync_oura(
     start_date: dt.date | None = Query(default=None),
     end_date: dt.date | None = Query(default=None),
@@ -45,6 +50,10 @@ def sync_oura(
 
     Fetches daily sleep, readiness, and detailed sleep period data
     for the given date range, then upserts into SleepRecord table.
+
+    T-02: this is a state-changer (upserts records, spends the Oura token),
+    so it is a POST guarded by ``require_json_content_type`` — a cross-site
+    simple GET/form-POST can no longer trigger it.
     """
     if not _sync_lock.acquire(blocking=False):
         raise HTTPException(

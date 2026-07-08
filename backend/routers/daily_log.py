@@ -26,6 +26,7 @@ from backend.schemas import (
     SunlightEntryOut,
     SupplementEntryOut,
 )
+from backend.security import require_json_content_type
 from backend.services.daily_log_service import (
     ENTRY_TYPE_MAP,
     add_sub_entry,
@@ -115,13 +116,22 @@ def list_logs(
     ]
 
 
-@router.post("/{date}/copy-from/{source_date}", response_model=DailyLogOut)
+@router.post(
+    "/{date}/copy-from/{source_date}",
+    response_model=DailyLogOut,
+    dependencies=[Depends(require_json_content_type)],
+)
 def copy_log(
     date: dt.date,
     source_date: dt.date,
     db: Session = Depends(get_db),
 ) -> DailyLogOut:
-    """Copy all entries from source_date to target date."""
+    """Copy all entries from source_date to target date.
+
+    T-02: this bodiless POST destructively overwrites the target day, so it is
+    guarded by ``require_json_content_type`` — without a non-simple trait a
+    cross-site form POST reaches it without a preflight (the reproduced CSRF).
+    """
     log = copy_day(db, date, source_date)
     if log is None:
         raise HTTPException(status_code=404, detail="Source daily log not found")

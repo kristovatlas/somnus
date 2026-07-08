@@ -39,6 +39,12 @@ def test_client(db: Session) -> Generator[TestClient, None, None]:
         yield db
 
     app.dependency_overrides[get_db] = _override_get_db
-    with TestClient(app, base_url="http://localhost") as client:
+    # Default Content-Type mirrors the SPA fetch client, which always sends
+    # application/json — the non-simple trait the T-02 CSRF guard requires.
+    with TestClient(
+        app,
+        base_url="http://localhost",
+        headers={"Content-Type": "application/json"},
+    ) as client:
         yield client
     app.dependency_overrides.clear()

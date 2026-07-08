@@ -190,6 +190,19 @@ def test_copy_day_source_not_found(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_copy_day_rejects_non_json_content_type(client: TestClient) -> None:
+    # T-02: a CORS-simple (non-JSON) cross-site POST must be rejected so the
+    # bodiless copy-from can't be driven by a hostile form submission.
+    client.put("/api/daily-log/2025-06-15", json={"is_sick": True})
+    resp = client.post(
+        "/api/daily-log/2025-06-16/copy-from/2025-06-15",
+        headers={"Content-Type": "text/plain"},
+    )
+    assert resp.status_code == 415
+    # The target day must not have been created
+    assert client.get("/api/daily-log/2025-06-16").status_code == 404
+
+
 # --- Sub-entry routes (testing a few representative types) ---
 
 
