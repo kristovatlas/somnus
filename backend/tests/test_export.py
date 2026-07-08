@@ -132,6 +132,19 @@ def test_export_csv_neutralizes_formula_injection(client: TestClient) -> None:
     assert supp_rows[0]["name"] == "'@SUM(A1:A9)"
 
 
+def test_export_csv_neutralizes_lf_prefixed_formula(client: TestClient) -> None:
+    """T-12: OWASP lists the line feed alongside CR as a formula trigger — an
+    LF-prefixed payload must be quoted like any other trigger."""
+    payload = '\n=HYPERLINK("http://evil","click")'
+    client.put("/api/daily-log/2025-06-15", json={"notes": payload})
+    resp = client.get("/api/export?format=csv")
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+
+    daily_rows = list(csv.DictReader(io.StringIO(zf.read("daily_logs.csv").decode())))
+    assert daily_rows[0]["notes"] == "'" + payload
+    assert not daily_rows[0]["notes"].startswith("\n")
+
+
 def test_export_csv_leaves_safe_values_untouched(client: TestClient) -> None:
     client.put(
         "/api/daily-log/2025-06-15",

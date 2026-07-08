@@ -273,8 +273,9 @@ def export_sqlite() -> StreamingResponse:
 
 
 # T-12 (docs/THREAT_MODEL.md): characters that make a spreadsheet treat a
-# cell as a formula when the CSV is opened in Excel / Google Sheets.
-_CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+# cell as a formula when the CSV is opened in Excel / Google Sheets. The full
+# OWASP CSV-injection trigger set, including both line terminators.
+_CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r", "\n")
 
 
 def _neutralize_csv_cell(value: str) -> str:
