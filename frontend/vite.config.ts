@@ -10,9 +10,14 @@ const codespaceHosts =
 // T-14 (docs/THREAT_MODEL.md): defense-in-depth CSP for the SPA. Injected only
 // in the production build (as a <meta>, since the SPA is served as static files
 // with no response-header layer) so Vite's dev HMR — which needs a ws:
-// connection and eval — is left untouched. The SPA loads only local assets and
-// calls only the same-origin /api, so 'self' is low-friction; 'unsafe-inline'
-// in style-src is required because the UI uses React inline style={{}}.
+// connection and eval — is left untouched. Prepended to <head> because a meta
+// CSP only governs fetches parsed after it — at the end of <head> it would miss
+// the entry script/stylesheet. No frame-ancestors: browsers ignore that
+// directive in a <meta> policy, so framing protection must come from a response
+// header when a real server fronts dist/ (recorded as a T-14 residual). The SPA
+// loads only local assets and calls only the same-origin /api, so 'self' is
+// low-friction; 'unsafe-inline' in style-src is required because the UI uses
+// React inline style={{}}.
 function spaCspPlugin(): PluginOption {
   const csp = [
     "default-src 'self'",
@@ -23,7 +28,6 @@ function spaCspPlugin(): PluginOption {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
   ].join('; ')
   return {
     name: 'somnus-spa-csp',
@@ -33,7 +37,7 @@ function spaCspPlugin(): PluginOption {
         {
           tag: 'meta',
           attrs: { 'http-equiv': 'Content-Security-Policy', content: csp },
-          injectTo: 'head',
+          injectTo: 'head-prepend',
         },
       ]
     },
