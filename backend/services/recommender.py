@@ -351,8 +351,24 @@ def complete_stale_experiments(db: Session) -> None:
 
 
 def _get_active_experiment(db: Session) -> dict[str, Any] | None:
-    """Get the current active experiment with computed metrics (read-only)."""
-    experiment = db.query(Experiment).filter(Experiment.status == ExperimentStatus.ACTIVE).first()
+    """Get the current active experiment with computed metrics (read-only).
+
+    A stored-ACTIVE row whose ``end_date`` has passed is not *currently*
+    active and must not be returned here: the SPA blocks starting a new
+    experiment while ``active_experiment`` is non-null, but only shows the
+    Complete/Abandon controls for an effective status of "active" — so a
+    past-due row would deadlock the experiment workflow. The row still
+    appears in ``list_experiments`` (displayed as completed) and is
+    persisted-COMPLETED by ``complete_stale_experiments`` on the next write.
+    """
+    experiment = (
+        db.query(Experiment)
+        .filter(
+            Experiment.status == ExperimentStatus.ACTIVE,
+            Experiment.end_date >= dt.date.today(),
+        )
+        .first()
+    )
 
     if experiment is None:
         return None

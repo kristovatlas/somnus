@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from backend.models import (
     CaffeineEntry,
     DailyLog,
+    Experiment,
+    ExperimentStatus,
     HabitEntry,
     HabitType,
     SleepRecord,
@@ -179,6 +181,44 @@ class TestExperimentCRUD:
             },
         )
         assert resp.status_code == 409
+
+    def test_past_due_active_experiment_does_not_block_new_one(
+        self, db: Session, client: TestClient
+    ) -> None:
+        # Regression for the read-idempotency change (T-02): a stored-ACTIVE
+        # experiment whose end_date has passed must not be reported as the
+        # active experiment (the SPA would disable every Start button while
+        # hiding the Complete/Abandon controls), and starting a new experiment
+        # must persist-complete it.
+        db.add(
+            Experiment(
+                factor="total_caffeine_mg",
+                hypothesis="Old experiment",
+                start_date=dt.date.today() - dt.timedelta(days=20),
+                end_date=dt.date.today() - dt.timedelta(days=6),
+                status=ExperimentStatus.ACTIVE,
+                created_at=dt.datetime(2025, 3, 1, 10, 0),
+            )
+        )
+        db.commit()
+
+        resp = client.get("/api/recommendations")
+        assert resp.status_code == 200
+        assert resp.json()["active_experiment"] is None
+
+        resp = client.post(
+            "/api/experiments",
+            json={
+                "factor": "exercise_done",
+                "hypothesis": "New experiment",
+                "start_date": dt.date.today().isoformat(),
+            },
+        )
+        assert resp.status_code == 201
+
+        # The write path flipped the stale row to COMPLETED in the DB
+        stale = db.query(Experiment).filter(Experiment.hypothesis == "Old experiment").one()
+        assert stale.status == ExperimentStatus.COMPLETED
 
     def test_get_experiment(self, client: TestClient) -> None:
         create_resp = client.post(
