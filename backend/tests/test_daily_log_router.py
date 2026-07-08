@@ -2,6 +2,11 @@
 
 from fastapi.testclient import TestClient
 
+# The SPA's fetch client always sends this header; the T-02 CSRF guard on the
+# bodiless copy-from POST requires it (requests with a JSON body get it from
+# the client's `json=` parameter automatically).
+JSON_HEADERS = {"Content-Type": "application/json"}
+
 # --- PUT (upsert) ---
 
 
@@ -175,7 +180,7 @@ def test_copy_day(client: TestClient) -> None:
             "caffeine_entries": [{"amount_mg": 95, "source": "espresso"}],
         },
     )
-    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15")
+    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15", headers=JSON_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert data["date"] == "2025-06-16"
@@ -186,7 +191,7 @@ def test_copy_day(client: TestClient) -> None:
 
 
 def test_copy_day_source_not_found(client: TestClient) -> None:
-    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15")
+    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15", headers=JSON_HEADERS)
     assert resp.status_code == 404
 
 
@@ -200,6 +205,15 @@ def test_copy_day_rejects_non_json_content_type(client: TestClient) -> None:
     )
     assert resp.status_code == 415
     # The target day must not have been created
+    assert client.get("/api/daily-log/2025-06-16").status_code == 404
+
+
+def test_copy_day_rejects_absent_content_type(client: TestClient) -> None:
+    # T-02: a bodiless POST with *no* Content-Type at all is also CORS-simple —
+    # the guard must 415 it before the destructive overwrite runs.
+    client.put("/api/daily-log/2025-06-15", json={"is_sick": True})
+    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15")
+    assert resp.status_code == 415
     assert client.get("/api/daily-log/2025-06-16").status_code == 404
 
 
