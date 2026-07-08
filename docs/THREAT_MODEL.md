@@ -201,19 +201,19 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **Disposition — Accepted for v0.1 (Kristov, 2026‑07‑06).** Application-level encryption is **not** implemented for v0.1: without a real key store it only relocates the plaintext, and the device-theft vector is only genuinely closed by full-disk encryption regardless. The acceptance is conditioned on the loud, specific user guidance above. **Scope of the accepted residual as the code stands today:** (1) a user who declines both full-disk encryption and an encrypted volume on their own machine, *and* (2) the co-resident / other-OS-user read of the default `~/.somnus/somnus.db` — because **T‑08 (file-permission hardening) is still Open**, the DB is created under the process umask with no `chmod`, so this path is **not yet closed**. T‑08's `0600`/`0700` fix (a separate, still-open 9.3 item — not a prerequisite for this acceptance) will *narrow* residual (2) to same-user processes when it lands; until then the co-resident exposure is real and accepted alongside (1). Revisit if Somnus grows a multi-device/remote mode or a first-class key store; a future app-level-encryption ADR (OS keychain or user passphrase) remains the candidate escalation.
 
-### T‑08 — DB file has no permission hardening — **Open** — *Medium*
-`backend/database.py:45-52` (`mkdir` + `create_all`, no `chmod`/`umask`)
+### T‑08 — DB file has no permission hardening — **Mitigated** — *Medium*
+`backend/database.py` (`_harden_db_permissions`, called by `init_db`)
 
 **STRIDE:** Information disclosure. **Adversary:** AD2. `init_db` creates `~/.somnus/` and the DB file under the process's default umask; on a multi-user machine with a permissive umask, other local users may read the token and health data directly (bypassing all API controls).
 
-**Required mitigation:** create the directory `0700` and the DB file `0600` (explicit `chmod` after create, or set umask around creation). This closes the **other-OS-user** read path; note it does **not** stop a process running as the *same* user (which AD2 also names) — a same-user process reads a `0600` file, and that residual is inherent to the local-first model (a same-user process is inside the user's trust domain), accepted rather than closed.
+**Mitigation (implemented):** `init_db` now calls `_harden_db_permissions`, which `chmod`s the directory to `0700` and the DB file to `0600` after `create_all` (owner-only, umask-independent). Best-effort: `:memory:` and non-POSIX platforms are skipped (the T‑07 OS-layer encryption guidance is the primary control there). This closes the **other-OS-user** read path; it does **not** stop a process running as the *same* user (which AD2 also names) — a same-user process reads a `0600` file, and that residual is inherent to the local-first model (a same-user process is inside the user's trust domain), accepted rather than closed. This also narrows the co-resident sub-path of the accepted **T‑07** residual. Regression tests assert the `0700`/`0600` bits and the `:memory:` no-op.
 
-### T‑09 — SQLite foreign keys not enforced — **Open** — *Low*
-`backend/database.py:21-29` (no `PRAGMA foreign_keys=ON`)
+### T‑09 — SQLite foreign keys not enforced — **Mitigated** — *Low*
+`backend/database.py` (`_enable_sqlite_foreign_keys`, `@event.listens_for(Engine, "connect")`)
 
 **STRIDE:** Tampering (integrity). `ForeignKey`/cascade constraints are declared in `models.py` but SQLite ignores FKs unless `PRAGMA foreign_keys=ON` is set per-connection, which it is not. Orphaned rows / failed cascades are possible, corrupting analysis inputs. Not a confidentiality issue.
 
-**Required mitigation:** enable the pragma via a SQLAlchemy `connect` event listener.
+**Mitigation (implemented):** a `connect` event listener registered on the base SQLAlchemy `Engine` runs `PRAGMA foreign_keys=ON` on every new SQLite connection (app engine and test engines alike), so declared FK/cascade constraints are enforced. Regression tests assert an orphaned child row is rejected and a parented one is accepted.
 
 ### T‑10 — Blind trust of external API response — **Partial** — *Medium*
 `backend/services/oura_client.py:160` (`fromisoformat` on response), `oura.py:119`

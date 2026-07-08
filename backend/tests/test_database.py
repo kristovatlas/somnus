@@ -1,9 +1,15 @@
 """Tests for database initialization and model creation."""
 
+import os
+import stat
 from datetime import date, time
+from pathlib import Path
 
+import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend.database import _harden_db_permissions
 from backend.models import (
     CaffeineEntry,
     CaffeineSource,
@@ -207,6 +213,61 @@ def test_red_light_panel_and_entry(db: Session) -> None:
     db.refresh(entry)
     # dose = 86.0 mW/cm2 x 15 min x 60 sec / 1000 = 77.4 J/cm2
     assert entry.dose_joules_cm2 == 77.4
+
+
+class TestForeignKeyEnforcement:
+    """T-09 (docs/THREAT_MODEL.md): PRAGMA foreign_keys=ON must reject
+    orphaned child rows instead of silently accepting them."""
+
+    def test_orphan_child_row_rejected(self, db: Session) -> None:
+        # caffeine_entries.date -> daily_logs.date; no parent log exists
+        db.add(
+            CaffeineEntry(
+                date=date(2099, 1, 1),
+                time=time(8, 0),
+                amount_mg=50,
+                source=CaffeineSource.DRIP_COFFEE,
+            )
+        )
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+
+    def test_child_row_with_parent_accepted(self, db: Session) -> None:
+        db.add(DailyLog(date=date(2099, 2, 1)))
+        db.flush()
+        db.add(
+            CaffeineEntry(
+                date=date(2099, 2, 1),
+                time=time(8, 0),
+                amount_mg=50,
+                source=CaffeineSource.DRIP_COFFEE,
+            )
+        )
+        db.commit()  # no raise
+        assert db.get(DailyLog, date(2099, 2, 1)) is not None
+
+
+class TestDBPermissions:
+    """T-08 (docs/THREAT_MODEL.md): the DB dir/file must be owner-only."""
+
+    def test_harden_sets_owner_only_bits(self, tmp_path: Path) -> None:
+        somnus_dir = tmp_path / ".somnus"
+        somnus_dir.mkdir(mode=0o755)
+        db_file = somnus_dir / "somnus.db"
+        db_file.write_bytes(b"data")
+        # Start world-readable so the assertion proves hardening *tightens* it.
+        os.chmod(somnus_dir, 0o755)  # noqa: S103
+        os.chmod(db_file, 0o644)
+
+        _harden_db_permissions(db_file)
+
+        assert stat.S_IMODE(os.stat(somnus_dir).st_mode) == 0o700
+        assert stat.S_IMODE(os.stat(db_file).st_mode) == 0o600
+
+    def test_harden_memory_path_is_noop(self) -> None:
+        # Must not raise on the in-memory sentinel used in tests
+        _harden_db_permissions(Path(":memory:"))
 
 
 def test_user_settings_defaults(db: Session) -> None:
