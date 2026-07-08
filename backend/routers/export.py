@@ -253,6 +253,24 @@ def export_sqlite() -> StreamingResponse:
     )
 
 
+# T-12 (docs/THREAT_MODEL.md): characters that make a spreadsheet treat a
+# cell as a formula when the CSV is opened in Excel / Google Sheets.
+_CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _neutralize_csv_cell(value: str) -> str:
+    """Prefix a leading formula trigger with a single quote (T-12).
+
+    Reachable via free text (`notes`, supplement `name`, habit `value`) that
+    may have arrived via T-01/T-02 or from Oura (AD4). Prefixing renders the
+    cell as literal text in spreadsheet apps. The export has no negative-number
+    fields, so guarding the ``-`` trigger mangles no legitimate value.
+    """
+    if value and value[0] in _CSV_FORMULA_TRIGGERS:
+        return "'" + value
+    return value
+
+
 def _to_csv(items: Sequence[object], fields: list[str]) -> str:
     """Convert a list of Pydantic models to CSV string."""
     output = io.StringIO()
@@ -262,6 +280,6 @@ def _to_csv(items: Sequence[object], fields: list[str]) -> str:
         row = []
         for f in fields:
             val = getattr(item, f, None)
-            row.append("" if val is None else str(val))
+            row.append("" if val is None else _neutralize_csv_cell(str(val)))
         writer.writerow(row)
     return output.getvalue()

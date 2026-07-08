@@ -1,5 +1,6 @@
 """Tests for the data export endpoint."""
 
+import csv
 import io
 import zipfile
 
@@ -98,6 +99,45 @@ def test_export_csv_with_date_range(client: TestClient) -> None:
     daily_csv = zf.read("daily_logs.csv").decode()
     assert "2025-06-15" in daily_csv
     assert "2025-06-16" not in daily_csv
+
+
+# --- CSV formula injection (T-12) ---
+
+
+def test_export_csv_neutralizes_formula_injection(client: TestClient) -> None:
+    """T-12: a leading formula trigger in free text must be quoted so it can't
+    execute when the CSV is opened in Excel / Google Sheets."""
+    payload = '=HYPERLINK("http://evil","click")'
+    client.put(
+        "/api/daily-log/2025-06-15",
+        json={
+            "notes": payload,
+            "supplement_entries": [{"name": "@SUM(A1:A9)", "dose_mg": 100}],
+        },
+    )
+    resp = client.get("/api/export?format=csv")
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+
+    # Parse the CSV so we compare cell *values*, not the raw quoted text.
+    daily_rows = list(csv.DictReader(io.StringIO(zf.read("daily_logs.csv").decode())))
+    # Data preserved, but the cell now starts with ' so it is inert as a formula
+    assert daily_rows[0]["notes"] == "'" + payload
+    assert not daily_rows[0]["notes"].startswith("=")
+
+    supp_rows = list(csv.DictReader(io.StringIO(zf.read("supplement_entries.csv").decode())))
+    assert supp_rows[0]["name"] == "'@SUM(A1:A9)"
+
+
+def test_export_csv_leaves_safe_values_untouched(client: TestClient) -> None:
+    client.put(
+        "/api/daily-log/2025-06-15",
+        json={"notes": "Good day", "caffeine_entries": [{"amount_mg": 95, "source": "tea"}]},
+    )
+    resp = client.get("/api/export?format=csv")
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+    daily_csv = zf.read("daily_logs.csv").decode()
+    assert "Good day" in daily_csv
+    assert "'Good day" not in daily_csv
 
 
 # --- Invalid format ---

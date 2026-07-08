@@ -231,12 +231,12 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **Acceptance rationale:** env-setting capability is out-of-scope-adjacent (AD out-of-scope: local env control ≈ machine control). Optionally assert `https://` scheme on the base URL as cheap hardening.
 
-### T‑12 — CSV export formula injection — **Open** — *Medium*
-`backend/routers/export.py:265` (`str(val)`, no neutralization)
+### T‑12 — CSV export formula injection — **Mitigated** — *Medium*
+`backend/routers/export.py` (`_neutralize_csv_cell`, applied in `_to_csv`)
 
-**STRIDE:** Tampering / (downstream) code execution in the user's spreadsheet. **Adversary:** AD1-chained, AD4, or self. CSV cells are written verbatim; a value beginning `=`, `+`, `-`, `@`, tab, or CR (reachable via free-text `notes`, supplement `name`, habit `value`) becomes an active formula when the export is opened in Excel/Sheets. Higher risk if hostile text was written via T‑01/T‑02 or arrived from Oura (AD4).
+**STRIDE:** Tampering / (downstream) code execution in the user's spreadsheet. **Adversary:** AD1-chained, AD4, or self. CSV cells were written verbatim; a value beginning `=`, `+`, `-`, `@`, tab, or CR (reachable via free-text `notes`, supplement `name`, habit `value`) becomes an active formula when the export is opened in Excel/Sheets. Higher risk if hostile text was written via T‑01/T‑02 or arrived from Oura (AD4).
 
-**Required mitigation:** prefix at-risk cells with `'` or strip/mark leading formula characters in the CSV writer.
+**Mitigation (implemented):** `_to_csv` now runs every data cell through `_neutralize_csv_cell`, which prefixes a leading `=`/`+`/`-`/`@`/tab/CR with a single quote so spreadsheet apps treat it as literal text. The export has no negative-number columns, so guarding `-` mangles no legitimate value. Regression tests assert a `=HYPERLINK`/`@SUM` payload is quoted (data preserved, formula inert) and that safe values are untouched.
 
 ### T‑13 — Supply-chain compromise — **Partial** — *Medium*
 `.github/workflows/ci.yml`; `pyproject.toml`; `frontend/package.json`
