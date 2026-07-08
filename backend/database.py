@@ -1,5 +1,6 @@
 """Database setup with SQLAlchemy and configurable SQLite path."""
 
+import contextlib
 import os
 import sqlite3
 from collections.abc import Generator
@@ -8,7 +9,7 @@ from pathlib import Path
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from backend.config import settings
+from backend.config import DEFAULT_DB_DIR, settings
 
 
 class Base(DeclarativeBase):
@@ -60,18 +61,26 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def _harden_db_permissions(db_path: Path) -> None:
-    """T-08 (docs/THREAT_MODEL.md): restrict the DB dir/file to the owner.
+    """T-08 (docs/THREAT_MODEL.md): restrict the DB file (and default dir) to the owner.
 
     The database holds the Oura token and all health data in plaintext (T-07).
-    Creating the directory ``0700`` and the file ``0600`` closes the
-    *other-OS-user* read path on a shared machine (a same-user process is
-    inside the trust domain and is out of scope). Best-effort: silently skips
-    ``:memory:`` and platforms without POSIX permission bits.
+    Chmodding the file ``0600`` closes the *other-OS-user* read path on a
+    shared machine (a same-user process is inside the trust domain and is out
+    of scope). The parent directory is hardened to ``0700`` only when it is
+    the app-managed default (``~/.somnus``): a user-supplied SOMNUS_DB_PATH —
+    the T-07 encrypted-volume flow — may point into a directory other users
+    or tools legitimately share (or ``.`` for a relative path), which Somnus
+    must not lock down. Best-effort: silently skips ``:memory:`` and platforms
+    without POSIX permission bits.
     """
     if str(db_path) == ":memory:":
         return
+    if db_path.parent == DEFAULT_DB_DIR:
+        with contextlib.suppress(OSError):
+            os.chmod(db_path.parent, 0o700)
+    # The file chmod is the load-bearing control — it must run even when the
+    # directory attempt above fails or is skipped for a custom path.
     try:
-        os.chmod(db_path.parent, 0o700)
         if db_path.exists():
             os.chmod(db_path, 0o600)
     except OSError:

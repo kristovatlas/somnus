@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend import database
 from backend.database import _harden_db_permissions
 from backend.models import (
     CaffeineEntry,
@@ -249,20 +250,64 @@ class TestForeignKeyEnforcement:
 
 
 class TestDBPermissions:
-    """T-08 (docs/THREAT_MODEL.md): the DB dir/file must be owner-only."""
+    """T-08 (docs/THREAT_MODEL.md): DB file owner-only; only the app-managed
+    default directory is dir-hardened."""
 
-    def test_harden_sets_owner_only_bits(self, tmp_path: Path) -> None:
-        somnus_dir = tmp_path / ".somnus"
-        somnus_dir.mkdir(mode=0o755)
-        db_file = somnus_dir / "somnus.db"
+    def _make_db(self, parent: Path) -> Path:
+        db_file = parent / "somnus.db"
         db_file.write_bytes(b"data")
         # Start world-readable so the assertion proves hardening *tightens* it.
-        os.chmod(somnus_dir, 0o755)  # noqa: S103
+        os.chmod(parent, 0o755)  # noqa: S103
         os.chmod(db_file, 0o644)
+        return db_file
+
+    def test_harden_default_dir_sets_owner_only_bits(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        somnus_dir = tmp_path / ".somnus"
+        somnus_dir.mkdir()
+        monkeypatch.setattr(database, "DEFAULT_DB_DIR", somnus_dir)
+        db_file = self._make_db(somnus_dir)
 
         _harden_db_permissions(db_file)
 
         assert stat.S_IMODE(os.stat(somnus_dir).st_mode) == 0o700
+        assert stat.S_IMODE(os.stat(db_file).st_mode) == 0o600
+
+    def test_harden_custom_path_leaves_parent_untouched(self, tmp_path: Path) -> None:
+        # A user-supplied SOMNUS_DB_PATH may live in a shared directory (the
+        # T-07 encrypted-volume flow) — Somnus must not lock that to 0700,
+        # but the DB file itself must still be hardened.
+        shared_dir = tmp_path / "shared-project"
+        shared_dir.mkdir()
+        db_file = self._make_db(shared_dir)
+
+        _harden_db_permissions(db_file)
+
+        assert stat.S_IMODE(os.stat(shared_dir).st_mode) == 0o755
+        assert stat.S_IMODE(os.stat(db_file).st_mode) == 0o600
+
+    def test_harden_file_even_when_dir_chmod_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The file chmod must not be skipped by a failing directory chmod
+        # (previously one try block covered both).
+        somnus_dir = tmp_path / ".somnus"
+        somnus_dir.mkdir()
+        monkeypatch.setattr(database, "DEFAULT_DB_DIR", somnus_dir)
+        db_file = self._make_db(somnus_dir)
+
+        real_chmod = os.chmod
+
+        def chmod_failing_on_dir(path: object, mode: int) -> None:
+            if Path(str(path)) == somnus_dir:
+                raise OSError("operation not permitted")
+            real_chmod(path, mode)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(os, "chmod", chmod_failing_on_dir)
+
+        _harden_db_permissions(db_file)
+
         assert stat.S_IMODE(os.stat(db_file).st_mode) == 0o600
 
     def test_harden_memory_path_is_noop(self) -> None:

@@ -8,6 +8,11 @@ from typing import Annotated
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode
 
+# The app-managed data directory. Only this directory gets permission-hardened
+# (T-08): a user-supplied SOMNUS_DB_PATH may live in a directory the user
+# shares with other tools, which Somnus must not lock down.
+DEFAULT_DB_DIR = Path.home() / ".somnus"
+
 
 def codespaces_hosts(ports: tuple[int, ...] = (8000, 5173)) -> list[str]:
     """Forwarded hostnames for a GitHub Codespace, if running in one.
@@ -33,7 +38,7 @@ class Settings(BaseSettings):
     comma-separated string or a JSON array.
     """
 
-    db_path: Path = Path.home() / ".somnus" / "somnus.db"
+    db_path: Path = DEFAULT_DB_DIR / "somnus.db"
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
     allowed_hosts: Annotated[list[str], NoDecode] = ["localhost", "127.0.0.1"]
     oura_api_base_url: str = "https://api.ouraring.com/v2"
