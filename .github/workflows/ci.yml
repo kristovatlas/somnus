@@ -73,18 +73,21 @@ jobs:
       - name: Upgrade npm (pinned; engines floor requires >= 11.10)
         run: npm install -g npm@11.18.0
 
+      # T-13 (docs/THREAT_MODEL.md): fail on a known-vulnerable runtime
+      # dependency BEFORE `npm ci` executes dependency lifecycle scripts
+      # (CLAUDE.md's audit-before-install rule). --package-lock-only evaluates
+      # the committed lockfile with no node_modules present. Scoped to
+      # production deps (--omit=dev) — those are what ship to the user's
+      # browser; build-tool dev deps are covered by the install cooldown +
+      # Socket. Gated at high+critical so an unfixable low/moderate advisory
+      # can't wedge every PR.
+      - name: Dependency audit (npm, lockfile, production deps)
+        working-directory: frontend
+        run: npm audit --package-lock-only --omit=dev --audit-level=high
+
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
-
-      # T-13 (docs/THREAT_MODEL.md): fail the build on a known-vulnerable
-      # runtime dependency. Scoped to production deps (--omit=dev) — those are
-      # what ship to the user's browser; build-tool dev deps are covered by the
-      # install cooldown + Socket. Gated at high+critical so an unfixable
-      # low/moderate advisory can't wedge every PR.
-      - name: Dependency audit (npm, production deps)
-        working-directory: frontend
-        run: npm audit --omit=dev --audit-level=high
 
       - name: Lint
         working-directory: frontend
