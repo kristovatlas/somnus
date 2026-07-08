@@ -251,12 +251,12 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **Implemented — install cooldown (ADR 014):** a ~7-day minimum release age now gates installs in both ecosystems, so a freshly-published (publish-then-yank) malicious release is not pulled: `min-release-age=7` (days) in `frontend/.npmrc`, and `[tool.uv.pip] exclude-newer = "7 days"` committed in `pyproject.toml` so every `uv pip install` in the repo is gated (the install recipe lives once, in `make setup-backend`, which CI runs). The npm ≥ 11.10 floor is enforced at lockfile-update time via `engines` + `engine-strict` (older npm silently ignores the key), and the gating tools themselves are version-pinned (`uv==` in the Makefile, exact `npm@` in CI) so they cannot be hit by the same vector. Security fixes inside the window stay pullable via the override path (`UV_EXCLUDE_NEWER="0 days"` beats the committed config, or `exclude-newer-package`). **Remaining:** commit a backend lockfile (`uv.lock`), add `npm audit` to CI, and pin Actions by SHA. Socket's PR alerts remain as malware detection. (Matches the CLAUDE.md/MEMORY rule: audit deps before install.)
 
-### T‑14 — No Content-Security-Policy — **Open** — *Low*
-`frontend/index.html:1-13` (no CSP meta); no CSP header on API/report responses
+### T‑14 — No Content-Security-Policy — **Mitigated** — *Low*
+`frontend/vite.config.ts` (`spaCspPlugin`, build-only `<meta>`); report responses via `backend/routers/reports.py` (T‑04)
 
-**STRIDE:** Elevation (defense-in-depth for XSS). No CSP means the T‑04 injection (and any future DOM-XSS) faces no second line of defense. The SPA loads only local assets and makes only same-origin `/api` calls (verified — no CDNs, fonts, or analytics), so a strict CSP would be low-friction.
+**STRIDE:** Elevation (defense-in-depth for XSS). No CSP meant the T‑04 injection (and any future DOM-XSS) faced no second line of defense. The SPA loads only local assets and makes only same-origin `/api` calls (verified — no CDNs, fonts, or analytics), so a strict CSP is low-friction.
 
-**Required mitigation:** add a restrictive CSP (`default-src 'self'`) to the SPA and to the report-export responses.
+**Mitigation (implemented):** `spaCspPlugin` injects a `<meta http-equiv="Content-Security-Policy">` into the **production** `index.html` (`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`). It is build-only (`apply: 'build'`) so Vite's dev HMR (ws + eval) is untouched; `'unsafe-inline'` in `style-src` is required by the UI's React inline `style={{}}`. The report-export responses already carry an origin-isolating CSP (T‑04, `_html_report_response`). Verified in the built `dist/index.html`. Residual: in a future packaged build where the SPA and API are served on different origins, `connect-src`/`frame-ancestors` must be revisited (tracked with the T‑01 packaged-build residual).
 
 ### T‑15 — Unauthenticated DB-wipe test endpoint — **Accepted** — *Low (normal) / High (if enabled)*
 `backend/routers/testing.py:11-17`; gated at `backend/main.py:51-54`
