@@ -239,6 +239,20 @@ def test_update_entry_not_found(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_update_entry_invalid_data_422(client: TestClient) -> None:
+    # T-05: invalid body on the update path must be 422, not an unhandled 500
+    resp = client.post(
+        "/api/daily-log/2025-06-15/caffeine",
+        json={"amount_mg": 95, "source": "other"},
+    )
+    entry_id = resp.json()["id"]
+    resp = client.put(
+        f"/api/daily-log/2025-06-15/caffeine/{entry_id}",
+        json={"amount_mg": 0},  # below minimum
+    )
+    assert resp.status_code == 422
+
+
 def test_delete_caffeine_entry(client: TestClient) -> None:
     resp = client.post(
         "/api/daily-log/2025-06-15/caffeine",

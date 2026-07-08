@@ -165,7 +165,13 @@ def _register_sub_entry_routes(entry_type: str) -> None:
         db: Session = Depends(get_db),
         _et: str = entry_type,
     ) -> Any:
-        result = update_sub_entry(db, _et, entry_id, data)
+        # T-05 (docs/THREAT_MODEL.md): validation failures must surface as 422,
+        # matching add_entry — without this, a bad body raises ValidationError
+        # and FastAPI returns an unhandled 500.
+        try:
+            result = update_sub_entry(db, _et, entry_id, data)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         if result is None:
             raise HTTPException(status_code=404, detail="Entry not found")
         return result

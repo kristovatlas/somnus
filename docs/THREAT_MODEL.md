@@ -178,12 +178,12 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 **Mitigation (implemented):** all non-numeric interpolations in `render_weekly_html`/`render_monthly_html` (and helpers) go through stdlib `html.escape` via `_esc` — the invariant is documented on `_esc` itself: every f-string hole that is not a numeric format spec must be escaped. Input validation at the API boundary: `ExperimentCreate.hypothesis` is length-bounded (500), and `ExperimentCreate.factor` is validated against the known analyzable-variable keys (`VARIABLE_LABELS`), eliminating the untrusted raw-`factor` label path entirely. Defense-in-depth: both `export-html` endpoints send `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; sandbox` plus `X-Content-Type-Options: nosniff` — the `sandbox` directive renders the report in an opaque origin with scripts blocked, so even a future missed escape cannot reach the API through the proxy, and `frame-ancestors 'none'` (which does **not** fall back to `default-src`) blocks hostile pages from iframing the health report (UI redress). Regression tests cover escaping (unit + end-to-end through a stored hypothesis), the headers, the length bound, and factor validation. The SPA's own CSP remains T‑14 (open, defense-in-depth).
 
-### T‑05 — Unhandled exception on the entry-update path — **Open** — *Low*
-`backend/routers/daily_log.py:161-171` (no `try/except`), vs `:151-154` (add path wraps)
+### T‑05 — Unhandled exception on the entry-update path — **Mitigated** — *Low*
+`backend/routers/daily_log.py` (`update_entry` now wraps validation → 422, matching `add_entry`)
 
-**STRIDE:** Tampering / minor info disclosure. `update_entry` passes `data: dict` to `schema_cls(**data)` without catching `ValidationError`, so bad input yields an unhandled **500** instead of the 422 the add path returns. Debug is off (`main.py:26-31`), so **no traceback leaks** to the client — impact is a confusing error and inconsistent API behavior, not disclosure.
+**STRIDE:** Tampering / minor info disclosure. `update_entry` passed `data: dict` to `schema_cls(**data)` without catching `ValidationError`, so bad input yielded an unhandled **500** instead of the 422 the add path returns. Debug is off (`main.py:26-31`), so **no traceback leaks** to the client — impact was a confusing error and inconsistent API behavior, not disclosure.
 
-**Required mitigation:** wrap the update-path validation to return 422, matching `add_entry`.
+**Mitigation (implemented):** `update_entry` wraps the `update_sub_entry` call in `try/except → HTTPException(422)`, mirroring `add_entry`; the not-found (`None`) result still returns 404. Regression test asserts a below-minimum body returns 422.
 
 ### T‑06 — API docs & schema exposed — **Accepted** — *Low*
 `backend/main.py:26-31` (defaults not overridden)
