@@ -72,9 +72,11 @@ C4Component
 
     Container_Boundary(backend, "Backend API") {
 
-        Component(main, "Application Entry", "FastAPI", "CORS config, startup hooks, auto-migration on launch")
+        Component(main, "Application Entry", "FastAPI", "CORS config, Host validation, startup hooks, auto-migration on launch")
 
-        ComponentDb(db, "Database Layer", "SQLAlchemy + Alembic", "ORM models, session management, configurable DB path, migration runner")
+        Component(security, "Request Security", "FastAPI dependency", "T-02 CSRF guard: require_json_content_type on bodiless state-changing POSTs (Oura sync, copy-day).")
+
+        ComponentDb(db, "Database Layer", "SQLAlchemy + Alembic", "ORM models, session management, configurable DB path, permission hardening (T-08), FK enforcement (T-09), migration runner")
 
         Component_Boundary(routers, "API Routers") {
             Component(daily_log_router, "Daily Log Router", "FastAPI Router", "CRUD for all daily entry types. Copy-day endpoint. Date-range queries.")
@@ -115,6 +117,8 @@ C4Component
 
     Rel(daily_log_router, db, "CRUD")
     Rel(daily_log_router, validation_svc, "Validates input")
+    Rel(daily_log_router, security, "CSRF guard (copy-day)")
+    Rel(oura_router, security, "CSRF guard (sync)")
     Rel(dashboard_router, dashboard_svc, "Aggregates data")
     Rel(dashboard_svc, db, "Reads records")
     Rel(dashboard_svc, reference_data, "Age targets, thresholds")
@@ -243,14 +247,15 @@ C4Component
 
 ### Daily Entry Flow
 ```
-User → Frontend (DailyLog form) → POST /api/daily-log/{date}
+User → Frontend (DailyLog form) → PUT /api/daily-log/{date}
   → Validation Service (range checks, soft/hard warnings)
   → SQLAlchemy ORM → SQLite DB
 ```
 
 ### Oura Sync Flow
 ```
-User → Frontend (Settings, "Sync") → GET /api/oura/sync?start=&end=
+User → Frontend (Settings, "Sync") → POST /api/oura/sync?start=&end=
+  → Request Security (T-02: requires Content-Type: application/json)
   → Oura Client → Oura Cloud API v2 (HTTPS, PAT auth)
   → Response validation → SleepRecord model → SQLite DB
 ```
@@ -313,7 +318,9 @@ User → "Start experiment" → POST /api/experiments
 
 GET /api/experiments/{id}
   → Computes baseline (14d before start) and result (start to today) metrics at read time
-  → Auto-completes experiments past their end_date
+  → Displays COMPLETED for experiments past their end_date without persisting
+    (reads are idempotent per T-02; the status is persisted by
+    complete_stale_experiments on the next write, e.g. experiment create)
 ```
 
 ### Reports Flow
