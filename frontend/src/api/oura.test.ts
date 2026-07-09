@@ -21,6 +21,7 @@ describe("syncOura", () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/api/oura/sync",
       expect.objectContaining({
+        method: "POST", // T-02: sync is a state-changing POST
         headers: expect.objectContaining({
           "Content-Type": "application/json",
         }),

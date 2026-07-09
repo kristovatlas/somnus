@@ -1,9 +1,14 @@
 """Tests for the data export endpoint."""
 
+import csv
 import io
+import sqlite3
 import zipfile
+from pathlib import Path
 
 from fastapi.testclient import TestClient
+
+from backend.routers.export import _consistent_sqlite_snapshot
 
 
 def _seed_data(client: TestClient) -> None:
@@ -100,6 +105,58 @@ def test_export_csv_with_date_range(client: TestClient) -> None:
     assert "2025-06-16" not in daily_csv
 
 
+# --- CSV formula injection (T-12) ---
+
+
+def test_export_csv_neutralizes_formula_injection(client: TestClient) -> None:
+    """T-12: a leading formula trigger in free text must be quoted so it can't
+    execute when the CSV is opened in Excel / Google Sheets."""
+    payload = '=HYPERLINK("http://evil","click")'
+    client.put(
+        "/api/daily-log/2025-06-15",
+        json={
+            "notes": payload,
+            "supplement_entries": [{"name": "@SUM(A1:A9)", "dose_mg": 100}],
+        },
+    )
+    resp = client.get("/api/export?format=csv")
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+
+    # Parse the CSV so we compare cell *values*, not the raw quoted text.
+    daily_rows = list(csv.DictReader(io.StringIO(zf.read("daily_logs.csv").decode())))
+    # Data preserved, but the cell now starts with ' so it is inert as a formula
+    assert daily_rows[0]["notes"] == "'" + payload
+    assert not daily_rows[0]["notes"].startswith("=")
+
+    supp_rows = list(csv.DictReader(io.StringIO(zf.read("supplement_entries.csv").decode())))
+    assert supp_rows[0]["name"] == "'@SUM(A1:A9)"
+
+
+def test_export_csv_neutralizes_lf_prefixed_formula(client: TestClient) -> None:
+    """T-12: OWASP lists the line feed alongside CR as a formula trigger — an
+    LF-prefixed payload must be quoted like any other trigger."""
+    payload = '\n=HYPERLINK("http://evil","click")'
+    client.put("/api/daily-log/2025-06-15", json={"notes": payload})
+    resp = client.get("/api/export?format=csv")
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+
+    daily_rows = list(csv.DictReader(io.StringIO(zf.read("daily_logs.csv").decode())))
+    assert daily_rows[0]["notes"] == "'" + payload
+    assert not daily_rows[0]["notes"].startswith("\n")
+
+
+def test_export_csv_leaves_safe_values_untouched(client: TestClient) -> None:
+    client.put(
+        "/api/daily-log/2025-06-15",
+        json={"notes": "Good day", "caffeine_entries": [{"amount_mg": 95, "source": "tea"}]},
+    )
+    resp = client.get("/api/export?format=csv")
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+    daily_csv = zf.read("daily_logs.csv").decode()
+    assert "Good day" in daily_csv
+    assert "'Good day" not in daily_csv
+
+
 # --- Invalid format ---
 
 
@@ -119,3 +176,22 @@ def test_export_sqlite_responds(client: TestClient) -> None:
     if resp.status_code == 200:
         assert resp.headers["content-type"] == "application/octet-stream"
         assert "somnus.db" in resp.headers.get("content-disposition", "")
+
+
+def test_consistent_sqlite_snapshot_is_valid(tmp_path: Path) -> None:
+    """T-17: the backup-API snapshot is a valid, internally consistent DB."""
+    db_file = tmp_path / "t.db"
+    con = sqlite3.connect(str(db_file))
+    con.execute("CREATE TABLE t (x INTEGER)")
+    con.execute("INSERT INTO t VALUES (42)")
+    con.commit()
+    con.close()
+
+    data = _consistent_sqlite_snapshot(db_file)
+    assert data.startswith(b"SQLite format 3")
+
+    restored = sqlite3.connect(":memory:")
+    restored.deserialize(data)
+    assert restored.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert restored.execute("SELECT x FROM t").fetchone()[0] == 42
+    restored.close()

@@ -17,6 +17,7 @@ from backend.schemas import (
     RecommendationsResponse,
 )
 from backend.services.recommender import (
+    complete_stale_experiments,
     generate_recommendations,
     get_experiment_by_id,
     list_experiments,
@@ -49,6 +50,10 @@ def get_experiments(db: Session = Depends(get_db)) -> list[ExperimentOut]:
 @router.post("/experiments", response_model=ExperimentOut, status_code=201)
 def create_experiment(body: ExperimentCreate, db: Session = Depends(get_db)) -> ExperimentOut:
     """Start a new experiment. Returns 409 if one is already active."""
+    # T-02: reads no longer auto-complete experiments, so flip any past-due
+    # ACTIVE row here (a write path) before enforcing the single-active rule.
+    complete_stale_experiments(db)
+
     # Check for active experiment
     active = db.query(Experiment).filter(Experiment.status == ExperimentStatus.ACTIVE).first()
     if active is not None:

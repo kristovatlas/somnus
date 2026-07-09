@@ -39,6 +39,10 @@ def test_client(db: Session) -> Generator[TestClient, None, None]:
         yield db
 
     app.dependency_overrides[get_db] = _override_get_db
+    # No client-wide Content-Type default: it would mask the real no-header
+    # request paths (report/export <a href> navigations, future multipart
+    # uploads). Tests hitting the T-02-guarded bodiless POSTs set the SPA's
+    # application/json header explicitly, per request.
     with TestClient(app, base_url="http://localhost") as client:
         yield client
     app.dependency_overrides.clear()

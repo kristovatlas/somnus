@@ -8,7 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.models import RedLightPanel, UserSettings
+from backend.models import (
+    CaffeineSensitivity,
+    DisplayMode,
+    RedLightPanel,
+    UserSettings,
+)
 from backend.schemas import (
     RedLightPanelCreate,
     RedLightPanelOut,
@@ -43,7 +48,7 @@ def _settings_to_out(settings: UserSettings) -> UserSettingsOut:
 
 
 def _get_or_create_settings(db: Session) -> UserSettings:
-    """Get singleton settings row, creating if needed."""
+    """Get singleton settings row, creating if needed. Use on write paths only."""
     settings = db.get(UserSettings, 1)
     if settings is None:
         settings = UserSettings(id=1)
@@ -53,10 +58,31 @@ def _get_or_create_settings(db: Session) -> UserSettings:
     return settings
 
 
+def _settings_for_read(db: Session) -> UserSettings:
+    """Return the settings row, or transient defaults without persisting (T-02).
+
+    A GET must not write: the previous get-or-create committed a row on read,
+    which is a CSRF/idempotency hazard. The transient instance mirrors the
+    model's column defaults (guarded by ``test_get_settings_defaults``); the
+    row is created for real on the first write (PATCH).
+    """
+    settings = db.get(UserSettings, 1)
+    if settings is not None:
+        return settings
+    return UserSettings(
+        id=1,
+        caffeine_sensitivity=CaffeineSensitivity.NORMAL,
+        timezone="America/New_York",
+        display_mode=DisplayMode.CIRCADIAN,
+        circadian_mode_start=dt.time(20, 0),
+        onboarding_completed=False,
+    )
+
+
 @router.get("/settings", response_model=UserSettingsOut)
 def get_settings(db: Session = Depends(get_db)) -> UserSettingsOut:
-    """Get the singleton user settings."""
-    settings = _get_or_create_settings(db)
+    """Get the singleton user settings (read-only; does not persist)."""
+    settings = _settings_for_read(db)
     return _settings_to_out(settings)
 
 

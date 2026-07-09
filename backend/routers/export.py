@@ -5,9 +5,10 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
-import shutil
+import sqlite3
 import zipfile
 from collections.abc import Sequence
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -236,21 +237,58 @@ def _build_csv_zip(
     )
 
 
+def _consistent_sqlite_snapshot(db_path: Path) -> bytes:
+    """Return a consistent SQLite snapshot via the online backup API (T-17).
+
+    A raw byte-copy of the live file can capture a torn page set or miss
+    ``-wal``/``-journal`` state if a write (e.g. an Oura sync) is in flight,
+    yielding a ``.db`` that fails ``PRAGMA integrity_check``. The backup API
+    copies pages under a read transaction, so the snapshot is internally
+    consistent even under concurrent writes. The user relies on this export
+    as their backup of otherwise-unrecoverable data.
+    """
+    src = sqlite3.connect(str(db_path))
+    try:
+        dst = sqlite3.connect(":memory:")
+        try:
+            src.backup(dst)
+            return dst.serialize()
+        finally:
+            dst.close()
+    finally:
+        src.close()
+
+
 @router.get("/export/sqlite", response_model=None)
 def export_sqlite() -> StreamingResponse:
-    """Export the raw SQLite database file."""
+    """Export the SQLite database as a consistent snapshot."""
     db_path = app_settings.db_path
     if str(db_path) == ":memory:" or not db_path.exists():
         raise HTTPException(status_code=409, detail="SQLite export unavailable in this environment")
-    buf = io.BytesIO()
-    with open(db_path, "rb") as f:
-        shutil.copyfileobj(f, buf)
-    buf.seek(0)
     return StreamingResponse(
-        buf,
+        io.BytesIO(_consistent_sqlite_snapshot(db_path)),
         media_type="application/octet-stream",
         headers={"Content-Disposition": "attachment; filename=somnus.db"},
     )
+
+
+# T-12 (docs/THREAT_MODEL.md): characters that make a spreadsheet treat a
+# cell as a formula when the CSV is opened in Excel / Google Sheets. The full
+# OWASP CSV-injection trigger set, including both line terminators.
+_CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _neutralize_csv_cell(value: str) -> str:
+    """Prefix a leading formula trigger with a single quote (T-12).
+
+    Reachable via free text (`notes`, supplement `name`, habit `value`) that
+    may have arrived via T-01/T-02 or from Oura (AD4). Prefixing renders the
+    cell as literal text in spreadsheet apps. The export has no negative-number
+    fields, so guarding the ``-`` trigger mangles no legitimate value.
+    """
+    if value and value[0] in _CSV_FORMULA_TRIGGERS:
+        return "'" + value
+    return value
 
 
 def _to_csv(items: Sequence[object], fields: list[str]) -> str:
@@ -262,6 +300,6 @@ def _to_csv(items: Sequence[object], fields: list[str]) -> str:
         row = []
         for f in fields:
             val = getattr(item, f, None)
-            row.append("" if val is None else str(val))
+            row.append("" if val is None else _neutralize_csv_cell(str(val)))
         writer.writerow(row)
     return output.getvalue()

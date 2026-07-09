@@ -1,15 +1,33 @@
 """Database setup with SQLAlchemy and configurable SQLite path."""
 
+import contextlib
+import os
+import sqlite3
 from collections.abc import Generator
+from pathlib import Path
 
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from backend.config import settings
+from backend.config import DEFAULT_DB_DIR, settings
 
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models."""
+
+
+@event.listens_for(Engine, "connect")
+def _enable_sqlite_foreign_keys(dbapi_connection: object, _connection_record: object) -> None:
+    """T-09 (docs/THREAT_MODEL.md): enforce FK constraints on every connection.
+
+    SQLite ignores declared ``ForeignKey``/cascade constraints unless
+    ``PRAGMA foreign_keys=ON`` is set per-connection. Registered on the base
+    ``Engine`` so it applies to the app engine and test engines alike.
+    """
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 def get_database_url(db_path: str | None = None) -> str:
@@ -42,6 +60,35 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def _harden_db_permissions(db_path: Path) -> None:
+    """T-08 (docs/THREAT_MODEL.md): restrict the DB file (and default dir) to the owner.
+
+    The database holds the Oura token and all health data in plaintext (T-07).
+    Chmodding the file ``0600`` closes the *other-OS-user* read path on a
+    shared machine (a same-user process is inside the trust domain and is out
+    of scope). The parent directory is hardened to ``0700`` only when it is
+    the app-managed default (``~/.somnus``): a user-supplied SOMNUS_DB_PATH —
+    the T-07 encrypted-volume flow — may point into a directory other users
+    or tools legitimately share (or ``.`` for a relative path), which Somnus
+    must not lock down. Best-effort: silently skips ``:memory:`` and platforms
+    without POSIX permission bits.
+    """
+    if str(db_path) == ":memory:":
+        return
+    if db_path.parent == DEFAULT_DB_DIR:
+        with contextlib.suppress(OSError):
+            os.chmod(db_path.parent, 0o700)
+    # The file chmod is the load-bearing control — it must run even when the
+    # directory attempt above fails or is skipped for a custom path.
+    try:
+        if db_path.exists():
+            os.chmod(db_path, 0o600)
+    except OSError:
+        # Non-POSIX filesystem / platform — the OS-layer guidance in T-07
+        # (full-disk / volume encryption) remains the primary control.
+        pass
+
+
 def init_db() -> None:
     """Create the database directory and all tables.
 
@@ -50,3 +97,4 @@ def init_db() -> None:
     """
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    _harden_db_permissions(settings.db_path)

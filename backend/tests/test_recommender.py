@@ -22,6 +22,7 @@ from backend.science.reference_data import PREDICTOR_ACTIONS, SCIENCE_THRESHOLDS
 from backend.services.recommender import (
     _build_experiment_out,
     _data_driven_recs,
+    _get_active_experiment,
     _science_threshold_recs,
     _timing_recs,
     _untried_recs,
@@ -586,3 +587,38 @@ class TestExperimentMetrics:
         result = _build_experiment_out(db, exp, today=dt.date(2025, 6, 7))
         assert result["baseline_sleep_score"] is None
         assert result["result_sleep_score"] is None
+
+
+class TestGetActiveExperiment:
+    """A past-due stored-ACTIVE row is not *currently* active (see
+    _get_active_experiment): returning it would deadlock the SPA's
+    experiment workflow."""
+
+    def _add_experiment(self, db: Session, end_date: dt.date) -> Experiment:
+        exp = Experiment(
+            factor="total_caffeine_mg",
+            hypothesis="Reducing caffeine will improve sleep",
+            start_date=end_date - dt.timedelta(days=13),
+            end_date=end_date,
+            status=ExperimentStatus.ACTIVE,
+            created_at=dt.datetime(2025, 3, 1, 10, 0),
+        )
+        db.add(exp)
+        db.commit()
+        return exp
+
+    def test_current_experiment_returned(self, db: Session) -> None:
+        self._add_experiment(db, end_date=dt.date.today() + dt.timedelta(days=7))
+        result = _get_active_experiment(db)
+        assert result is not None
+        assert result["status"] == ExperimentStatus.ACTIVE
+
+    def test_past_due_experiment_not_returned(self, db: Session) -> None:
+        self._add_experiment(db, end_date=dt.date.today() - dt.timedelta(days=1))
+        assert _get_active_experiment(db) is None
+
+    def test_past_due_experiment_still_listed(self, db: Session) -> None:
+        self._add_experiment(db, end_date=dt.date.today() - dt.timedelta(days=1))
+        results = list_experiments(db)
+        assert len(results) == 1
+        assert results[0]["status"] == ExperimentStatus.COMPLETED

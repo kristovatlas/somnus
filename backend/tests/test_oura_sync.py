@@ -20,6 +20,11 @@ from backend.services.oura_client import (
     build_sleep_records,
 )
 
+# The SPA's fetch client always sends this header; the T-02 CSRF guard on the
+# bodiless sync POST requires it. Set per-request (not client-wide) so tests
+# elsewhere exercise the same no-default-header requests a browser sends.
+JSON_HEADERS = {"Content-Type": "application/json"}
+
 # --- Sample Oura API responses ---
 
 SAMPLE_DAILY_SLEEP = {
@@ -574,7 +579,7 @@ class TestBuildSleepRecordsBedtime:
 
 
 class TestSyncEndpoint:
-    """Tests for GET /api/oura/sync endpoint."""
+    """Tests for POST /api/oura/sync endpoint."""
 
     def _set_token(self, db: Session, token: str = "valid-token") -> None:
         settings = db.get(UserSettings, 1)
@@ -586,9 +591,29 @@ class TestSyncEndpoint:
         db.commit()
 
     def test_sync_no_token_returns_403(self, client: TestClient) -> None:
-        resp = client.get("/api/oura/sync")
+        resp = client.post("/api/oura/sync", headers=JSON_HEADERS)
         assert resp.status_code == 403
         assert "token not configured" in resp.json()["detail"].lower()
+
+    def test_sync_rejects_non_json_content_type(self, client: TestClient, db: Session) -> None:
+        # T-02: sync is a POST guarded by the JSON content-type CSRF check, so a
+        # CORS-simple cross-site request cannot trigger a token-spending sync.
+        self._set_token(db)
+        resp = client.post("/api/oura/sync", headers={"Content-Type": "text/plain"})
+        assert resp.status_code == 415
+
+    def test_sync_rejects_absent_content_type(self, client: TestClient, db: Session) -> None:
+        # T-02: a bodiless POST with *no* Content-Type at all is also
+        # CORS-simple (FastAPI would parse it as JSON) — the guard must 415 it
+        # before any token is spent.
+        self._set_token(db)
+        resp = client.post("/api/oura/sync")
+        assert resp.status_code == 415
+
+    def test_sync_rejects_get_method(self, client: TestClient) -> None:
+        # T-02: the old state-changing GET is gone (a GET is always CORS-simple)
+        resp = client.get("/api/oura/sync")
+        assert resp.status_code == 405
 
     def test_sync_happy_path(self, client: TestClient, db: Session) -> None:
         self._set_token(db)
@@ -599,7 +624,9 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.return_value = SAMPLE_DAILY_READINESS["data"]
             instance.get_sleep_periods.return_value = SAMPLE_SLEEP_PERIODS["data"]
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         assert resp.status_code == 200
         data = resp.json()
@@ -629,7 +656,9 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.return_value = SAMPLE_DAILY_READINESS["data"]
             instance.get_sleep_periods.return_value = SAMPLE_SLEEP_PERIODS["data"]
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         assert resp.status_code == 200
         db.refresh(existing)
@@ -644,7 +673,9 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.return_value = []
             instance.get_sleep_periods.return_value = []
 
-            client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         settings = db.get(UserSettings, 1)
         assert settings is not None
@@ -663,7 +694,7 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.return_value = []
             instance.get_sleep_periods.return_value = []
 
-            resp = client.get("/api/oura/sync")
+            resp = client.post("/api/oura/sync", headers=JSON_HEADERS)
 
         data = resp.json()
         assert data["start_date"] == "2026-02-10"
@@ -679,7 +710,9 @@ class TestSyncEndpoint:
                 "Generate a new one at cloud.ouraring.com/personal-access-tokens",
             )
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         assert resp.status_code == 401
         assert "invalid or expired" in resp.json()["detail"]
@@ -693,7 +726,9 @@ class TestSyncEndpoint:
                 429, "Oura API rate limit reached. Try again in a few minutes."
             )
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         assert resp.status_code == 429
 
@@ -706,7 +741,9 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.side_effect = OuraAPIError(500, "Server error")
             instance.get_sleep_periods.side_effect = OuraAPIError(500, "Server error")
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         assert resp.status_code == 200
         data = resp.json()
@@ -723,7 +760,9 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.return_value = []
             instance.get_sleep_periods.return_value = []
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         assert "super-secret-oura-token" not in resp.text
 
@@ -736,7 +775,9 @@ class TestSyncEndpoint:
                 0, "Could not connect to Oura API. Check your internet connection."
             )
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         # 0 falls through to 502
         assert resp.status_code == 502
@@ -747,7 +788,9 @@ class TestSyncEndpoint:
         self._set_token(db)
 
         with patch("backend.routers.oura.OuraClient") as mock_client:
-            resp = client.get("/api/oura/sync?start_date=2026-02-16&end_date=2026-02-15")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-16&end_date=2026-02-15", headers=JSON_HEADERS
+            )
 
         assert resp.status_code == 400
         assert "start_date" in resp.json()["detail"]
@@ -769,7 +812,7 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.return_value = []
             instance.get_sleep_periods.return_value = []
 
-            resp = client.get("/api/oura/sync")
+            resp = client.post("/api/oura/sync", headers=JSON_HEADERS)
 
         assert resp.status_code == 200
         data = resp.json()
@@ -795,7 +838,9 @@ class TestSyncEndpoint:
             instance.get_daily_readiness.side_effect = OuraAPIError(500, "Server error")
             instance.get_sleep_periods.return_value = SAMPLE_SLEEP_PERIODS["data"]
 
-            resp = client.get("/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16")
+            resp = client.post(
+                "/api/oura/sync?start_date=2026-02-15&end_date=2026-02-16", headers=JSON_HEADERS
+            )
 
         assert resp.status_code == 200
         data = resp.json()
@@ -813,7 +858,7 @@ class TestSyncEndpoint:
 
         assert oura_router._sync_lock.acquire(blocking=False)
         try:
-            resp = client.get("/api/oura/sync")
+            resp = client.post("/api/oura/sync", headers=JSON_HEADERS)
         finally:
             oura_router._sync_lock.release()
 

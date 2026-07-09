@@ -6,6 +6,8 @@ import datetime as dt
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
@@ -26,6 +28,7 @@ from backend.schemas import (
     SunlightEntryOut,
     SupplementEntryOut,
 )
+from backend.security import require_json_content_type
 from backend.services.daily_log_service import (
     ENTRY_TYPE_MAP,
     add_sub_entry,
@@ -115,13 +118,22 @@ def list_logs(
     ]
 
 
-@router.post("/{date}/copy-from/{source_date}", response_model=DailyLogOut)
+@router.post(
+    "/{date}/copy-from/{source_date}",
+    response_model=DailyLogOut,
+    dependencies=[Depends(require_json_content_type)],
+)
 def copy_log(
     date: dt.date,
     source_date: dt.date,
     db: Session = Depends(get_db),
 ) -> DailyLogOut:
-    """Copy all entries from source_date to target date."""
+    """Copy all entries from source_date to target date.
+
+    T-02: this bodiless POST destructively overwrites the target day, so it is
+    guarded by ``require_json_content_type`` — without a non-simple trait a
+    cross-site form POST reaches it without a preflight (the reproduced CSRF).
+    """
     log = copy_day(db, date, source_date)
     if log is None:
         raise HTTPException(status_code=404, detail="Source daily log not found")
@@ -148,10 +160,20 @@ def _register_sub_entry_routes(entry_type: str) -> None:
         db: Session = Depends(get_db),
         _et: str = entry_type,
     ) -> Any:
+        # T-05: only *input* validation may surface as a 422. A DB fault (e.g.
+        # an unknown panel_id rejected by the T-09 FK enforcement) must not
+        # echo str(exc) — that leaks SQL text and bound parameters to the
+        # client — so it maps to a clean 409 instead.
         try:
             return add_sub_entry(db, date, _et, data)
-        except Exception as exc:
+        except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Entry references a related record that does not exist",
+            ) from exc
 
     @router.put(
         f"/{{date}}/{entry_type}/{{entry_id}}",
@@ -165,7 +187,21 @@ def _register_sub_entry_routes(entry_type: str) -> None:
         db: Session = Depends(get_db),
         _et: str = entry_type,
     ) -> Any:
-        result = update_sub_entry(db, _et, entry_id, data)
+        # T-05 (docs/THREAT_MODEL.md): validation failures must surface as 422,
+        # matching add_entry — without this, a bad body raises ValidationError
+        # and FastAPI returns an unhandled 500. Integrity faults (e.g. an
+        # unknown panel_id rejected by the T-09 FK enforcement) map to a clean
+        # 409: echoing str(exc) would leak SQL text and bound parameters.
+        try:
+            result = update_sub_entry(db, _et, entry_id, data)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Entry references a related record that does not exist",
+            ) from exc
         if result is None:
             raise HTTPException(status_code=404, detail="Entry not found")
         return result

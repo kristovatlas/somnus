@@ -6,6 +6,12 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from backend.config import settings
+
+# Importing backend.database registers the T-09 `PRAGMA foreign_keys=ON`
+# listener on the SQLAlchemy Engine *class*, so the migration engine created
+# below inherits it. Additive migrations are unaffected, but a future SQLite
+# `batch_alter_table` (table-recreate) migration must disable it first
+# (`op.execute("PRAGMA foreign_keys=OFF")` or the listener will fail the copy).
 from backend.database import Base
 from backend.models import *  # noqa: F401, F403 — ensure all models are registered
 

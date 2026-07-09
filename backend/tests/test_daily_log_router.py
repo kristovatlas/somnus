@@ -2,6 +2,11 @@
 
 from fastapi.testclient import TestClient
 
+# The SPA's fetch client always sends this header; the T-02 CSRF guard on the
+# bodiless copy-from POST requires it (requests with a JSON body get it from
+# the client's `json=` parameter automatically).
+JSON_HEADERS = {"Content-Type": "application/json"}
+
 # --- PUT (upsert) ---
 
 
@@ -175,7 +180,7 @@ def test_copy_day(client: TestClient) -> None:
             "caffeine_entries": [{"amount_mg": 95, "source": "espresso"}],
         },
     )
-    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15")
+    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15", headers=JSON_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert data["date"] == "2025-06-16"
@@ -186,8 +191,30 @@ def test_copy_day(client: TestClient) -> None:
 
 
 def test_copy_day_source_not_found(client: TestClient) -> None:
-    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15")
+    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15", headers=JSON_HEADERS)
     assert resp.status_code == 404
+
+
+def test_copy_day_rejects_non_json_content_type(client: TestClient) -> None:
+    # T-02: a CORS-simple (non-JSON) cross-site POST must be rejected so the
+    # bodiless copy-from can't be driven by a hostile form submission.
+    client.put("/api/daily-log/2025-06-15", json={"is_sick": True})
+    resp = client.post(
+        "/api/daily-log/2025-06-16/copy-from/2025-06-15",
+        headers={"Content-Type": "text/plain"},
+    )
+    assert resp.status_code == 415
+    # The target day must not have been created
+    assert client.get("/api/daily-log/2025-06-16").status_code == 404
+
+
+def test_copy_day_rejects_absent_content_type(client: TestClient) -> None:
+    # T-02: a bodiless POST with *no* Content-Type at all is also CORS-simple —
+    # the guard must 415 it before the destructive overwrite runs.
+    client.put("/api/daily-log/2025-06-15", json={"is_sick": True})
+    resp = client.post("/api/daily-log/2025-06-16/copy-from/2025-06-15")
+    assert resp.status_code == 415
+    assert client.get("/api/daily-log/2025-06-16").status_code == 404
 
 
 # --- Sub-entry routes (testing a few representative types) ---
@@ -239,6 +266,20 @@ def test_update_entry_not_found(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_update_entry_invalid_data_422(client: TestClient) -> None:
+    # T-05: invalid body on the update path must be 422, not an unhandled 500
+    resp = client.post(
+        "/api/daily-log/2025-06-15/caffeine",
+        json={"amount_mg": 95, "source": "other"},
+    )
+    entry_id = resp.json()["id"]
+    resp = client.put(
+        f"/api/daily-log/2025-06-15/caffeine/{entry_id}",
+        json={"amount_mg": 0},  # below minimum
+    )
+    assert resp.status_code == 422
+
+
 def test_delete_caffeine_entry(client: TestClient) -> None:
     resp = client.post(
         "/api/daily-log/2025-06-15/caffeine",
@@ -287,3 +328,35 @@ def test_invalid_entry_data(client: TestClient) -> None:
         json={"amount_mg": 0},  # Below minimum
     )
     assert resp.status_code == 422
+
+
+def _assert_no_sql_leak(detail: str) -> None:
+    """T-05: a DB fault must never echo SQL text or bound parameters."""
+    for marker in ("SQL", "sqlite3", "INSERT", "UPDATE", "FOREIGN KEY", "parameters"):
+        assert marker not in detail
+
+
+def test_add_entry_unknown_panel_id_409_without_sql_leak(client: TestClient) -> None:
+    # T-05 × T-09: the enforced red_light_entries.panel_id FK makes an
+    # IntegrityError reachable from a client body — it must surface as a clean
+    # 409, not a 422 echoing the failed statement.
+    resp = client.post(
+        "/api/daily-log/2025-06-15/red-light",
+        json={"panel_id": 999, "duration_minutes": 10},
+    )
+    assert resp.status_code == 409
+    _assert_no_sql_leak(resp.json()["detail"])
+
+
+def test_update_entry_unknown_panel_id_409_without_sql_leak(client: TestClient) -> None:
+    resp = client.post(
+        "/api/daily-log/2025-06-15/red-light",
+        json={"duration_minutes": 10},
+    )
+    entry_id = resp.json()["id"]
+    resp = client.put(
+        f"/api/daily-log/2025-06-15/red-light/{entry_id}",
+        json={"panel_id": 999, "duration_minutes": 10},
+    )
+    assert resp.status_code == 409
+    _assert_no_sql_leak(resp.json()["detail"])
