@@ -298,9 +298,9 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 
 ---
 
-## 8. Baking into the workflow (Step 9.4 preview)
+## 8. Baking into the workflow (standing practice — wired 2026-07-09)
 
-Once approved, the following becomes standing practice (to be reflected in CLAUDE.md and the PLAN.md security checklist):
+Step 9.4 is complete: the following is standing practice, reflected in CLAUDE.md ("Threat Model" rule) and the PLAN.md Security Review Process checklist:
 
 - **Every PR** includes a **"Threat model impact"** section: `None` + one-line justification, or a summary of what changed with `docs/THREAT_MODEL.md` updated in the same PR. Review verifies the statement against the diff; a missing or wrong one blocks merge.
 - **When touching a boundary**, name it (B1–B5) and the threats (T‑nn) affected.
