@@ -775,6 +775,8 @@ Jet lag is a massive sleep disruptor. When a user travels, Oura data shifts but 
 
 **Status: agreed 2026-07-04. Activates once the PRs open on that date (#32, #33, #34, plus the PR introducing this step) are merged. From that point, no new PRs may be opened until this step is complete.** Two exceptions only: PRs that implement this step itself, and fixes for a red `dev` CI run (which preempt everything, per CLAUDE.md).
 
+**COMPLETE 2026-07-09 — the gate is lifted.** 9.1+9.2: `docs/THREAT_MODEL.md` authored and human-approved (PR #42). 9.3: audit finished across PRs #43, #44, #45, #64, #65 — every entry in the 17-threat register carries an implemented mitigation or an explicit acceptance/documented residual; the sole open sub-item is the T-13 backend lockfile (`uv.lock`), deferred to a focused follow-up as a documented §7 residual. Review records live under `docs/reviews/` (resolved findings archived in `resolved/`). 9.4: the standing per-PR rule below is wired into CLAUDE.md and the Security Review Process checklist. Normal work resumes.
+
 Somnus holds some of the most sensitive personal data an app can: sexual activity (including adult-content usage), illness, alcohol consumption, the user's nightly sleep schedule, and an Oura token granting access to cloud-stored health data. Security so far has been checklist-driven; this step adds an explicit, human-approved threat model that all future code is written against, to reduce the chance of introducing vulnerabilities.
 
 **9.1 — Author `docs/THREAT_MODEL.md`** (world-class, not boilerplate):
@@ -790,11 +792,11 @@ Somnus holds some of the most sensitive personal data an app can: sexual activit
 
 **9.3 — Audit existing code against the approved model**: full pass over backend, frontend, CI workflows, Makefile, and docker-compose. Every finding becomes either a fix PR referencing the threat-model section it enforces, or an explicitly documented accepted risk in the doc. Audit report committed under `docs/reviews/`.
 
-- **Done — dependency-install cooldown (T-13, ADR 014):** a ~7-day minimum release age now gates installs in both ecosystems — `min-release-age=7` (days) in `frontend/.npmrc`, with the npm ≥ 11.10 floor enforced via `engines` + `engine-strict`, and `[tool.uv.pip] exclude-newer = "7 days"` committed in `pyproject.toml`, gating every `uv pip install` in the repo (install recipe lives once in `make setup-backend`, which CI runs; `uv`/`npm` pinned so the gating tools don't float). Override for urgent fixes: `UV_EXCLUDE_NEWER="0 days"`. Remaining T-13 items: commit a backend lockfile (`uv.lock`), add `npm audit` to CI, pin Actions by SHA.
+- **Done — dependency-install cooldown (T-13, ADR 014):** a ~7-day minimum release age now gates installs in both ecosystems — `min-release-age=7` (days) in `frontend/.npmrc`, with the npm ≥ 11.10 floor enforced via `engines` + `engine-strict`, and `[tool.uv.pip] exclude-newer = "7 days"` committed in `pyproject.toml`, gating every `uv pip install` in the repo (install recipe lives once in `make setup-backend`, which CI runs; `uv`/`npm` pinned so the gating tools don't float). Override for urgent fixes: `UV_EXCLUDE_NEWER="0 days"`. Remaining T-13 item: commit a backend lockfile (`uv.lock`). The other two sub-items landed in PR #65: `npm audit` runs in CI *before* `npm ci` (lockfile-only, audit-before-install), and all Actions are SHA-pinned.
 
-**9.4 — Bake into the workflow**: update CLAUDE.md and the security review checklist (below) so every future PR is written and reviewed with the threat model in consideration — which trust boundaries does this change touch, what new attack surface does it add? From this point on, **every PR description must include a "Threat model impact" section**: either "None" with a one-line justification, or a summary of what changed in the threat picture with `docs/THREAT_MODEL.md` updated in the same PR. The threat model is canonical and must never lag the code — review verifies the stated impact against the actual diff, and a missing or wrong impact statement blocks merge like any failing check.
+**9.4 — Bake into the workflow**: update CLAUDE.md and the security review checklist (below) so every future PR is written and reviewed with the threat model in consideration — which trust boundaries does this change touch, what new attack surface does it add? From this point on, **every PR description must include a "Threat model impact" section**: either "None" with a one-line justification, or a summary of what changed in the threat picture with `docs/THREAT_MODEL.md` updated in the same PR. The threat model is canonical and must never lag the code — review verifies the stated impact against the actual diff, and a missing or wrong impact statement blocks merge like any failing check. *Done 2026-07-09: CLAUDE.md's temporary gate section replaced with the standing rule; the Security Review Process checklist below carries the threat-model items.*
 
-**Done when**: doc merged and human-approved, all audit findings fixed or explicitly accepted, CLAUDE.md and the PR checklist updated. Then normal work resumes (dogfooding bugs, analysis cluster).
+**Done when**: doc merged and human-approved, all audit findings fixed or explicitly accepted, CLAUDE.md and the PR checklist updated. Then normal work resumes (dogfooding bugs, analysis cluster). *All conditions met 2026-07-09.*
 
 ---
 
@@ -901,15 +903,23 @@ main          ← Always reflects a complete, user-ready version (tagged release
 
 Every PR must pass a security review before merge. This is a health data application — security is non-negotiable.
 
-**Threat model**: `docs/THREAT_MODEL.md` (created in build-order Step 9) is the canonical statement of what we defend against, and it must never lag the code. Once it lands, every PR description must include a **"Threat model impact"** section — either "None" with a one-line justification, or a summary of what changed with the threat model updated in the same PR. Every review below additionally verifies the stated impact against the actual diff; a missing or incorrect impact statement blocks merge.
+**Threat model**: `docs/THREAT_MODEL.md` (authored and human-approved in build-order Step 9; standing rule in force since 2026-07-09) is the canonical statement of what we defend against, and it must never lag the code. Every PR description must include a **"Threat model impact"** section — either "None" with a one-line justification, or a summary of what changed with the threat model updated in the same PR. Every review below additionally verifies the stated impact against the actual diff; a missing or incorrect impact statement blocks merge.
 
 **Automated checks (CI, run on every PR):**
 - **Dependency audit**: `pip-audit` (Python) + `npm audit` (Node) — flag known vulnerabilities in dependencies
 - **Static analysis**: `bandit` (Python) for common security issues (hardcoded secrets, SQL injection patterns, unsafe deserialization)
-- **Secret scanning**: `trufflehog` or `gitleaks` — prevent accidental commit of API tokens, credentials, or keys
-- **SAST**: eslint-plugin-security (frontend) for DOM XSS, eval usage, etc.
+- **Secret scanning**: `gitleaks` — prevent accidental commit of API tokens, credentials, or keys
+- **SAST**: Python is covered by `bandit` + ruff's `S` (flake8-bandit) and `T20` rule sets. *Frontend SAST (e.g. eslint-plugin-security) is planned, not wired* — today the frontend relies on TS strict + eslint core, output escaping (T-04), and the SPA CSP (T-14).
 
 **Manual review checklist (reviewer verifies on every PR):**
+
+*Threat model (`docs/THREAT_MODEL.md`, per its §8):*
+- [ ] "Threat model impact" section present in the PR description and consistent with the actual diff; `THREAT_MODEL.md` updated in the same PR if the threat picture changed
+- [ ] Trust boundaries the change touches are identified (B1–B5) with the affected threats (T-nn)
+- [ ] No new unauthenticated network reachability without Host validation (T-01)
+- [ ] State-changing endpoints keep a CORS-non-simple trait (JSON body or `require_json_content_type`); GETs never commit (T-02)
+- [ ] No user or external text reaches an HTML or CSV sink without escaping/neutralization (T-04, T-12)
+- [ ] No secrets or health data in logs (T-16)
 
 *Data handling:*
 - [ ] No sensitive data (Oura tokens, health data) logged to console or files
@@ -938,6 +948,7 @@ Every PR must pass a security review before merge. This is a health data applica
 - Any change to `database.py`, migration files, or the DB path configuration
 - Any change to `oura_client.py` or external API integrations
 - Any change to the export endpoint
+- Any change to `backend/security.py`, CORS/Host validation, or a CSP
 - Any new dependency addition
 
 ---
