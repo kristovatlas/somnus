@@ -304,7 +304,7 @@ Step 9.4 is complete: the following is standing practice, reflected in CLAUDE.md
 
 - **Every PR** includes a **"Threat model impact"** section: `None` + one-line justification, or a summary of what changed with `docs/THREAT_MODEL.md` updated in the same PR. Review verifies the statement against the diff; a missing or wrong one blocks merge.
 - **When touching a boundary**, name it (B1–B5) and the threats (T‑nn) affected.
-- **Standing invariants** (regression-guard checklist): no new unauthenticated network reachability without Host validation (T‑01); no user/external text into an HTML/CSV sink without escaping/neutralization (T‑04, T‑12); no secret or health data into logs (T‑16); no new dependency without an audit (T‑13); DB-path and token handling changes get extra scrutiny (T‑07, T‑08).
+- **Standing invariants** (regression-guard checklist): no new unauthenticated network reachability without Host validation (T‑01); state-changing endpoints keep a CORS-non-simple trait (JSON body or `require_json_content_type`) and GETs never commit (T‑02); no user/external text into an HTML/CSV sink without escaping/neutralization (T‑04, T‑12); no secret or health data into logs (T‑16); no new dependency without an audit (T‑13); DB-path and token handling changes get extra scrutiny (T‑07, T‑08).
 
 ---
 
