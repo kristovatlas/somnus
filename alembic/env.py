@@ -2,9 +2,9 @@
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from backend.config import settings
 
 # Importing backend.database registers the T-09 `PRAGMA foreign_keys=ON`
@@ -13,7 +13,7 @@ from backend.config import settings
 # `batch_alter_table` (table-recreate) migration must disable it first
 # (`op.execute("PRAGMA foreign_keys=OFF")` or the listener will fail the copy).
 from backend.database import Base
-from backend.models import *  # noqa: F401, F403 — ensure all models are registered
+from backend.models import *  # noqa: F403 — ensure all models are registered
 
 config = context.config
 
@@ -24,7 +24,14 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return f"sqlite:///{settings.db_path}"
+    """A programmatically-set URL (tests, tooling) wins; else app settings.
+
+    alembic.ini deliberately sets no sqlalchemy.url (a %(...)s env-var
+    interpolation there crashes ini parsing — issue #68), so CLI runs fall
+    through to settings, which honors SOMNUS_DB_PATH.
+    """
+    configured = config.get_main_option("sqlalchemy.url")
+    return configured or f"sqlite:///{settings.db_path}"
 
 
 def run_migrations_offline() -> None:

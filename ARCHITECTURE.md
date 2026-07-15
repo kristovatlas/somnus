@@ -72,7 +72,7 @@ C4Component
 
     Container_Boundary(backend, "Backend API") {
 
-        Component(main, "Application Entry", "FastAPI", "CORS config, Host validation, startup hooks, auto-migration on launch")
+        Component(main, "Application Entry", "FastAPI", "CORS config, Host validation, startup hooks, schema bootstrap + alembic stamping on launch")
 
         Component(security, "Request Security", "FastAPI dependency", "T-02 CSRF guard: require_json_content_type on bodiless state-changing POSTs (Oura sync, copy-day).")
 
@@ -363,4 +363,4 @@ User adds caffeine entry → Frontend computes in real-time:
 2. **Configurable DB path** — SQLite file location is user-controlled (supports encrypted containers).
 3. **Missing data tolerance** — NULL means "not recorded," never "didn't happen." Analysis excludes NULLs per-variable.
 4. **Circadian-safe UI** — Default display mode uses amber/red wavelengths only (>590nm). No blue, green, or white light emission.
-5. **Migration-first schema** — All DB changes go through Alembic. No manual SQL. Auto-runs on startup.
+5. **Migration-first schema** — All DB changes go through Alembic (baseline `000_baseline` → head builds a full DB from scratch). No manual SQL. Startup bootstraps fresh DBs via `create_all` and stamps them at head; existing unstamped DBs are repair-stamped at the revision matching their schema; a DB behind head gets a "run `make migrate`" warning — migrations themselves are applied explicitly, never auto-run.

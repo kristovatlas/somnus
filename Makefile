@@ -60,7 +60,7 @@ test-all: test test-e2e
 lint: lint-backend lint-frontend
 
 lint-backend:
-	ruff check backend
+	ruff check backend alembic
 	mypy backend --ignore-missing-imports
 
 lint-frontend:
@@ -68,8 +68,8 @@ lint-frontend:
 
 # --- Formatting ---
 format:
-	ruff format backend
-	ruff check --fix backend
+	ruff format backend alembic
+	ruff check --fix backend alembic
 	cd frontend && npm run format
 
 # --- Database ---

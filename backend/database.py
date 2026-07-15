@@ -1,15 +1,28 @@
 """Database setup with SQLAlchemy and configurable SQLite path."""
 
 import contextlib
+import functools
+import logging
 import os
 import sqlite3
 from collections.abc import Generator
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine, event
+from alembic.config import Config as AlembicConfig
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from alembic.script import ScriptDirectory
+from sqlalchemy import Column, DateTime, Engine, Inspector, create_engine, event, inspect
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from backend.config import DEFAULT_DB_DIR, settings
+
+logger = logging.getLogger(__name__)
+
+# The alembic scripts live at the repo root, next to the backend package.
+# Valid for the editable install this project uses (ADR 014 / Makefile); a
+# future non-editable distribution must package the migration scripts.
+_ALEMBIC_DIR = Path(__file__).resolve().parent.parent / "alembic"
 
 
 class Base(DeclarativeBase):
@@ -89,12 +102,113 @@ def _harden_db_permissions(db_path: Path) -> None:
         pass
 
 
-def init_db() -> None:
-    """Create the database directory and all tables.
+@functools.lru_cache(maxsize=1)
+def _script_directory() -> ScriptDirectory:
+    """The repo's alembic scripts — immutable per process, resolved once."""
+    cfg = AlembicConfig()
+    cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
+    return ScriptDirectory.from_config(cfg)
 
-    Called on application startup. In production, Alembic migrations
-    handle schema changes — this is a fallback for fresh installs.
+
+def _alembic_head() -> str:
+    """Resolve the head revision from the migration scripts on disk."""
+    head = _script_directory().get_current_head()
+    if head is None:  # pragma: no cover — repo always ships migrations
+        raise RuntimeError("no alembic head revision found")
+    return head
+
+
+def _stamp_version(revision: str) -> None:
+    """Record ``revision`` as the current alembic version, on the app engine.
+
+    Uses ``MigrationContext`` on an existing connection (it creates the
+    version table itself and replaces any prior row) rather than
+    ``alembic.command.stamp``, which spins up its own engine — for
+    ``:memory:`` databases that would stamp a *different* database than the
+    one the app holds open.
+    """
+    with engine.begin() as conn:
+        MigrationContext.configure(conn).stamp(_script_directory(), revision)
+
+
+def _adopt_legacy_db(inspector: Inspector, tables: set[str]) -> str:
+    """Stamp a pre-#49 unstamped database at the revision its schema matches.
+
+    The legacy shapes are FROZEN: every database this code touches gets
+    stamped, so unstamped schemas can only come from pre-fix installs whose
+    models stopped at 002. Do NOT extend the marker set for migrations
+    003+ — their deltas can only ever appear in already-stamped databases.
+
+    Markers: ``user_settings.last_oura_sync`` is 001's delta; the
+    ``experiments`` table is 002's. The old ``create_all``-on-startup added
+    missing *tables* but never *columns*, so a pre-001 database later booted
+    under 002-era code carries ``experiments`` without ``last_oura_sync`` —
+    a hybrid that matches no revision and that no stamp can repair. Its
+    repair is deterministic (it is exactly 001's delta): add the column,
+    after which the schema genuinely is 002.
+    """
+    if "user_settings" not in tables:
+        raise RuntimeError(
+            f"Database at {settings.db_path} contains tables but is not a "
+            "recognizable Somnus database (no user_settings, no "
+            "alembic_version). Point SOMNUS_DB_PATH at a Somnus database or "
+            "at a new, empty location."
+        )
+    columns = {col["name"] for col in inspector.get_columns("user_settings")}
+    has_001 = "last_oura_sync" in columns
+    has_002 = "experiments" in tables
+    if has_002 and not has_001:
+        with engine.begin() as conn:
+            Operations(MigrationContext.configure(conn)).add_column(
+                "user_settings", Column("last_oura_sync", DateTime(), nullable=True)
+            )
+        logger.warning(
+            "Repaired a legacy hybrid schema: added user_settings.last_oura_sync "
+            "(001's delta, skipped by the old create_all-on-startup)."
+        )
+        has_001 = True
+    revision = "002" if has_002 else "001" if has_001 else "000_baseline"
+    _stamp_version(revision)
+    return revision
+
+
+def init_db() -> None:
+    """Create or adopt the database on application startup.
+
+    Fresh database (no model tables): create the full current schema and
+    stamp the alembic head, so future ``make migrate`` runs start from the
+    right place (issue #49). Unstamped database (pre-fix install, or an
+    emptied version table): adopt it via ``_adopt_legacy_db``. A database
+    behind head gets a warning, and is deliberately NOT patched with
+    ``create_all``: that adds missing tables but never columns, which would
+    corrupt the migration path (duplicate-table on upgrade).
     """
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
-    Base.metadata.create_all(bind=engine)
+    inspector = inspect(engine)
+    model_tables = set(inspector.get_table_names()) - {"alembic_version"}
+    head = _alembic_head()
+
+    current: str | None
+    if not model_tables:
+        # Covers both a brand-new DB and a stray version-table-only file:
+        # create_all is exact here, and stamping head makes it consistent.
+        Base.metadata.create_all(bind=engine)
+        _stamp_version(head)
+        current = head
+    else:
+        with engine.connect() as conn:
+            # None when the version table is missing OR empty — both mean
+            # "unstamped" and both existed in pre-fix installs.
+            current = MigrationContext.configure(conn).get_current_revision()
+        if current is None:
+            current = _adopt_legacy_db(inspector, model_tables)
+
+    if current != head:
+        logger.warning(
+            "Database schema is at revision %s but the current release "
+            "expects %s — run `make migrate` to upgrade.",
+            current,
+            head,
+        )
+
     _harden_db_permissions(settings.db_path)
