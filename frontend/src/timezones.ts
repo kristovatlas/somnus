@@ -33,10 +33,20 @@ export const CURATED_TIMEZONE_LABELS: Record<string, string> = {
   "Australia/Sydney": "Sydney",
 };
 
-export const ALL_TIMEZONES: readonly string[] =
+/** Intl returns only canonical zones (~418) while the backend accepts the
+ * full IANA set incl. link names (~599). Legacy aliases (US/Pacific, …)
+ * stay unoffered on purpose — each has a canonical equivalent, and a stored
+ * alias survives via the prepend in timezoneOptions. "UTC" is the one zone
+ * people genuinely want that some ICU builds omit, so it's guaranteed. */
+function withUtc(zones: readonly string[]): readonly string[] {
+  return zones.includes("UTC") ? zones : ["UTC", ...zones];
+}
+
+export const ALL_TIMEZONES: readonly string[] = withUtc(
   typeof Intl.supportedValuesOf === "function"
     ? Intl.supportedValuesOf("timeZone")
-    : CURATED_TIMEZONES;
+    : CURATED_TIMEZONES,
+);
 
 /** Options for a select bound to `current`: a stored value the runtime
  * doesn't know (legacy free-text typo) is prepended so the select still
