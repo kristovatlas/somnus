@@ -2,19 +2,32 @@
 
 # --- Setup ---
 # T-13 (docs/THREAT_MODEL.md, ADR 014): the 7-day install cooldown lives in
-# pyproject.toml [tool.uv.pip]. uv itself is pinned so the gating tool can't
-# be hit by publish-then-yank; bump the pin via a reviewed PR. Urgent security
-# fix inside the window: UV_EXCLUDE_NEWER="0 days" make setup-backend
+# pyproject.toml [tool.uv] and gates `uv lock` — vetting happens when the
+# lockfile is updated, not when it is reproduced. uv itself is pinned so the
+# gating tool can't be hit by publish-then-yank; bump the pin via a reviewed
+# PR. Urgent security fix inside the window: commit an
+# exclude-newer-package override in pyproject.toml [tool.uv] and `uv lock`
+# (NOT the UV_EXCLUDE_NEWER env var — see the pyproject comment).
 UV_VERSION := 0.11.26
+UV_PIP := uv pip install $(if $(VIRTUAL_ENV),,--system)
 
 setup: setup-backend setup-frontend
 
 setup-backend:
 	python -m pip install --quiet uv==$(UV_VERSION)
-	# Base images ship a stale setuptools that pip-audit gates on
-	# (PYSEC-2026-3447, fixed in 83.0.0); keep it current, floor at the fix.
-	uv pip install $(if $(VIRTUAL_ENV),,--system) --upgrade "setuptools>=83.0.0"
-	uv pip install $(if $(VIRTUAL_ENV),,--system) -e ".[dev]"
+	# T-13 (ADR 014): install exactly the committed uv.lock resolution.
+	# --locked fails loudly if pyproject.toml changed without `uv lock`.
+	# Deliberately not `uv sync`: it only targets a project venv
+	# (.venv/UV_PROJECT_ENVIRONMENT — no --system mode), so it can't serve
+	# the CI/README no-venv flow. (`--inexact` solves package-stripping,
+	# not env-targeting.)
+	uv export --locked --quiet --no-emit-project --extra dev -o .uv-export.txt
+	# Cooldown off for this line only: these exact pins+hashes were already
+	# vetted at lock time; re-filtering by age here would block installing
+	# a lock that carries a legitimate emergency override.
+	UV_EXCLUDE_NEWER="0 days" $(UV_PIP) --require-hashes -r .uv-export.txt
+	# setuptools (build backend) comes pinned+hashed from the lock above.
+	$(UV_PIP) --no-deps --no-build-isolation -e .
 
 setup-frontend:
 	cd frontend && npm install
@@ -70,6 +83,7 @@ audit:
 
 # --- Clean ---
 clean:
+	rm -f .uv-export.txt
 	rm -rf __pycache__ .pytest_cache .mypy_cache .coverage htmlcov .ruff_cache
 	rm -rf backend/__pycache__ backend/**/__pycache__
 	rm -rf frontend/dist frontend/.vite frontend/node_modules/.vite
