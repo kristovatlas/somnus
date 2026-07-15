@@ -272,4 +272,71 @@ describe("DailyLogPage", () => {
     });
     expect(screen.getByText("Caffeine")).toBeInTheDocument();
   });
+
+  // --- #47: tracked-sections gating ---
+
+  it("hides untracked sections without data", async () => {
+    localStorage.setItem(
+      "somnus-tracked-sections",
+      JSON.stringify(["caffeine", "meals"]),
+    );
+    mockFetch();
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Caffeine")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Meals")).toBeInTheDocument();
+    expect(screen.queryByText("Supplements")).not.toBeInTheDocument();
+    expect(screen.queryByText("Naps")).not.toBeInTheDocument();
+    expect(screen.queryByText("NSDR")).not.toBeInTheDocument();
+  });
+
+  it("an untracked section still renders when the day holds data in it", async () => {
+    localStorage.setItem(
+      "somnus-tracked-sections",
+      JSON.stringify(["caffeine"]),
+    );
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(JSON.stringify(mockSettings));
+      }
+      if (
+        urlStr.includes("/api/daily-log/") &&
+        (!init || !init.method || init.method === "GET")
+      ) {
+        return new Response(
+          JSON.stringify({
+            ...mockLogOut,
+            nap_entries: [
+              {
+                id: 1,
+                date: "2024-06-15",
+                start_time: "14:00:00",
+                end_time: "14:30:00",
+                duration_minutes: 30,
+              },
+            ],
+          }),
+        );
+      }
+      return new Response(JSON.stringify([]));
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Caffeine")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Naps")).toBeInTheDocument(); // has data → shows
+    expect(screen.queryByText("Meals")).not.toBeInTheDocument(); // untracked, empty
+  });
+
+  it("renders every section when nothing is stored (default all-on)", async () => {
+    mockFetch();
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Caffeine")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Supplements")).toBeInTheDocument();
+    expect(screen.getByText("Naps")).toBeInTheDocument();
+  });
 });

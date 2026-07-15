@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Toggle } from "../shared/Toggle";
-import { StepNavigation } from "./StepNavigation";
 import {
   TRACKED_SECTIONS,
   readTrackedSections,
@@ -8,12 +7,10 @@ import {
 } from "../../trackedSections";
 import type { SectionKey } from "../../trackedSections";
 
-interface TrackingSetupStepProps {
-  onNext: () => void;
-  onBack: () => void;
-}
-
-export function TrackingSetupStep({ onNext, onBack }: TrackingSetupStepProps) {
+/** #47: post-onboarding editor for which Daily Log sections render.
+ * Device-scoped (localStorage), applied on the next Daily Log visit;
+ * sections that already hold data for a day always render there. */
+export function TrackingSection() {
   const [selected, setSelected] =
     useState<Set<SectionKey>>(readTrackedSections);
 
@@ -22,28 +19,24 @@ export function TrackingSetupStep({ onNext, onBack }: TrackingSetupStepProps) {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      writeTrackedSections(next);
       return next;
     });
   };
 
-  const handleNext = () => {
-    writeTrackedSections(selected);
-    onNext();
-  };
-
   return (
-    <div>
-      <h2>What do you want to track?</h2>
+    <section className="settings-section">
+      <h2 className="settings-section-title">Tracked Sections</h2>
       <p
         style={{
           color: "var(--color-text-secondary)",
-          margin: "0.5rem 0 1.5rem",
+          fontSize: "0.85rem",
+          margin: "0 0 0.75rem",
         }}
       >
-        Choose which sections appear in your daily log. A section that already
-        holds data always shows. You can change this anytime in Settings.
+        Choose which sections appear in the Daily Log on this device. A section
+        that already holds data for a day always shows.
       </p>
-
       <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         {TRACKED_SECTIONS.map((item) => (
           <Toggle
@@ -54,13 +47,6 @@ export function TrackingSetupStep({ onNext, onBack }: TrackingSetupStepProps) {
           />
         ))}
       </div>
-
-      <StepNavigation
-        isFirst={false}
-        isLast={false}
-        onBack={onBack}
-        onNext={handleNext}
-      />
-    </div>
+    </section>
   );
 }

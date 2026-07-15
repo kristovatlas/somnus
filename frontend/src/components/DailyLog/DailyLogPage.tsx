@@ -19,6 +19,8 @@ import { SunlightSection } from "./sections/SunlightSection";
 import { RedLightSection } from "./sections/RedLightSection";
 import { NSDRSection } from "./sections/NSDRSection";
 import { CaffeineChart } from "../CaffeineChart/CaffeineChart";
+import { readTrackedSections } from "../../trackedSections";
+import type { SectionKey } from "../../trackedSections";
 import "./DailyLogPage.css";
 
 /** Strip id/date from a DailyLogOut to get form data after a copy. */
@@ -114,6 +116,14 @@ export function DailyLogPage() {
     save,
   } = useDailyLog(currentDate);
   const [settings, setSettings] = useState<UserSettingsOut | null>(null);
+  // #47: read once per mount — Settings edits land on the next visit here.
+  const [tracked] = useState(readTrackedSections);
+
+  // An untracked section still renders when the viewed day holds data in
+  // it: hiding recorded entries would be worse than showing an extra
+  // section (and the form still submits the full payload either way).
+  const visible = (key: SectionKey, hasData: boolean) =>
+    tracked.has(key) || hasData;
 
   useEffect(() => {
     getSettings()
@@ -213,64 +223,89 @@ export function DailyLogPage() {
       </div>
 
       <div className="daily-log-sections">
-        <CaffeineSection
-          entries={formData.caffeine_entries}
-          onChange={(v) => update("caffeine_entries", v)}
-        />
+        {visible("caffeine", formData.caffeine_entries.length > 0) && (
+          <CaffeineSection
+            entries={formData.caffeine_entries}
+            onChange={(v) => update("caffeine_entries", v)}
+          />
+        )}
 
         {formData.caffeine_entries.length > 0 && (
           <CaffeineChart points={caffeinePoints} bedtimeHour={bedtimeHour} />
         )}
 
-        <MealSection
-          entries={formData.meal_entries}
-          onChange={(v) => update("meal_entries", v)}
-        />
+        {visible("meals", formData.meal_entries.length > 0) && (
+          <MealSection
+            entries={formData.meal_entries}
+            onChange={(v) => update("meal_entries", v)}
+          />
+        )}
 
-        <SupplementSection
-          entries={formData.supplement_entries}
-          onChange={(v) => update("supplement_entries", v)}
-        />
+        {visible("supplements", formData.supplement_entries.length > 0) && (
+          <SupplementSection
+            entries={formData.supplement_entries}
+            onChange={(v) => update("supplement_entries", v)}
+          />
+        )}
 
-        <HabitSection
-          entries={formData.habit_entries}
-          onChange={(v) => update("habit_entries", v)}
-        />
+        {visible("habits", formData.habit_entries.length > 0) && (
+          <HabitSection
+            entries={formData.habit_entries}
+            onChange={(v) => update("habit_entries", v)}
+          />
+        )}
 
-        <StimulatingSection
-          entries={formData.stimulating_activity_entries}
-          onChange={(v) => update("stimulating_activity_entries", v)}
-        />
+        {visible(
+          "stimulating",
+          formData.stimulating_activity_entries.length > 0,
+        ) && (
+          <StimulatingSection
+            entries={formData.stimulating_activity_entries}
+            onChange={(v) => update("stimulating_activity_entries", v)}
+          />
+        )}
 
-        <SexualActivitySection
-          entry={formData.sexual_activity_entry}
-          onChange={(v) => update("sexual_activity_entry", v)}
-        />
+        {visible("sexual", formData.sexual_activity_entry !== null) && (
+          <SexualActivitySection
+            entry={formData.sexual_activity_entry}
+            onChange={(v) => update("sexual_activity_entry", v)}
+          />
+        )}
 
-        <PreBedRitualSection
-          entries={formData.pre_bed_ritual_entries}
-          onChange={(v) => update("pre_bed_ritual_entries", v)}
-        />
+        {visible("rituals", formData.pre_bed_ritual_entries.length > 0) && (
+          <PreBedRitualSection
+            entries={formData.pre_bed_ritual_entries}
+            onChange={(v) => update("pre_bed_ritual_entries", v)}
+          />
+        )}
 
-        <NapSection
-          entries={formData.nap_entries}
-          onChange={(v) => update("nap_entries", v)}
-        />
+        {visible("naps", formData.nap_entries.length > 0) && (
+          <NapSection
+            entries={formData.nap_entries}
+            onChange={(v) => update("nap_entries", v)}
+          />
+        )}
 
-        <SunlightSection
-          entries={formData.sunlight_entries}
-          onChange={(v) => update("sunlight_entries", v)}
-        />
+        {visible("sunlight", formData.sunlight_entries.length > 0) && (
+          <SunlightSection
+            entries={formData.sunlight_entries}
+            onChange={(v) => update("sunlight_entries", v)}
+          />
+        )}
 
-        <RedLightSection
-          entries={formData.red_light_entries}
-          onChange={(v) => update("red_light_entries", v)}
-        />
+        {visible("redLight", formData.red_light_entries.length > 0) && (
+          <RedLightSection
+            entries={formData.red_light_entries}
+            onChange={(v) => update("red_light_entries", v)}
+          />
+        )}
 
-        <NSDRSection
-          entries={formData.nsdr_entries}
-          onChange={(v) => update("nsdr_entries", v)}
-        />
+        {visible("nsdr", formData.nsdr_entries.length > 0) && (
+          <NSDRSection
+            entries={formData.nsdr_entries}
+            onChange={(v) => update("nsdr_entries", v)}
+          />
+        )}
       </div>
 
       <div className="daily-log-notes">
