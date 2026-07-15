@@ -2,9 +2,9 @@
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from backend.config import settings
 
 # Importing backend.database registers the T-09 `PRAGMA foreign_keys=ON`
@@ -13,7 +13,7 @@ from backend.config import settings
 # `batch_alter_table` (table-recreate) migration must disable it first
 # (`op.execute("PRAGMA foreign_keys=OFF")` or the listener will fail the copy).
 from backend.database import Base
-from backend.models import *  # noqa: F401, F403 — ensure all models are registered
+from backend.models import *  # noqa: F403 — ensure all models are registered
 
 config = context.config
 

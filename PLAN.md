@@ -657,7 +657,7 @@ docker compose up
 - All schema changes managed through Alembic migration files
 - `make migrate` — Apply pending migrations
 - `make migration MSG="add foo table"` — Auto-generate migration from model changes
-- Migrations run automatically on app startup if pending
+- Startup stamps/adopts the DB's alembic revision and warns if migrations are pending; apply them with `make migrate` (never automatic — releases are verified against a copy of the real DB first, per 10.5)
 - Backward-compatible migrations only — no data loss on upgrade
 
 ---
@@ -991,7 +991,7 @@ Every PR must pass a security review before merge. This is a health data applica
 
 10. **Circadian display mode as default** — Deep amber/red color palette (#1A0500 background, #FF8C00 text) that avoids melanopsin-triggering wavelengths. No white, no green, no pure yellow. A sleep app should practice what it preaches.
 
-11. **Alembic for all schema changes** — Every data model change goes through a migration. Auto-runs on startup. No manual SQL, no "just delete the DB." Users' data survives every upgrade.
+11. **Alembic for all schema changes** — Every data model change goes through a migration, applied explicitly with `make migrate` (startup stamps fresh/legacy DBs and warns when behind — it never runs migration DDL itself). No manual SQL, no "just delete the DB." Users' data survives every upgrade.
 
 12. **Correlation ≠ causation, always** — Analysis language never says "causes." Every insight shows sample size and confidence. Persistent explainer accessible from every analysis view. The experiment feature is the path from correlation to confidence.
 

@@ -108,13 +108,7 @@ def test_migrated_schema_matches_create_all(tmp_path: Path) -> None:
     finally:
         eng.dispose()
 
-    structural = [
-        d
-        for d in diffs
-        if (d[0] if isinstance(d, tuple) else d[0][0])
-        in {"add_table", "remove_table", "add_column", "remove_column"}
-    ]
-    assert structural == [], f"migrated schema differs from create_all: {structural}"
+    assert diffs == [], f"migrated schema differs from create_all: {diffs}"
 
 
 def test_alembic_ini_parses_without_interpolation_error() -> None:
@@ -216,3 +210,59 @@ def test_init_db_quiet_on_stamped_current_db(
     with caplog.at_level(logging.WARNING, logger="backend.database"):
         database.init_db()
     assert caplog.records == []
+
+
+def test_init_db_rejects_unrecognizable_database(tmp_db: Path) -> None:
+    """Tables present, but no user_settings and no stamp: not ours — refuse
+    loudly instead of crashing with NoSuchTableError or adopting a foreign file."""
+    with database.engine.begin() as conn:
+        conn.execute(text("CREATE TABLE foreign_stuff (id INTEGER PRIMARY KEY)"))
+
+    with pytest.raises(RuntimeError, match="not a recognizable Somnus database"):
+        database.init_db()
+
+
+def test_init_db_repairs_hybrid_legacy_schema(
+    tmp_db: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Pre-001 DB later booted under 002-era code: old create_all added the
+    experiments TABLE but never the last_oura_sync COLUMN. No revision matches
+    that shape — init_db must apply 001's delta itself, then stamp 002."""
+    command.upgrade(_cfg(tmp_db), "000_baseline")
+    _drop_version_table(tmp_db)
+    Base.metadata.tables["experiments"].create(bind=database.engine)
+
+    with caplog.at_level(logging.WARNING, logger="backend.database"):
+        database.init_db()
+
+    assert _stamped_revision(tmp_db) == "002"
+    columns = {c["name"] for c in inspect(database.engine).get_columns("user_settings")}
+    assert "last_oura_sync" in columns
+    assert any("legacy hybrid" in rec.message for rec in caplog.records)
+    command.upgrade(_cfg(tmp_db), "head")  # completes cleanly from the repair
+    assert _stamped_revision(tmp_db) == HEAD
+
+
+def test_init_db_treats_empty_version_table_as_unstamped(tmp_db: Path) -> None:
+    """An alembic_version table with zero rows means unstamped, not 'behind
+    head' — telling the user to run make migrate would dead-end (upgrade from
+    base collides with the existing tables)."""
+    command.upgrade(_cfg(tmp_db), "head")
+    with database.engine.begin() as conn:
+        conn.execute(text("DELETE FROM alembic_version"))
+
+    database.init_db()
+    assert _stamped_revision(tmp_db) == HEAD
+
+
+def test_init_db_bootstraps_version_table_only_database(tmp_db: Path) -> None:
+    """A file holding only alembic_version (e.g. a stray `alembic stamp`) has
+    no model tables — treat it as fresh, not as a healthy stamped-at-head DB
+    that would 500 on every request."""
+    database._stamp_version(HEAD)
+    assert set(inspect(database.engine).get_table_names()) == {"alembic_version"}
+
+    database.init_db()
+    tables = set(inspect(database.engine).get_table_names())
+    assert tables >= ALL_MODEL_TABLES
+    assert _stamped_revision(tmp_db) == HEAD

@@ -42,10 +42,10 @@ jobs:
         run: uv lock --check
 
       - name: Lint (ruff)
-        run: ruff check backend
+        run: ruff check backend alembic
 
       - name: Format check (ruff)
-        run: ruff format --check backend
+        run: ruff format --check backend alembic
 
       - name: Type check (mypy)
         run: mypy backend --ignore-missing-imports

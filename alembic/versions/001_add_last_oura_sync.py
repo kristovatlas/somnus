@@ -1,12 +1,13 @@
 """Add last_oura_sync column to user_settings.
 
 Revision ID: 001
-Revises:
+Revises: 000_baseline
 Create Date: 2026-02-18
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "001"
 down_revision = "000_baseline"
