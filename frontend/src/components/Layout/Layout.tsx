@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { getSettings } from "../../api/settings";
+import { applyThemeFromSettings } from "../../theme";
 import type { UserSettingsOut } from "../../types";
 import "./Layout.css";
 
@@ -20,6 +21,16 @@ export function Layout() {
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  // #46: the display-mode setting decides the body theme class. Re-applied
+  // every minute so Auto mode crosses its start/wake boundaries while the
+  // app sits open; useSettings.update() re-applies immediately on change.
+  useEffect(() => {
+    if (!settings) return;
+    applyThemeFromSettings(settings);
+    const timer = setInterval(() => applyThemeFromSettings(settings), 60_000);
+    return () => clearInterval(timer);
+  }, [settings]);
 
   useEffect(() => {
     if (loading || !settings) return;

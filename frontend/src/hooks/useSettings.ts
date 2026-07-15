@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSettings, updateSettings } from "../api/settings";
+import { applyThemeFromSettings } from "../theme";
 import type { UserSettingsOut, UserSettingsUpdate } from "../types";
 
 export function useSettings() {
@@ -17,6 +18,8 @@ export function useSettings() {
   const update = useCallback(async (data: UserSettingsUpdate) => {
     const updated = await updateSettings(data);
     setSettings(updated);
+    // #46: theme changes take effect immediately, not on next page load.
+    applyThemeFromSettings(updated);
     return updated;
   }, []);
 
