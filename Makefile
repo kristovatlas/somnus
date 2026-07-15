@@ -11,6 +11,9 @@ setup: setup-backend setup-frontend
 
 setup-backend:
 	python -m pip install --quiet uv==$(UV_VERSION)
+	# Base images ship a stale setuptools that pip-audit gates on
+	# (PYSEC-2026-3447, fixed in 83.0.0); keep it current, floor at the fix.
+	uv pip install $(if $(VIRTUAL_ENV),,--system) --upgrade "setuptools>=83.0.0"
 	uv pip install $(if $(VIRTUAL_ENV),,--system) -e ".[dev]"
 
 setup-frontend:
