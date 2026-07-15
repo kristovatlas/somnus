@@ -1,7 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { getDailyLog, saveDailyLog } from "../api/dailyLog";
 import type { DailyLogCreate, DailyLogOut } from "../types";
 import { ApiError } from "../types/api";
+
+export type SaveStatus = "idle" | "saved" | "error";
+
+/** Human-readable message for a failed request. FastAPI 422s carry an array
+ * in `detail` at runtime despite the string typing — never render raw JSON —
+ * and HTTP/2 has no statusText, so an empty detail also gets the fallback. */
+function errorMessage(e: unknown, action: string): string {
+  if (e instanceof ApiError) {
+    return typeof e.detail === "string" && e.detail !== ""
+      ? `${action} failed: ${e.detail}`
+      : `${action} failed (HTTP ${e.status})`;
+  }
+  if (e instanceof TypeError) {
+    return `${action} failed: could not reach the backend`;
+  }
+  return `${action} failed: unexpected error`;
+}
 
 function emptyLog(): DailyLogCreate {
   return {
@@ -107,37 +125,86 @@ function outToCreate(out: DailyLogOut): DailyLogCreate {
 }
 
 export function useDailyLog(date: string) {
-  const [formData, setFormData] = useState<DailyLogCreate>(emptyLog);
+  const [formData, rawSetFormData] = useState<DailyLogCreate>(emptyLog);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [exists, setExists] = useState(false);
+  const dateRef = useRef(date);
+  dateRef.current = date;
 
   useEffect(() => {
+    // Cancellation guard: a slow response for a day the user has already
+    // navigated away from must not stomp the current day's form or error.
+    let cancelled = false;
     setLoading(true);
     setWarnings([]);
+    setLoadError(null);
+    setSaveStatus("idle");
+    setSaveError(null);
     getDailyLog(date)
       .then((out) => {
-        setFormData(outToCreate(out));
+        if (cancelled) return;
+        rawSetFormData(outToCreate(out));
         setExists(true);
       })
       .catch((e: unknown) => {
+        if (cancelled) return;
         if (e instanceof ApiError && e.status === 404) {
-          setFormData(emptyLog());
+          rawSetFormData(emptyLog());
           setExists(false);
+        } else {
+          // Anything else must NOT fall through to an empty editable form:
+          // saving that form would overwrite a day that may hold data.
+          setLoadError(errorMessage(e, "Loading this day"));
         }
       })
-      .finally(() => setLoading(false));
-  }, [date]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, reloadNonce]);
+
+  const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
+
+  /** Any edit invalidates the "Saved ✓" state and clears a stale error. */
+  const setFormData: Dispatch<SetStateAction<DailyLogCreate>> = useCallback(
+    (value) => {
+      setSaveStatus("idle");
+      setSaveError(null);
+      rawSetFormData(value);
+    },
+    [],
+  );
 
   const save = useCallback(async () => {
     setSaving(true);
+    setSaveStatus("idle");
+    setSaveError(null);
+    // Stale warnings from a previous save must not sit next to this
+    // attempt's outcome and read as if they belong to it.
+    setWarnings([]);
     try {
       const res = await saveDailyLog(date, formData);
-      setFormData(outToCreate(res.data));
+      // Navigated away mid-save? The result belongs to the old day —
+      // don't overwrite the new day's form or claim "Saved ✓" on it.
+      if (dateRef.current !== date) return res;
+      rawSetFormData(outToCreate(res.data));
       setWarnings(res.warnings);
       setExists(true);
+      setSaveStatus("saved");
       return res;
+    } catch (e: unknown) {
+      if (dateRef.current !== date) return null;
+      setSaveStatus("error");
+      setSaveError(errorMessage(e, "Save"));
+      return null;
     } finally {
       setSaving(false);
     }
@@ -149,7 +216,11 @@ export function useDailyLog(date: string) {
     warnings,
     setWarnings,
     loading,
+    loadError,
+    reload,
     saving,
+    saveStatus,
+    saveError,
     exists,
     save,
   };

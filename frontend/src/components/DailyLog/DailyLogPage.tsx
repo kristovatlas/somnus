@@ -106,7 +106,11 @@ export function DailyLogPage() {
     warnings,
     setWarnings,
     loading,
+    loadError,
+    reload,
     saving,
+    saveStatus,
+    saveError,
     save,
   } = useDailyLog(currentDate);
   const [settings, setSettings] = useState<UserSettingsOut | null>(null);
@@ -148,6 +152,28 @@ export function DailyLogPage() {
         }}
       >
         Loading...
+      </div>
+    );
+  }
+
+  if (loadError) {
+    // No editable form here: saving an empty form over a day whose load
+    // failed would overwrite whatever that day already holds.
+    return (
+      <div className="daily-log-page">
+        <DateNavigator
+          date={currentDate}
+          isToday={isToday}
+          onPrev={prev}
+          onNext={next}
+          onToday={today}
+        />
+        <div className="daily-log-load-error" role="alert">
+          <p>{loadError}</p>
+          <button type="button" onClick={reload}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -265,12 +291,22 @@ export function DailyLogPage() {
       <div className="daily-log-save">
         <button
           type="button"
-          onClick={save}
+          onClick={() => void save()}
           disabled={saving}
           className="daily-log-save-btn"
         >
           {saving ? "Saving..." : "Save"}
         </button>
+        {saveStatus === "saved" && (
+          <span className="daily-log-save-ok" role="status">
+            Saved ✓
+          </span>
+        )}
+        {saveStatus === "error" && saveError && (
+          <span className="daily-log-save-error" role="alert">
+            {saveError}
+          </span>
+        )}
       </div>
     </div>
   );

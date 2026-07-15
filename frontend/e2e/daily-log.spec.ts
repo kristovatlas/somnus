@@ -22,7 +22,8 @@ test.describe("Daily log", () => {
     // Save the log
     await page.getByRole("button", { name: "Save" }).click();
 
-    // Wait for save to complete (button returns to "Save")
+    // Explicit save confirmation (#35): the UI must say the save landed
+    await expect(page.getByText("Saved ✓")).toBeVisible();
     await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
 
     // Reload the page and verify persistence
