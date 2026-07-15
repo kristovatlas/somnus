@@ -3,31 +3,10 @@ import { SelectInput } from "../shared/SelectInput";
 import { StepNavigation } from "./StepNavigation";
 import type { UserSettingsUpdate } from "../../types";
 
-const TIMEZONES = [
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Anchorage",
-  "Pacific/Honolulu",
-  "Europe/London",
-  "Europe/Berlin",
-  "Asia/Tokyo",
-  "Australia/Sydney",
-] as const;
-
-const TIMEZONE_LABELS: Record<string, string> = {
-  "America/New_York": "Eastern (US)",
-  "America/Chicago": "Central (US)",
-  "America/Denver": "Mountain (US)",
-  "America/Los_Angeles": "Pacific (US)",
-  "America/Anchorage": "Alaska",
-  "Pacific/Honolulu": "Hawaii",
-  "Europe/London": "London",
-  "Europe/Berlin": "Berlin",
-  "Asia/Tokyo": "Tokyo",
-  "Australia/Sydney": "Sydney",
-};
+import {
+  CURATED_TIMEZONES as TIMEZONES,
+  CURATED_TIMEZONE_LABELS as TIMEZONE_LABELS,
+} from "../../timezones";
 
 interface WelcomeStepProps {
   age: number | null;

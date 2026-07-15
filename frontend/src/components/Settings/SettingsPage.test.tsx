@@ -102,4 +102,35 @@ describe("SettingsPage", () => {
     expect(screen.getByText("Sync Now")).toBeInTheDocument();
     expect(screen.getByText("Remove Token")).toBeInTheDocument();
   });
+
+  // --- #50: timezone is a validated select, not free text ---
+
+  it("renders timezone as a select carrying the stored value", async () => {
+    mockFetch();
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Profile")).toBeInTheDocument();
+    });
+    const select = screen.getByLabelText("Timezone");
+    expect(select.tagName).toBe("SELECT");
+    expect(select).toHaveValue("America/New_York");
+  });
+
+  it("a stored non-IANA legacy value still appears so it can be corrected", async () => {
+    mockFetch();
+    vi.mocked(globalThis.fetch).mockImplementation(async (url) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(
+          JSON.stringify({ ...mockSettings, timezone: "Amerca/New_York" }),
+        );
+      }
+      return new Response(JSON.stringify([]));
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Profile")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Timezone")).toHaveValue("Amerca/New_York");
+  });
 });

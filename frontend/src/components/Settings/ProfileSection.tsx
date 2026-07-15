@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NumberInput } from "../shared/NumberInput";
 import { SelectInput } from "../shared/SelectInput";
 import { TimePicker } from "../shared/TimePicker";
+import { timezoneOptions } from "../../timezones";
 import type { UserSettingsOut, UserSettingsUpdate } from "../../types";
 import {
   CaffeineSensitivity,
@@ -53,12 +54,17 @@ export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
           <label className="settings-field-label" htmlFor="timezone">
             Timezone
           </label>
-          <input
+          <select
             id="timezone"
-            type="text"
             value={settings.timezone}
             onChange={(e) => handleChange({ timezone: e.target.value })}
-          />
+          >
+            {timezoneOptions(settings.timezone).map((tz) => (
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
+            ))}
+          </select>
         </div>
 
         <TimePicker
