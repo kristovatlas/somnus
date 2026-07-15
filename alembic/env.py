@@ -24,7 +24,14 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return f"sqlite:///{settings.db_path}"
+    """A programmatically-set URL (tests, tooling) wins; else app settings.
+
+    alembic.ini deliberately sets no sqlalchemy.url (a %(...)s env-var
+    interpolation there crashes ini parsing — issue #68), so CLI runs fall
+    through to settings, which honors SOMNUS_DB_PATH.
+    """
+    configured = config.get_main_option("sqlalchemy.url")
+    return configured or f"sqlite:///{settings.db_path}"
 
 
 def run_migrations_offline() -> None:
