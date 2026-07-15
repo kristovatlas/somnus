@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { getDailyLog, saveDailyLog } from "../api/dailyLog";
 import type { DailyLogCreate, DailyLogOut } from "../types";
@@ -7,14 +7,18 @@ import { ApiError } from "../types/api";
 export type SaveStatus = "idle" | "saved" | "error";
 
 /** Human-readable message for a failed request. FastAPI 422s carry an array
- * in `detail` at runtime despite the string typing — never render raw JSON. */
+ * in `detail` at runtime despite the string typing — never render raw JSON —
+ * and HTTP/2 has no statusText, so an empty detail also gets the fallback. */
 function errorMessage(e: unknown, action: string): string {
   if (e instanceof ApiError) {
-    return typeof e.detail === "string"
+    return typeof e.detail === "string" && e.detail !== ""
       ? `${action} failed: ${e.detail}`
       : `${action} failed (HTTP ${e.status})`;
   }
-  return `${action} failed: could not reach the backend`;
+  if (e instanceof TypeError) {
+    return `${action} failed: could not reach the backend`;
+  }
+  return `${action} failed: unexpected error`;
 }
 
 function emptyLog(): DailyLogCreate {
@@ -130,8 +134,13 @@ export function useDailyLog(date: string) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [exists, setExists] = useState(false);
+  const dateRef = useRef(date);
+  dateRef.current = date;
 
   useEffect(() => {
+    // Cancellation guard: a slow response for a day the user has already
+    // navigated away from must not stomp the current day's form or error.
+    let cancelled = false;
     setLoading(true);
     setWarnings([]);
     setLoadError(null);
@@ -139,10 +148,12 @@ export function useDailyLog(date: string) {
     setSaveError(null);
     getDailyLog(date)
       .then((out) => {
+        if (cancelled) return;
         rawSetFormData(outToCreate(out));
         setExists(true);
       })
       .catch((e: unknown) => {
+        if (cancelled) return;
         if (e instanceof ApiError && e.status === 404) {
           rawSetFormData(emptyLog());
           setExists(false);
@@ -152,7 +163,12 @@ export function useDailyLog(date: string) {
           setLoadError(errorMessage(e, "Loading this day"));
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [date, reloadNonce]);
 
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
@@ -171,14 +187,21 @@ export function useDailyLog(date: string) {
     setSaving(true);
     setSaveStatus("idle");
     setSaveError(null);
+    // Stale warnings from a previous save must not sit next to this
+    // attempt's outcome and read as if they belong to it.
+    setWarnings([]);
     try {
       const res = await saveDailyLog(date, formData);
+      // Navigated away mid-save? The result belongs to the old day —
+      // don't overwrite the new day's form or claim "Saved ✓" on it.
+      if (dateRef.current !== date) return res;
       rawSetFormData(outToCreate(res.data));
       setWarnings(res.warnings);
       setExists(true);
       setSaveStatus("saved");
       return res;
     } catch (e: unknown) {
+      if (dateRef.current !== date) return null;
       setSaveStatus("error");
       setSaveError(errorMessage(e, "Save"));
       return null;
