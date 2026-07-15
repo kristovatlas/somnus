@@ -27,7 +27,7 @@ jobs:
           path: |
             ~/.cache/uv
             ~/.cache/pip
-          key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml', 'Makefile') }}
+          key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml', 'uv.lock', 'Makefile') }}
           restore-keys: ${{ runner.os }}-uv-${{ matrix.python-version }}-
 
       # Install recipe lives once in the Makefile (pinned uv); the T-13
@@ -35,6 +35,11 @@ jobs:
       # so CI runs exactly what contributors run.
       - name: Install dependencies (make setup-backend, T-13 cooldown)
         run: make setup-backend
+
+      # T-13 (ADR 014): fail if pyproject.toml changed without regenerating
+      # uv.lock — the lockfile must never lag the dependency list.
+      - name: Lockfile up to date (uv lock --check)
+        run: uv lock --check
 
       - name: Lint (ruff)
         run: ruff check backend

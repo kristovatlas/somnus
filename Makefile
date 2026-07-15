@@ -14,7 +14,12 @@ setup-backend:
 	# Base images ship a stale setuptools that pip-audit gates on
 	# (PYSEC-2026-3447, fixed in 83.0.0); keep it current, floor at the fix.
 	uv pip install $(if $(VIRTUAL_ENV),,--system) --upgrade "setuptools>=83.0.0"
-	uv pip install $(if $(VIRTUAL_ENV),,--system) -e ".[dev]"
+	# T-13 (ADR 014): install exactly the committed uv.lock resolution, with
+	# hash verification. Deliberately not `uv sync`: exact-sync would strip
+	# non-project packages (uv, setuptools) from the --system env in CI.
+	uv export --frozen --quiet --no-emit-project --extra dev -o .uv-export.txt
+	uv pip install $(if $(VIRTUAL_ENV),,--system) -r .uv-export.txt
+	uv pip install $(if $(VIRTUAL_ENV),,--system) --no-deps -e .
 
 setup-frontend:
 	cd frontend && npm install
