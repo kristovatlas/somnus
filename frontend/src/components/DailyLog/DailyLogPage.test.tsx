@@ -143,4 +143,133 @@ describe("DailyLogPage", () => {
       ).toBeInTheDocument();
     });
   });
+
+  // --- #35: explicit save feedback + load-failure guard ---
+
+  it("shows Saved ✓ after a successful save and clears it on edit", async () => {
+    mockFetch();
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Save"));
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved ✓");
+
+    // Any edit invalidates the confirmation
+    await user.click(screen.getByLabelText("Sick day"));
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+  });
+
+  it("surfaces a failed save with the backend detail", async () => {
+    mockFetch();
+    vi.mocked(globalThis.fetch).mockImplementation(async (url, init) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(JSON.stringify(mockSettings));
+      }
+      if (urlStr.includes("/api/daily-log/") && init?.method === "PUT") {
+        return new Response(
+          JSON.stringify({ detail: "red-light panel 7 does not exist" }),
+          { status: 409 },
+        );
+      }
+      return new Response(JSON.stringify(mockLogOut));
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Save"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Save failed: red-light panel 7 does not exist",
+    );
+    // Form is still there — nothing lost
+    expect(screen.getByText("Caffeine")).toBeInTheDocument();
+  });
+
+  it("falls back to a generic message when a 422 detail is not a string", async () => {
+    mockFetch();
+    vi.mocked(globalThis.fetch).mockImplementation(async (url, init) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(JSON.stringify(mockSettings));
+      }
+      if (urlStr.includes("/api/daily-log/") && init?.method === "PUT") {
+        // FastAPI validation errors carry an array in detail
+        return new Response(
+          JSON.stringify({
+            detail: [{ loc: ["body", "caffeine_entries"], msg: "bad" }],
+          }),
+          { status: 422 },
+        );
+      }
+      return new Response(JSON.stringify(mockLogOut));
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Save"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Save failed (HTTP 422)",
+    );
+  });
+
+  it("shows an error panel instead of an empty form when loading fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(JSON.stringify(mockSettings));
+      }
+      return new Response(JSON.stringify({ detail: "boom" }), { status: 500 });
+    });
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Loading this day failed: boom",
+    );
+    // The overwrite hazard: no editable form, no Save button
+    expect(screen.queryByText("Save")).not.toBeInTheDocument();
+    expect(screen.queryByText("Caffeine")).not.toBeInTheDocument();
+  });
+
+  it("retry after a failed load fetches the day again", async () => {
+    let failGet = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(JSON.stringify(mockSettings));
+      }
+      if (
+        urlStr.includes("/api/daily-log/") &&
+        (!init || !init.method || init.method === "GET")
+      ) {
+        if (failGet) {
+          return new Response(JSON.stringify({ detail: "boom" }), {
+            status: 500,
+          });
+        }
+        return new Response(JSON.stringify(mockLogOut));
+      }
+      return new Response(JSON.stringify([]));
+    });
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    failGet = false;
+    await user.click(screen.getByText("Retry"));
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Caffeine")).toBeInTheDocument();
+  });
 });

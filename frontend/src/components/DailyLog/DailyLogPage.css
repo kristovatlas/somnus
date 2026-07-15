@@ -43,3 +43,29 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.daily-log-save-ok,
+.daily-log-save-error {
+  display: block;
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.daily-log-save-ok {
+  color: var(--color-success);
+}
+
+.daily-log-save-error {
+  color: var(--color-error);
+}
+
+.daily-log-load-error {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-error);
+}
+
+.daily-log-load-error button {
+  margin-top: 0.5rem;
+}
