@@ -44,7 +44,7 @@ describe("SettingsPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders all four sections", async () => {
+  it("renders all five sections", async () => {
     mockFetch();
     renderPage();
     await waitFor(() => {
@@ -54,6 +54,7 @@ describe("SettingsPage", () => {
     expect(screen.getByText("Profile")).toBeInTheDocument();
     expect(screen.getByText("Red Light Panels")).toBeInTheDocument();
     expect(screen.getByText("Display")).toBeInTheDocument();
+    expect(screen.getByText("Tracked Sections")).toBeInTheDocument();
   });
 
   it("shows loading state", () => {

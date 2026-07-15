@@ -48,6 +48,10 @@ function isSectionKey(key: string): key is SectionKey {
   return (ALL_KEYS as readonly string[]).includes(key);
 }
 
+/** Storage format v2: `{"v":2,"keys":[...]}`. A bare array is always the
+ * pre-#47 legacy format — versioning is what makes legacy values
+ * unambiguously detectable forever (a bare `["caffeine"]` could otherwise
+ * be either era, and the eras disagree about never-offered sections). */
 export function readTrackedSections(): Set<SectionKey> {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === null) return new Set(ALL_KEYS);
@@ -57,25 +61,42 @@ export function readTrackedSections(): Set<SectionKey> {
   } catch {
     return new Set(ALL_KEYS);
   }
-  if (!Array.isArray(parsed)) return new Set(ALL_KEYS);
 
-  const keys = parsed.filter((k): k is string => typeof k === "string");
-  const result = new Set<SectionKey>();
-  let sawLegacyKey = false;
-  for (const key of keys) {
-    if (key in LEGACY_KEY_MAP) {
-      sawLegacyKey = true;
-      result.add(LEGACY_KEY_MAP[key]);
-    } else if (isSectionKey(key)) {
-      result.add(key);
+  if (Array.isArray(parsed)) {
+    // Legacy (pre-#47): habit types collapse into "habits"; sections the
+    // old step never offered stay tracked — the user never chose otherwise.
+    const result = new Set<SectionKey>(LEGACY_ABSENT);
+    for (const key of parsed) {
+      if (typeof key !== "string") continue;
+      if (Object.hasOwn(LEGACY_KEY_MAP, key)) {
+        result.add(LEGACY_KEY_MAP[key]);
+      } else if (isSectionKey(key)) {
+        result.add(key);
+      }
     }
+    return result;
   }
-  if (sawLegacyKey) {
-    for (const key of LEGACY_ABSENT) result.add(key);
+
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "keys" in parsed &&
+    Array.isArray((parsed as { keys: unknown }).keys)
+  ) {
+    const keys = (parsed as { keys: unknown[] }).keys;
+    return new Set(
+      keys.filter(
+        (k): k is SectionKey => typeof k === "string" && isSectionKey(k),
+      ),
+    );
   }
-  return result;
+
+  return new Set(ALL_KEYS);
 }
 
 export function writeTrackedSections(sections: Set<SectionKey>): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...sections]));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ v: 2, keys: [...sections] }),
+  );
 }

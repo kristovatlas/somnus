@@ -15,13 +15,12 @@ export function TrackingSection() {
     useState<Set<SectionKey>>(readTrackedSections);
 
   const toggle = (key: SectionKey) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      writeTrackedSections(next);
-      return next;
-    });
+    // Persist outside the updater: StrictMode double-invokes updaters.
+    const next = new Set(selected);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setSelected(next);
+    writeTrackedSections(next);
   };
 
   return (

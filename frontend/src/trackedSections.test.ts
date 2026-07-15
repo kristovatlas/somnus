@@ -38,7 +38,7 @@ describe("trackedSections storage", () => {
   it("ignores unknown keys and survives corrupt values", () => {
     localStorage.setItem(
       "somnus-tracked-sections",
-      JSON.stringify(["caffeine", "bogus-key"]),
+      JSON.stringify({ v: 2, keys: ["caffeine", "bogus-key"] }),
     );
     expect(readTrackedSections()).toEqual(new Set(["caffeine"]));
 
@@ -49,8 +49,37 @@ describe("trackedSections storage", () => {
     expect(readTrackedSections()).toEqual(new Set(ALL));
   });
 
-  it("an empty stored array means nothing tracked (a deliberate choice)", () => {
+  it("an empty v2 selection means nothing tracked (a deliberate choice)", () => {
     writeTrackedSections(new Set());
     expect(readTrackedSections()).toEqual(new Set());
+  });
+
+  it("writes the versioned format so future reads never guess", () => {
+    writeTrackedSections(new Set(["caffeine"]));
+    const raw = JSON.parse(localStorage.getItem("somnus-tracked-sections")!);
+    expect(raw).toEqual({ v: 2, keys: ["caffeine"] });
+  });
+
+  it("a bare array is ALWAYS legacy: never-offered sections stay tracked", () => {
+    // ["caffeine","sunlight"] was byte-ambiguous pre-versioning; legacy wins.
+    localStorage.setItem(
+      "somnus-tracked-sections",
+      JSON.stringify(["caffeine", "sunlight"]),
+    );
+    const tracked = readTrackedSections();
+    expect(tracked.has("stimulating")).toBe(true);
+    expect(tracked.has("sexual")).toBe(true);
+    expect(tracked.has("meals")).toBe(false);
+  });
+
+  it("prototype-chain names in stored values are inert", () => {
+    localStorage.setItem(
+      "somnus-tracked-sections",
+      JSON.stringify(["toString", "constructor", "caffeine"]),
+    );
+    const tracked = readTrackedSections();
+    // legacy array: caffeine kept, junk dropped, never-offered added
+    expect(tracked.has("caffeine")).toBe(true);
+    expect([...tracked].every((k) => typeof k === "string")).toBe(true);
   });
 });
