@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { getSettings } from "../../api/settings";
-import { applyThemeFromSettings } from "../../theme";
+import { applyThemeFromSettings, reapplyTheme } from "../../theme";
 import type { UserSettingsOut } from "../../types";
 import "./Layout.css";
 
@@ -22,13 +22,16 @@ export function Layout() {
     fetchSettings();
   }, [fetchSettings]);
 
-  // #46: the display-mode setting decides the body theme class. Re-applied
-  // every minute so Auto mode crosses its start/wake boundaries while the
-  // app sits open; useSettings.update() re-applies immediately on change.
+  // #46: the display-mode setting decides the body theme class. The
+  // interval re-ticks every minute so Auto mode crosses its start/wake
+  // boundaries while the app sits open — via reapplyTheme(), which reads
+  // the FRESHEST applied settings (useSettings.update() re-applies on
+  // every PATCH); ticking from this effect's own `settings` would revert
+  // a just-changed theme to Layout's stale mount-time snapshot.
   useEffect(() => {
     if (!settings) return;
     applyThemeFromSettings(settings);
-    const timer = setInterval(() => applyThemeFromSettings(settings), 60_000);
+    const timer = setInterval(() => reapplyTheme(), 60_000);
     return () => clearInterval(timer);
   }, [settings]);
 

@@ -18,11 +18,14 @@ export type EffectiveTheme = "circadian" | "light";
 
 const FALLBACK_WAKE = "06:30:00";
 
-/** "HH:MM" or "HH:MM:SS" → minutes since midnight; null if unparseable. */
+/** "HH:MM" or "HH:MM:SS" → minutes since midnight; null if unparseable.
+ * Number.isInteger rejects NaN and undefined in one check (a bare "20"
+ * would otherwise yield NaN that poisons every later comparison). */
 function toMinutes(time: string | null | undefined): number | null {
   if (!time) return null;
   const [h, m] = time.split(":").map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m) || h > 23 || m > 59) return null;
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return null;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
   return h * 60 + m;
 }
 
@@ -52,10 +55,17 @@ export function applyTheme(theme: EffectiveTheme): void {
   document.body.classList.toggle("theme-light", theme === "light");
 }
 
+/** The freshest settings ever applied. Layout's periodic re-tick reads
+ * this instead of its own fetch-time snapshot: useSettings.update() runs
+ * through applyThemeFromSettings on every PATCH, so a stale Layout closure
+ * can never revert a just-changed theme. */
+let lastApplied: UserSettingsOut | null = null;
+
 export function applyThemeFromSettings(
   settings: UserSettingsOut,
   now: Date = new Date(),
 ): EffectiveTheme {
+  lastApplied = settings;
   const theme = computeEffectiveTheme(
     settings.display_mode,
     settings.circadian_mode_start,
@@ -64,4 +74,9 @@ export function applyThemeFromSettings(
   );
   applyTheme(theme);
   return theme;
+}
+
+/** Re-evaluate Auto mode's clock window against the freshest settings. */
+export function reapplyTheme(now: Date = new Date()): void {
+  if (lastApplied) applyThemeFromSettings(lastApplied, now);
 }

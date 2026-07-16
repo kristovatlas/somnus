@@ -75,19 +75,10 @@ test.describe("Settings", () => {
     // Applies without a reload...
     await expect(page.locator("body")).toHaveClass(/theme-light/);
 
-    // ...and survives one
+    // ...and survives one (no restore needed: fixtures reset the DB per test)
     await page.waitForTimeout(500);
     await page.reload();
     await expect(page.getByText("Profile")).toBeVisible();
     await expect(page.locator("body")).toHaveClass(/theme-light/);
-
-    // Restore circadian for any tests that follow
-    const reloadedSelect = page
-      .locator(".select-input")
-      .filter({ hasText: "Display Mode" })
-      .locator("select");
-    await reloadedSelect.selectOption("circadian");
-    await expect(page.locator("body")).toHaveClass(/theme-circadian/);
-    await page.waitForTimeout(500);
   });
 });
