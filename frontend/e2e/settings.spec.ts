@@ -57,4 +57,28 @@ test.describe("Settings", () => {
       .locator("input[type=number]");
     await expect(reloadedAge).toHaveValue("30");
   });
+
+  test("display mode change applies the theme immediately and persists (#46)", async ({
+    page,
+  }) => {
+    await expect(page.getByText("Profile")).toBeVisible();
+
+    // Default is circadian
+    await expect(page.locator("body")).toHaveClass(/theme-circadian/);
+
+    const displaySelect = page
+      .locator(".select-input")
+      .filter({ hasText: "Display Mode" })
+      .locator("select");
+    await displaySelect.selectOption("light");
+
+    // Applies without a reload...
+    await expect(page.locator("body")).toHaveClass(/theme-light/);
+
+    // ...and survives one (no restore needed: fixtures reset the DB per test)
+    await page.waitForTimeout(500);
+    await page.reload();
+    await expect(page.getByText("Profile")).toBeVisible();
+    await expect(page.locator("body")).toHaveClass(/theme-light/);
+  });
 });

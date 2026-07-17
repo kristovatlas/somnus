@@ -155,7 +155,7 @@ C4Component
 
         Component(router, "Router", "react-router-dom v7", "URL-based routing. /onboarding, /log/:date, /dashboard, /analysis, /recommendations, /reports, /settings. Layout guard checks onboarding status.")
 
-        Component(layout, "Layout", "React", "Nav header with app title, dashboard, analysis, recommendations, reports, and settings links. Onboarding gate — redirects based on settings.onboarding_completed.")
+        Component(layout, "Layout", "React", "Nav header with app title, dashboard, analysis, recommendations, reports, and settings links. Onboarding gate — redirects based on settings.onboarding_completed. Applies the display theme (theme.ts) from settings on load, re-ticking each minute for Auto mode.")
 
         Component_Boundary(onboarding, "Onboarding Wizard") {
             Component(wizard, "OnboardingWizard", "React", "6-step wizard: Welcome, Oura, SleepProfile, TrackingSetup, DataStorage, Done. Per-step PATCH to settings.")
