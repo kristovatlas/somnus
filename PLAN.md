@@ -233,6 +233,8 @@ After 14+ days of data, progressively unlock insights:
 - Track experiment outcomes
 
 ### 5. Science-Backed Reference Data
+
+*Contextual tips across the UI descoped from v0.1.0 (#63, 2026-07-16; revisit post-dogfood). The Analysis explainer + evidence pills are built.*
 Built into the UI as contextual tips and info icons:
 
 | Factor | Key Threshold | Evidence Level |
@@ -524,6 +526,8 @@ First-run experience that sets up the app without overwhelming the user.
 
 ### 16. Data Validation & Outlier Handling
 
+*Outlier review UI descoped from v0.1.0 (#53, 2026-07-16) — to be designed together with #20's exclusion generalization post-0.1. Validation/soft-warnings below are built.*
+
 **Input validation — sensible range checks:**
 
 | Field | Valid Range | Soft Warning | Hard Reject |
@@ -546,6 +550,8 @@ Soft warnings show a confirmation but allow entry. Hard rejects prevent saving (
 - Analysis results shown both with and without outliers when they meaningfully change conclusions
 
 ### 17. Illness Tracking
+
+*Built for v0.1.0: sick-day flag + analysis exclusion. Everything beyond exclusion descoped (#62, 2026-07-16) into the post-0.1 analysis-quality cluster.*
 
 Simple toggle on the daily log: "I was sick today"
 
@@ -593,6 +599,8 @@ Ethical responsibility: users will read statistical associations as causal. We m
 - When R² is low: "These factors explain only X% of your sleep variation — other unmeasured factors may matter more"
 
 ### 20. Data Export
+
+*Backend endpoints built (JSON / CSV-zip / SQLite). The frontend export UI is descoped from v0.1.0 (#52, 2026-07-16).*
 
 Users own their data. Full portability.
 
