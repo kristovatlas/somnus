@@ -688,7 +688,7 @@ Jet lag is a massive sleep disruptor. When a user travels, Oura data shifts but 
 - Basic CORS config, health check endpoint
 - Configure pytest (backend), Vitest + RTL (frontend), Playwright (e2e)
 - Pre-commit hooks: ruff, mypy, eslint, prettier
-- Configurable DB path: `SOMNUS_DB_PATH` env var or settings, default `~/.somnus/somnus.db`
+- Configurable DB path: chosen at launch via a first-run terminal prompt (#41, ADR 015; flag > `SOMNUS_DB_PATH` env > saved config > prompt > default `~/.somnus/somnus.db`)
 - Alembic setup for database migrations
 - ~~Docker Compose file for alternative deployment~~ (descoped from v0.1.0 → post-0.1, #56)
 - **Git setup**: Create `dev` branch from `main`, configure branch protection rules, set up PR template with security checklist
