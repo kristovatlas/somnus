@@ -289,3 +289,16 @@ def test_bare_init_db_subprocess_creates_full_schema(tmp_path: Path) -> None:
         eng.dispose()
     assert tables >= ALL_MODEL_TABLES
     assert _stamped_revision(db_path) == HEAD
+
+
+def test_migration_003_adds_redlight_distance(tmp_path: Path) -> None:
+    """#60: the 003 migration adds red_light_entries.distance_inches, and
+    the chain still reaches head cleanly (first real post-baseline delta)."""
+    db_path = tmp_path / "m003.db"
+    command.upgrade(_cfg(db_path), "head")
+    eng = database.create_db_engine(str(db_path))
+    try:
+        cols = {c["name"] for c in inspect(eng).get_columns("red_light_entries")}
+    finally:
+        eng.dispose()
+    assert "distance_inches" in cols

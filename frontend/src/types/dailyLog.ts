@@ -71,6 +71,7 @@ export interface RedLightEntryCreate {
   panel_id: number | null;
   start_time: string | null;
   duration_minutes: number | null;
+  distance_inches: number | null;
 }
 
 export interface NSDREntryCreate {
