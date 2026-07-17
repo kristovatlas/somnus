@@ -657,7 +657,7 @@ docker compose up
 - All schema changes managed through Alembic migration files
 - `make migrate` — Apply pending migrations
 - `make migration MSG="add foo table"` — Auto-generate migration from model changes
-- Startup stamps/adopts the DB's alembic revision and warns if migrations are pending; apply them with `make migrate` (never automatic — releases are verified against a copy of the real DB first, per 10.5)
+- Startup stamps/adopts the DB's alembic revision and warns if migrations are pending; apply them with `make migrate` — which `make dev` runs first (#78), so the dev flow self-heals while startup stays passive (releases still verify migrations against a copy of the real DB first, per 10.5)
 - Backward-compatible migrations only — no data loss on upgrade
 
 ---
