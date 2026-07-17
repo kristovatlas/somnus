@@ -360,3 +360,54 @@ def test_update_entry_unknown_panel_id_409_without_sql_leak(client: TestClient) 
     )
     assert resp.status_code == 409
     _assert_no_sql_leak(resp.json()["detail"])
+
+
+def test_redlight_dose_inverse_square_by_distance(client: TestClient) -> None:
+    """#60: session dose scales (reference/actual)^2 with distance."""
+    panel_id = client.post(
+        "/api/red-light-panels",
+        json={"name": "P", "irradiance_mw_cm2": 100, "default_distance_inches": 6},
+    ).json()["id"]
+
+    # At the reference distance (6"): unadjusted → 100 mW/cm² * 600s / 1000 = 60 J/cm²
+    r = client.put(
+        "/api/daily-log/2026-07-16",
+        json={
+            "red_light_entries": [
+                {"panel_id": panel_id, "duration_minutes": 10, "distance_inches": 6}
+            ]
+        },
+    )
+    assert r.status_code == 200
+    assert r.json()["data"]["red_light_entries"][0]["dose_joules_cm2"] == 60.0
+
+    # Twice the distance (12") → factor (6/12)^2 = 0.25 → 15 J/cm²
+    r = client.put(
+        "/api/daily-log/2026-07-16",
+        json={
+            "red_light_entries": [
+                {"panel_id": panel_id, "duration_minutes": 10, "distance_inches": 12}
+            ]
+        },
+    )
+    assert r.json()["data"]["red_light_entries"][0]["dose_joules_cm2"] == 15.0
+
+    # No session distance → unadjusted (pre-#60 behavior preserved)
+    r = client.put(
+        "/api/daily-log/2026-07-16",
+        json={"red_light_entries": [{"panel_id": panel_id, "duration_minutes": 10}]},
+    )
+    assert r.json()["data"]["red_light_entries"][0]["dose_joules_cm2"] == 60.0
+
+
+def test_redlight_rejects_nonpositive_distance(client: TestClient) -> None:
+    panel_id = client.post("/api/red-light-panels", json={"name": "P"}).json()["id"]
+    r = client.put(
+        "/api/daily-log/2026-07-16",
+        json={
+            "red_light_entries": [
+                {"panel_id": panel_id, "duration_minutes": 10, "distance_inches": 0}
+            ]
+        },
+    )
+    assert r.status_code == 422
