@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from pathlib import Path
 
 from backend.config import CONFIG_FILE, DEFAULT_DB_DIR, read_saved_db_path
@@ -64,11 +65,12 @@ def _validate_target(raw: str) -> tuple[Path | None, str | None]:
         )
     if not parent.is_dir():
         return None, f"{parent} is not a directory."
-    # Best-effort writability probe without creating the DB itself.
-    probe = parent / ".somnus-write-test"
+    # Best-effort writability probe: a UNIQUE temp file in the parent, so we
+    # never touch or delete a real file the user happens to have named
+    # `.somnus-write-test`. tempfile handles create + cleanup atomically.
     try:
-        probe.touch()
-        probe.unlink()
+        with tempfile.NamedTemporaryFile(dir=parent, prefix=".somnus-write-"):
+            pass
     except OSError:
         return None, f"{parent} is not writable."
     return path, None

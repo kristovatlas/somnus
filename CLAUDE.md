@@ -46,6 +46,7 @@ CI on `dev` was red from 2026-02 to 2026-07 because merges never verified it. Th
 ### Architecture Docs
 - ARCHITECTURE.md must be updated in the same commit as any structural change.
 - New ADRs created for significant architectural decisions.
+- **Docs must describe what the code in the SAME change actually does — never a planned/intended end-state.** A doc (THREAT_MODEL, ADR, PLAN, README) that says a component "now does X" or "becomes Y" requires the code in that same PR to actually make it so; otherwise describe the true current state and file the rest as follow-up. This bit us on #41/PR #95: ADR 015 + THREAT_MODEL were written saying the onboarding step "becomes confirmation," but the frontend copy was left unchanged "to keep scope tight" — so the canonical docs contradicted the shipped UI (a never-lags-the-code violation) and left actively-misleading relocation instructions in the app. Lesson: **frontend/user-facing copy is in-scope for the change that makes its docs true; do not add aspirational doc claims and defer the code.** When a feature changes how an existing flow works, sweep every surface that describes the old flow in the same PR.
 
 ### Git Workflow
 - Relaxed git flow: feature/* → dev → main.

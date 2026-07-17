@@ -40,8 +40,7 @@ export function DataStorageStep({ onNext, onBack }: DataStorageStepProps) {
           {/* U+FE0E forces text (monochrome) presentation so the glyph
               inherits --color-warning instead of rendering as a yellow
               color emoji, which would violate the circadian palette (ADR 004). */}
-          {"⚠︎ "}This database is not encrypted — protect it before you connect
-          Oura
+          {"⚠︎ "}This database is not encrypted — protect it with disk encryption
         </p>
         <p
           style={{
@@ -81,9 +80,11 @@ export function DataStorageStep({ onNext, onBack }: DataStorageStepProps) {
           </li>
           <li>
             For a second layer, keep the database inside an{" "}
-            <strong>encrypted volume such as VeraCrypt</strong> and point Somnus
-            at it (see below), so the data stays encrypted even while you are
-            logged in and the volume is unmounted.
+            <strong>encrypted volume such as VeraCrypt</strong>. If you have not
+            already pointed Somnus at one (you chose the location when you
+            started it — see below), you can move it there anytime; on an
+            encrypted volume the data stays protected even while it is
+            unmounted.
           </li>
         </ol>
       </div>
@@ -96,15 +97,13 @@ export function DataStorageStep({ onNext, onBack }: DataStorageStepProps) {
         }}
       >
         <li>
-          Default location: <code>~/.somnus/somnus.db</code>
+          Your database is stored at the location you chose when you started
+          Somnus (the launcher prompted you before any data was written).
         </li>
         <li>
-          To store it on an encrypted volume, quit and relaunch with{" "}
-          <code>SOMNUS_DB_PATH=/your/encrypted/path/somnus.db</code> now —
-          before connecting Oura — so your token is never written to the default
-          location. The wizard saves your answers from the first screen, so
-          after relaunching also delete <code>~/.somnus/somnus.db</code> and
-          re-enter the few fields you have filled in so far.
+          To move it — for example onto an encrypted volume you set up later —
+          mount the volume, then re-run <code>make db-location</code> (or set{" "}
+          <code>SOMNUS_DB_PATH</code>) and restart Somnus.
         </li>
         <li>Export your data anytime as CSV or JSON</li>
         <li>No cloud accounts required</li>

@@ -18,6 +18,12 @@ DEFAULT_DB_DIR = Path.home() / ".somnus"
 # perms regardless of where the DB itself goes.
 CONFIG_FILE = DEFAULT_DB_DIR / "db-location"
 
+# Records the path at which a DB was last SUCCESSFULLY created/opened. Lets the
+# startup guard (#41) tell a genuine first creation from a configured DB whose
+# data has vanished (unmounted encrypted volume) — the latter must refuse, not
+# silently create a shadow plaintext DB. Also app-dir-local, path string only.
+INITIALIZED_MARKER = DEFAULT_DB_DIR / ".db-initialized"
+
 
 def read_saved_db_path() -> str | None:
     """The DB path saved by the launcher, or None if unset/blank/unreadable.
@@ -31,6 +37,24 @@ def read_saved_db_path() -> str | None:
     except OSError:
         return None
     return value or None
+
+
+def read_initialized_db_path() -> str | None:
+    """The path at which a DB was last successfully initialized, or None."""
+    try:
+        value = INITIALIZED_MARKER.read_text().strip()
+    except OSError:
+        return None
+    return value or None
+
+
+def mark_db_initialized(path: Path) -> None:
+    """Record that a DB now exists at ``path`` (best-effort)."""
+    try:
+        INITIALIZED_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        INITIALIZED_MARKER.write_text(f"{path}\n")
+    except OSError:
+        pass
 
 
 def _default_db_path() -> Path:

@@ -5,7 +5,6 @@ non-interactive resolution precedence, persistence, validation, and the
 headless (non-TTY) fallback — everything that runs unattended.
 """
 
-import importlib
 from pathlib import Path
 
 import pytest
@@ -52,13 +51,11 @@ def test_env_var_overrides_saved_config(
     saved = isolated_home / "vol" / "somnus.db"
     saved.parent.mkdir()
     db_location.main(["--path", str(saved)])
-    # Env var wins over the saved file (pydantic env source > default_factory)
+    # Env var wins over the saved file (pydantic env source > default_factory).
+    # Construct Settings() fresh rather than reloading the module — a reload
+    # would desync the singleton from database.settings and pollute later tests.
     monkeypatch.setenv("SOMNUS_DB_PATH", str(isolated_home / "env.db"))
-    importlib.reload(config)
-    try:
-        assert config.Settings().db_path == isolated_home / "env.db"
-    finally:
-        importlib.reload(config)  # restore module state for other tests
+    assert config.Settings().db_path == isolated_home / "env.db"
 
 
 def test_flag_rejects_unwritable_or_missing_parent(isolated_home: Path) -> None:
@@ -97,3 +94,48 @@ def test_validate_target_blank_and_expanduser(isolated_home: Path) -> None:
     path, reason = db_location._validate_target("~/.somnus/x.db")
     assert reason is None
     assert path == isolated_home / ".somnus" / "x.db"
+
+
+def test_init_db_refuses_previously_initialized_missing_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#41 guard: a configured path that was set up before but is now missing
+    (unmounted encrypted volume) must refuse, not create a shadow plaintext DB
+    — even when the mount-point directory still exists (the Linux case)."""
+    from backend import config, database
+
+    marker = tmp_path / ".db-initialized"
+    monkeypatch.setattr(config, "INITIALIZED_MARKER", marker)
+    # mount point present, DB gone (volume unmounted) — the realistic case
+    mount = tmp_path / "veracrypt"
+    mount.mkdir()
+    gone = mount / "somnus.db"
+    config.mark_db_initialized(gone)  # it was successfully set up here before
+    monkeypatch.setenv("SOMNUS_DB_PATH", str(gone))
+    monkeypatch.setattr("backend.database.settings.db_path", gone)
+
+    with pytest.raises(RuntimeError, match="missing"):
+        database.init_db()
+    assert not gone.exists()  # refused to create a shadow DB
+
+
+def test_init_db_first_creation_at_configured_path_is_allowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No marker for this path yet → genuine first creation, must NOT refuse."""
+    from backend import config, database
+
+    marker = tmp_path / ".db-initialized"
+    monkeypatch.setattr(config, "INITIALIZED_MARKER", marker)
+    target = tmp_path / "vol" / "somnus.db"
+    target.parent.mkdir()
+    monkeypatch.setenv("SOMNUS_DB_PATH", str(target))
+    eng = database.create_db_engine(str(target))
+    monkeypatch.setattr(database, "engine", eng)
+    monkeypatch.setattr("backend.database.settings.db_path", target)
+    try:
+        database.init_db()  # first run here — creates, no refusal
+        assert target.exists()
+        assert config.read_initialized_db_path() == str(target)  # marker written
+    finally:
+        eng.dispose()
