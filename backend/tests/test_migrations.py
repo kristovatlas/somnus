@@ -266,3 +266,26 @@ def test_init_db_bootstraps_version_table_only_database(tmp_db: Path) -> None:
     tables = set(inspect(database.engine).get_table_names())
     assert tables >= ALL_MODEL_TABLES
     assert _stamped_revision(tmp_db) == HEAD
+
+
+def test_bare_init_db_subprocess_creates_full_schema(tmp_path: Path) -> None:
+    """The `make migrate` pre-step imports ONLY backend.database. Without
+    init_db registering the models itself, a fresh DB would be stamped at
+    head with zero tables (Codex P2 on PR #87)."""
+    db_path = tmp_path / "bare.db"
+    result = subprocess.run(
+        [sys.executable, "-c", "from backend.database import init_db; init_db()"],
+        cwd=REPO_ROOT,
+        env={**os.environ, "SOMNUS_DB_PATH": str(db_path)},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    eng = database.create_db_engine(str(db_path))
+    try:
+        tables = set(inspect(eng).get_table_names())
+    finally:
+        eng.dispose()
+    assert tables >= ALL_MODEL_TABLES
+    assert _stamped_revision(db_path) == HEAD

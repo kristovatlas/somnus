@@ -39,7 +39,7 @@ Open http://localhost:5173 in your browser. The onboarding wizard walks you thro
 | Command | What it does |
 |---------|-------------|
 | `make setup` | Install all dependencies (pip + npm) |
-| `make dev` | Run backend + frontend in dev mode |
+| `make dev` | Apply pending DB migrations, then run backend + frontend in dev mode |
 | `make test` | Run all tests (pytest + vitest) |
 | `make lint` | Run all linters (ruff, mypy, eslint) |
 | `make format` | Auto-format Python + TypeScript |

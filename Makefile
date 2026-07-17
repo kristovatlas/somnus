@@ -33,7 +33,10 @@ setup-frontend:
 	cd frontend && npm install
 
 # --- Development ---
-dev:
+# #78: apply pending migrations before launching — the normal dev flow
+# always runs against a current schema (startup itself stays passive:
+# it stamps/adopts but never runs migration DDL; see THREAT_MODEL B2).
+dev: migrate
 	$(MAKE) dev-backend & $(MAKE) dev-frontend & wait
 
 dev-backend:
@@ -73,7 +76,14 @@ format:
 	cd frontend && npm run format
 
 # --- Database ---
+# Adoption first (idempotent): an unstamped pre-#76 DB would crash a raw
+# `alembic upgrade head` (it would re-run the baseline against existing
+# tables). init_db stamps/adopts — including the legacy-hybrid repair —
+# then upgrade applies anything still pending. (A behind-head DB's
+# "run make migrate" log line during this step is self-referential
+# noise — the upgrade on the next line is doing exactly that.)
 migrate:
+	python -c "from backend.database import init_db; init_db()"
 	alembic upgrade head
 
 # --- Security ---

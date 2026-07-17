@@ -183,6 +183,12 @@ def init_db() -> None:
     ``create_all``: that adds missing tables but never columns, which would
     corrupt the migration path (duplicate-table on upgrade).
     """
+    # Register every model on Base.metadata before create_all: a bare
+    # `python -c "from backend.database import init_db; init_db()"` (the
+    # `make migrate` pre-step) imports only this module — without this,
+    # a fresh DB would be stamped at head with ZERO tables created.
+    import backend.models  # noqa: F401
+
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     inspector = inspect(engine)
     model_tables = set(inspector.get_table_names()) - {"alembic_version"}
