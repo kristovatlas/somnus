@@ -607,7 +607,7 @@ Users own their data. Full portability.
 
 ### 21. Weekly & Monthly Summary Reports
 
-**Weekly summary (computed on view, always current — covers the most recent completed ISO week; accepted for v0.1 in #55, 2026-07-16):**
+**Weekly summary (computed on view, always current — defaults to the current ISO week, with ◀ ▶ navigation to prior weeks; accepted for v0.1 in #55, 2026-07-16):**
 - Average sleep score, HRV, deep/REM minutes vs prior week
 - Trend arrows (up/down/flat) for each metric
 - Consistency score for the week (σ, δ, Δ)
@@ -784,7 +784,7 @@ Somnus holds some of the most sensitive personal data an app can: sexual activit
 
 **9.2 — Human review**: Kristov reviews and approves the threat model. It is not authoritative until human-approved; revise until it is.
 
-**9.3 — Audit existing code against the approved model**: full pass over backend, frontend, CI workflows, Makefile, and docker-compose. Every finding becomes either a fix PR referencing the threat-model section it enforces, or an explicitly documented accepted risk in the doc. Audit report committed under `docs/reviews/`.
+**9.3 — Audit existing code against the approved model**: full pass over backend, frontend, CI workflows, and Makefile. *(Historical note: this step's original text also named docker-compose, which never existed — see #56, descoped 2026-07-16.)* Every finding becomes either a fix PR referencing the threat-model section it enforces, or an explicitly documented accepted risk in the doc. Audit report committed under `docs/reviews/`.
 
 - **Done — dependency-install cooldown (T-13, ADR 014):** a ~7-day minimum release age now gates installs in both ecosystems — `min-release-age=7` (days) in `frontend/.npmrc`, with the npm ≥ 11.10 floor enforced via `engines` + `engine-strict`, and top-level `[tool.uv] exclude-newer = "7 days"` committed in `pyproject.toml` — the single cooldown key, gating `uv lock` regeneration and the whole `uv pip` interface (install recipe lives once in `make setup-backend`, which CI runs; `uv`/`npm` pinned so the gating tools don't float). Override for urgent fixes: commit `exclude-newer-package = { <pkg> = "0 days" }` and `uv lock` (see ADR 014 §4 — the `UV_EXCLUDE_NEWER` env var no longer works for the locked backend flow). Done 2026-07-15: backend lockfile `uv.lock` committed and enforced (`uv export --locked` install + CI `uv lock --check`). The other two sub-items landed in PR #65: `npm audit` runs in CI *before* `npm ci` (lockfile-only, audit-before-install), and all Actions are SHA-pinned.
 
