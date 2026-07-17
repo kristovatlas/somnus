@@ -4,6 +4,10 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { Layout } from "./components/Layout/Layout";
 import { OnboardingWizard } from "./components/Onboarding/OnboardingWizard";
 import { DailyLogPage } from "./components/DailyLog/DailyLogPage";
+import {
+  NotFoundPage,
+  RouteErrorPage,
+} from "./components/Layout/RouteFallbacks";
 
 const mockSettingsOnboarded = {
   oura_token_set: false,
@@ -24,15 +28,23 @@ const mockSettingsNotOnboarded = {
   onboarding_completed: false,
 };
 
+function ThrowingPage(): never {
+  throw new Error("boom from render");
+}
+
 function createRouter(initialPath: string) {
+  // Mirrors the real router's shape (#51: errorElement + catch-all included)
   return createMemoryRouter(
     [
       {
         path: "/",
         element: <Layout />,
+        errorElement: <RouteErrorPage />,
         children: [
           { path: "onboarding", element: <OnboardingWizard /> },
           { path: "log/:date", element: <DailyLogPage /> },
+          { path: "explodes", element: <ThrowingPage /> },
+          { path: "*", element: <NotFoundPage /> },
         ],
       },
     ],
@@ -113,6 +125,60 @@ describe("Router guard", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Somnus")).toBeInTheDocument();
+    });
+  });
+
+  // --- #51: router hardening ---
+
+  it("unknown URLs render the not-found page inside the app chrome", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify(mockSettingsOnboarded)),
+    );
+    render(<RouterProvider router={createRouter("/no/such/page")} />);
+    expect(await screen.findByText("Page not found")).toBeInTheDocument();
+    expect(screen.getByText("Go to today's log")).toBeInTheDocument();
+  });
+
+  it("a render error shows the recovery page, not a white screen", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify(mockSettingsOnboarded)),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {}); // router logs the throw
+    render(<RouterProvider router={createRouter("/explodes")} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Something went wrong",
+    );
+    expect(screen.getByText("boom from render")).toBeInTheDocument();
+    expect(screen.getByText("Reload")).toBeInTheDocument();
+  });
+
+  it("backend down shows the shell-level unreachable banner with retry", async () => {
+    let fail = true;
+    // Only the settings fetch fails: failing everything would ALSO raise the
+    // Daily Log's own load-error Retry panel (#79) and make "Retry" ambiguous.
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        if (fail) throw new TypeError("fetch failed");
+        return new Response(JSON.stringify(mockSettingsOnboarded));
+      }
+      return new Response(JSON.stringify({ detail: "Not found" }), {
+        status: 404,
+      });
+    });
+    const { getByText } = render(
+      <RouterProvider router={createRouter("/log/2024-06-15")} />,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Backend not reachable",
+    );
+
+    fail = false;
+    getByText("Retry").click();
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/Backend not reachable/),
+      ).not.toBeInTheDocument();
     });
   });
 });

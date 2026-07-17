@@ -83,4 +83,14 @@ test.describe("Page navigation", () => {
     );
     expect(realErrors).toHaveLength(0);
   });
+
+  test("unknown URL shows the themed not-found page (#51)", async ({
+    page,
+  }) => {
+    // beforeEach already onboarded; just navigate somewhere bogus
+    await page.goto("/definitely/not/a/route");
+    await expect(page.getByText("Page not found")).toBeVisible();
+    await page.getByText("Go to today's log").click();
+    await expect(page).toHaveURL(/\/log\//);
+  });
 });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { getSettings } from "../../api/settings";
+import { ApiError } from "../../types/api";
 import { applyThemeFromSettings, reapplyTheme } from "../../theme";
 import type { UserSettingsOut } from "../../types";
 import "./Layout.css";
@@ -8,13 +9,28 @@ import "./Layout.css";
 export function Layout() {
   const [settings, setSettings] = useState<UserSettingsOut | null>(null);
   const [loading, setLoading] = useState(true);
+  // #51: the shell-level backend-trouble signal — pages still show their
+  // own error strings; this names the common cause once, with a retry.
+  const [shellError, setShellError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   const fetchSettings = useCallback(() => {
     getSettings()
-      .then(setSettings)
-      .catch(() => setSettings(null))
+      .then((s) => {
+        setSettings(s);
+        setShellError(null);
+      })
+      .catch((e: unknown) => {
+        setSettings(null);
+        // An HTTP error means the server is up but unhealthy — say so
+        // instead of overclaiming "not reachable" (review L2).
+        setShellError(
+          e instanceof ApiError
+            ? `Backend error loading settings (HTTP ${e.status}).`
+            : "Backend not reachable — is the server running? Start it with 'make dev' (port 8000).",
+        );
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -110,6 +126,14 @@ export function Layout() {
         </nav>
       </header>
       <main className="layout-main">
+        {shellError && (
+          <div className="layout-unreachable" role="alert">
+            <span>{shellError}</span>
+            <button type="button" onClick={fetchSettings}>
+              Retry
+            </button>
+          </div>
+        )}
         <Outlet context={{ refreshSettings: fetchSettings }} />
       </main>
     </div>

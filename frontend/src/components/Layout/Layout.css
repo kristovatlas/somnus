@@ -52,3 +52,35 @@
   color: var(--color-text-muted);
   font-size: 1.2rem;
 }
+
+/* #51: shell-level backend-unreachable banner */
+.layout-unreachable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  color: var(--color-error);
+  background: var(--color-bg-secondary);
+}
+
+/* #51: not-found and render-error fallback pages */
+.route-fallback {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--color-text-primary);
+}
+
+.route-fallback p {
+  color: var(--color-text-secondary);
+  margin: 0.5rem 0 1.5rem;
+}
+
+.route-fallback-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
