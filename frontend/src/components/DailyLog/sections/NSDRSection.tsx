@@ -16,13 +16,13 @@ function nowTimeStr(): string {
 }
 
 export function NSDRSection({ entries, onChange }: NSDRSectionProps) {
-  const addQuick = (minutes: number | null) =>
+  const addQuick = (minutes: number | null, type: NSDRType) =>
     onChange([
       ...entries,
       {
         time: nowTimeStr(),
         duration_minutes: minutes,
-        nsdr_type: NSDRType.YOGA_NIDRA,
+        nsdr_type: type,
       },
     ]);
   const removeEntry = (index: number) =>
@@ -37,7 +37,7 @@ export function NSDRSection({ entries, onChange }: NSDRSectionProps) {
           <button
             key={min}
             type="button"
-            onClick={() => addQuick(min)}
+            onClick={() => addQuick(min, NSDRType.YOGA_NIDRA)}
             className="quick-add-btn"
           >
             + {min} min
@@ -45,7 +45,7 @@ export function NSDRSection({ entries, onChange }: NSDRSectionProps) {
         ))}
         <button
           type="button"
-          onClick={() => addQuick(null)}
+          onClick={() => addQuick(null, NSDRType.OTHER)}
           className="quick-add-btn"
         >
           + Custom

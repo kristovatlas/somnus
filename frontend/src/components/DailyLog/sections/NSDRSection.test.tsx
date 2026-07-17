@@ -31,6 +31,22 @@ describe("NSDRSection (#61)", () => {
     await user.click(screen.getByText("+ Custom"));
     const added = onChange.mock.calls[0][0][0] as NSDREntryCreate;
     expect(added.duration_minutes).toBeNull();
+    expect(added.nsdr_type).toBe(NSDRType.OTHER); // generic add: user decides
+  });
+
+  it("duration edits floor at 1 (typing 0 becomes 1, matching backend ge=1)", async () => {
+    const entry: NSDREntryCreate = {
+      time: "14:00:00",
+      duration_minutes: 20,
+      nsdr_type: NSDRType.YOGA_NIDRA,
+    };
+    const onChange = setup([entry]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /NSDR/ }));
+    const input = screen.getByRole("spinbutton");
+    fireEvent.change(input, { target: { value: "0" } });
+    const last = onChange.mock.calls.at(-1)![0][0] as NSDREntryCreate;
+    expect(last.duration_minutes).toBe(1);
   });
 
   it("duration is editable after adding, integerized and floored at 1", async () => {
