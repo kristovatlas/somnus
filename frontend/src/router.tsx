@@ -1,5 +1,9 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout/Layout";
+import {
+  NotFoundPage,
+  RouteErrorPage,
+} from "./components/Layout/RouteFallbacks";
 import { OnboardingWizard } from "./components/Onboarding/OnboardingWizard";
 import { DailyLogPage } from "./components/DailyLog/DailyLogPage";
 import { DashboardPage } from "./components/Dashboard/DashboardPage";
@@ -13,6 +17,8 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />,
+    // #51: a thrown render error anywhere below lands here, not a white screen
+    errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: <Navigate to={`/log/${todayStr()}`} replace /> },
       { path: "onboarding", element: <OnboardingWizard /> },
@@ -23,6 +29,8 @@ export const router = createBrowserRouter([
       { path: "recommendations", element: <RecommendationsPage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "settings", element: <SettingsPage /> },
+      // #51: unknown URLs get a themed not-found inside the app chrome
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);

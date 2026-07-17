@@ -8,13 +8,22 @@ import "./Layout.css";
 export function Layout() {
   const [settings, setSettings] = useState<UserSettingsOut | null>(null);
   const [loading, setLoading] = useState(true);
+  // #51: the shell-level "backend not reachable" signal — pages still show
+  // their own error strings; this names the common cause once, with a retry.
+  const [unreachable, setUnreachable] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   const fetchSettings = useCallback(() => {
     getSettings()
-      .then(setSettings)
-      .catch(() => setSettings(null))
+      .then((s) => {
+        setSettings(s);
+        setUnreachable(false);
+      })
+      .catch(() => {
+        setSettings(null);
+        setUnreachable(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -110,6 +119,17 @@ export function Layout() {
         </nav>
       </header>
       <main className="layout-main">
+        {unreachable && (
+          <div className="layout-unreachable" role="alert">
+            <span>
+              Backend not reachable — is the server running? (`make dev` starts
+              it on :8000)
+            </span>
+            <button type="button" onClick={fetchSettings}>
+              Retry
+            </button>
+          </div>
+        )}
         <Outlet context={{ refreshSettings: fetchSettings }} />
       </main>
     </div>
