@@ -86,12 +86,18 @@ export function RedLightSection({ entries, onChange }: RedLightSectionProps) {
               </label>
               <select
                 value={entry.panel_id ?? ""}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const newId = e.target.value ? Number(e.target.value) : null;
+                  const newPanel = panels.find((p) => p.id === newId);
                   updateEntry(i, {
                     ...entry,
-                    panel_id: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
+                    panel_id: newId,
+                    // Re-fill distance from the new panel's rated distance —
+                    // otherwise the old distance would be measured against the
+                    // new panel's reference, silently skewing the dose.
+                    distance_inches: newPanel?.default_distance_inches ?? null,
+                  });
+                }}
                 style={{ width: "100%" }}
               >
                 <option value="">No panel</option>
@@ -119,9 +125,15 @@ export function RedLightSection({ entries, onChange }: RedLightSectionProps) {
           <NumberInput
             label="Distance"
             value={entry.distance_inches}
-            onChange={(v) => updateEntry(i, { ...entry, distance_inches: v })}
+            onChange={(v) =>
+              updateEntry(i, {
+                ...entry,
+                // gt=0 server-side; 0/negative means "unspecified" → null
+                distance_inches: v !== null && v > 0 ? v : null,
+              })
+            }
             unit="in"
-            min={0}
+            min={0.5}
             step={0.5}
           />
           {getDose(entry) && (
