@@ -423,6 +423,7 @@ class UserSettings(Base):
     )
     timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="America/New_York")
     chronotype: Mapped[Chronotype | None] = mapped_column(Enum(Chronotype), nullable=True)
+    # Reserved for #54 (seasonal/solar, post-0.1) — no UI or consumer yet.
     zip_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     display_mode: Mapped[DisplayMode] = mapped_column(
