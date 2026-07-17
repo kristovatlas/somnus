@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import datetime as dt
+import functools
+import zoneinfo
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -365,6 +367,12 @@ class ExportData(BaseModel):
 # --- User Settings ---
 
 
+@functools.lru_cache(maxsize=1)
+def _iana_timezones() -> frozenset[str]:
+    """zoneinfo scans tzdata on every available_timezones() call — cache it."""
+    return frozenset(zoneinfo.available_timezones())
+
+
 class UserSettingsUpdate(BaseModel):
     oura_token: str | None = None
     typical_bedtime: dt.time | None = None
@@ -377,6 +385,18 @@ class UserSettingsUpdate(BaseModel):
     display_mode: DisplayMode | None = None
     circadian_mode_start: dt.time | None = None
     onboarding_completed: bool | None = None
+
+    @field_validator("timezone")
+    @classmethod
+    def _validate_timezone(cls, value: str | None) -> str | None:
+        """#50: a typo'd zone stored silently corrupts everything downstream.
+
+        The message itself doesn't repeat the input (pydantic's structured
+        422 carries it in the `input` field, as for every validator here).
+        """
+        if value is not None and value not in _iana_timezones():
+            raise ValueError("not a valid IANA timezone name (e.g. 'America/New_York')")
+        return value
 
 
 class UserSettingsOut(BaseModel):

@@ -151,3 +151,27 @@ def test_delete_panel(client: TestClient) -> None:
 def test_delete_panel_not_found(client: TestClient) -> None:
     resp = client.delete("/api/red-light-panels/999")
     assert resp.status_code == 404
+
+
+def test_patch_settings_rejects_invalid_timezone(client: TestClient) -> None:
+    """#50: a typo'd zone must 422, not silently persist."""
+    resp = client.patch("/api/settings", json={"timezone": "America/Nueva_York"})
+    assert resp.status_code == 422
+    detail = str(resp.json()["detail"])
+    assert "IANA timezone" in detail
+    # And nothing was persisted
+    resp = client.get("/api/settings")
+    assert resp.json()["timezone"] != "America/Nueva_York"
+
+
+def test_patch_settings_accepts_any_iana_zone(client: TestClient) -> None:
+    resp = client.patch("/api/settings", json={"timezone": "Europe/Paris"})
+    assert resp.status_code == 200
+    assert resp.json()["timezone"] == "Europe/Paris"
+
+
+def test_patch_settings_timezone_omitted_is_untouched(client: TestClient) -> None:
+    client.patch("/api/settings", json={"timezone": "Asia/Tokyo"})
+    resp = client.patch("/api/settings", json={"age": 40})
+    assert resp.status_code == 200
+    assert resp.json()["timezone"] == "Asia/Tokyo"
