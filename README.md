@@ -14,8 +14,12 @@ All data stays on your machine. No cloud accounts, no telemetry.
 
 ## Requirements
 
-- Python 3.11+
-- Node.js 18+
+- Python 3.11+ (with `pip`; `make setup` installs a pinned [uv](https://github.com/astral-sh/uv) for the actual dependency install)
+- Node.js 20+ **with npm ≥ 11.10** — the frontend enforces this (`engine-strict`); older npm silently ignores the supply-chain cooldown below, so the install hard-fails instead. Upgrade with:
+
+  ```bash
+  npm install -g npm@11
+  ```
 
 ## Quick start
 
@@ -26,7 +30,9 @@ make setup    # Install Python + Node dependencies
 make dev      # Backend on :8000, frontend on :5173
 ```
 
-Open http://localhost:5173 in your browser. The onboarding wizard walks you through initial setup.
+Open http://localhost:5173 in your browser. The onboarding wizard walks you through initial setup. A fresh install needs no migration step — the first backend start creates the database schema and stamps it for future upgrades.
+
+**Note on dependency installs:** Somnus enforces a **7-day minimum release age** on all dependencies (supply-chain protection — see [ADR 014](docs/adr/014-dependency-cooldown.md)), so `make setup` deliberately resolves versions at least a week old. If a security fix younger than that must come in, the override is a committed per-package `exclude-newer-package` entry in `pyproject.toml` followed by `uv lock` — see ADR 014 §4 for the exact steps.
 
 ## Make targets
 
@@ -37,7 +43,7 @@ Open http://localhost:5173 in your browser. The onboarding wizard walks you thro
 | `make test` | Run all tests (pytest + vitest) |
 | `make lint` | Run all linters (ruff, mypy, eslint) |
 | `make format` | Auto-format Python + TypeScript |
-| `make migrate` | Apply pending DB migrations (Alembic) |
+| `make migrate` | Apply pending DB migrations (Alembic) — needed after upgrading Somnus, not on a fresh install |
 | `make audit` | Run pip-audit + npm audit |
 | `make clean` | Remove caches and build artifacts |
 
