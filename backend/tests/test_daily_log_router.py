@@ -411,3 +411,20 @@ def test_redlight_rejects_nonpositive_distance(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
+
+
+def test_redlight_distance_upper_bound_rejected(client: TestClient) -> None:
+    """#60 (Codex): distance is bounded to a realistic range, so a
+    pathological value can't overflow the dose and poison the row."""
+    panel_id = client.post(
+        "/api/red-light-panels", json={"name": "P", "irradiance_mw_cm2": 100}
+    ).json()["id"]
+    r = client.put(
+        "/api/daily-log/2026-07-16",
+        json={
+            "red_light_entries": [
+                {"panel_id": panel_id, "duration_minutes": 10, "distance_inches": 1e9}
+            ]
+        },
+    )
+    assert r.status_code == 422

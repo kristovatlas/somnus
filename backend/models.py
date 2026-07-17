@@ -2,6 +2,7 @@
 
 import datetime as dt
 import enum
+import math
 
 from sqlalchemy import (
     Boolean,
@@ -363,10 +364,18 @@ class RedLightEntry(Base):
         factor = 1.0
         reference = self.panel.default_distance_inches
         actual = self.distance_inches
-        if reference is not None and actual is not None and reference > 0 and actual > 0:
-            factor = (reference / actual) ** 2
-        mw_cm2 = self.panel.irradiance_mw_cm2 * factor
-        return round(mw_cm2 * self.duration_minutes * 60 / 1000, 2)
+        try:
+            if reference is not None and actual is not None and reference > 0 and actual > 0:
+                factor = (reference / actual) ** 2
+            dose = self.panel.irradiance_mw_cm2 * factor * self.duration_minutes * 60 / 1000
+        except OverflowError:
+            # Schema bounds keep API input realistic; this guards a manually
+            # crafted row from ever raising or persisting a bad dose.
+            return None
+        # A pathological ratio could also reach inf without raising.
+        if not math.isfinite(dose):
+            return None
+        return round(dose, 2)
 
 
 class NSDREntry(Base):
