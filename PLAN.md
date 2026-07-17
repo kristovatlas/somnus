@@ -347,6 +347,8 @@ Track not just total sleep, but whether the user is getting enough of the *right
 
 ### 9. Morning Sunlight & Solar Intensity Estimation
 
+*Descoped from v0.1.0 (#54, 2026-07-16) — **high-priority post-0.1**. Nothing is lost permanently: entries are date-stamped, so solar/seasonal covariates are retroactively derivable once built. Manual sunlight logging (below) is built; the estimation pipeline is not. Landing this must pair with analysis-change communication (#92).*
+
 **Tracking:**
 - Log first outdoor light exposure: time + duration
 - First entry each day auto-tagged as "first light" for circadian analysis
@@ -557,6 +559,8 @@ Simple toggle on the daily log: "I was sick today"
 - Dashboard shows illness periods as shaded regions on trend charts
 
 ### 18. Seasonal & Environmental Confounders
+
+*Descoped from v0.1.0 with #54 (2026-07-16; high-priority post-0.1, retroactively computable). Sick-day exclusion (§17) is the built confounder control in v0.1.*
 
 Derived automatically from zip code + date — zero user effort.
 
