@@ -10,6 +10,12 @@ interface RedLightSectionProps {
   onChange: (entries: RedLightEntryCreate[]) => void;
 }
 
+/** A panel's rated distance is only a usable session default when positive
+ * (the entry field is gt=0 server-side; the panel field still allows 0). */
+function ratedDistance(inches: number | null | undefined): number | null {
+  return inches != null && inches > 0 ? inches : null;
+}
+
 export function RedLightSection({ entries, onChange }: RedLightSectionProps) {
   const [panels, setPanels] = useState<RedLightPanelOut[]>([]);
 
@@ -28,7 +34,7 @@ export function RedLightSection({ entries, onChange }: RedLightSectionProps) {
         start_time: null,
         duration_minutes: null,
         // pre-fill the session distance with the panel's rated distance
-        distance_inches: panel?.default_distance_inches ?? null,
+        distance_inches: ratedDistance(panel?.default_distance_inches),
       },
     ]);
   };
@@ -95,7 +101,9 @@ export function RedLightSection({ entries, onChange }: RedLightSectionProps) {
                     // Re-fill distance from the new panel's rated distance —
                     // otherwise the old distance would be measured against the
                     // new panel's reference, silently skewing the dose.
-                    distance_inches: newPanel?.default_distance_inches ?? null,
+                    distance_inches: ratedDistance(
+                      newPanel?.default_distance_inches,
+                    ),
                   });
                 }}
                 style={{ width: "100%" }}

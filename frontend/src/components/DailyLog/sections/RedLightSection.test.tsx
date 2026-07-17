@@ -105,4 +105,18 @@ describe("RedLightSection (#60 distance + dose)", () => {
     const updated = onChange.mock.calls.at(-1)![0][0] as RedLightEntryCreate;
     expect(updated.distance_inches).toBeNull();
   });
+
+  it("a panel with a zero rated distance prefills null, not an unsavable 0", async () => {
+    const zeroPanel = { ...panelA, id: 3, default_distance_inches: 0 };
+    const onChange = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify([zeroPanel])),
+    );
+    render(<RedLightSection entries={[]} onChange={onChange} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Red Light/ }));
+    await user.click(screen.getByText("+ Add session"));
+    const added = onChange.mock.calls.at(-1)![0][0] as RedLightEntryCreate;
+    expect(added.distance_inches).toBeNull();
+  });
 });
