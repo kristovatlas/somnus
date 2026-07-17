@@ -2,6 +2,7 @@
 
 import datetime as dt
 import enum
+import math
 
 from sqlalchemy import (
     Boolean,
@@ -319,6 +320,9 @@ class RedLightPanel(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     wavelength_nm: Mapped[int | None] = mapped_column(Integer, nullable=True)
     irradiance_mw_cm2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # The distance the irradiance above is specified at (manufacturer spec),
+    # AND the default session distance. Used as the inverse-square reference
+    # for dose adjustment (#60).
     default_distance_inches: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -335,19 +339,43 @@ class RedLightEntry(Base):
     )
     start_time: Mapped[dt.time | None] = mapped_column(Time, nullable=True)
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # #60: actual distance for THIS session; None = use the panel default.
+    distance_inches: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     daily_log: Mapped[DailyLog] = relationship(back_populates="red_light_entries")
     panel: Mapped[RedLightPanel | None] = relationship(back_populates="entries")
 
     @property
     def dose_joules_cm2(self) -> float | None:
+        """Session dose in J/cm^2, inverse-square-adjusted for distance (#60).
+
+        Irradiance is specified at the panel's default_distance_inches
+        (reference). If this session used a different distance, irradiance
+        scales by (reference / actual)^2. When either distance is missing or
+        non-positive, no adjustment is applied (factor 1.0) — the dose then
+        matches the pre-#60 behavior.
+        """
         if (
-            self.panel
-            and self.panel.irradiance_mw_cm2 is not None
-            and self.duration_minutes is not None
+            self.panel is None
+            or self.panel.irradiance_mw_cm2 is None
+            or self.duration_minutes is None
         ):
-            return round(self.panel.irradiance_mw_cm2 * self.duration_minutes * 60 / 1000, 2)
-        return None
+            return None
+        factor = 1.0
+        reference = self.panel.default_distance_inches
+        actual = self.distance_inches
+        try:
+            if reference is not None and actual is not None and reference > 0 and actual > 0:
+                factor = (reference / actual) ** 2
+            dose = self.panel.irradiance_mw_cm2 * factor * self.duration_minutes * 60 / 1000
+        except OverflowError:
+            # Schema bounds keep API input realistic; this guards a manually
+            # crafted row from ever raising or persisting a bad dose.
+            return None
+        # A pathological ratio could also reach inf without raising.
+        if not math.isfinite(dose):
+            return None
+        return round(dose, 2)
 
 
 class NSDREntry(Base):
@@ -395,6 +423,7 @@ class UserSettings(Base):
     )
     timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="America/New_York")
     chronotype: Mapped[Chronotype | None] = mapped_column(Enum(Chronotype), nullable=True)
+    # Reserved for #54 (seasonal/solar, post-0.1) — no UI or consumer yet.
     zip_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     display_mode: Mapped[DisplayMode] = mapped_column(

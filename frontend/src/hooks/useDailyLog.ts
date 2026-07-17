@@ -108,10 +108,11 @@ function outToCreate(out: DailyLogOut): DailyLogCreate {
       }),
     ),
     red_light_entries: out.red_light_entries.map(
-      ({ panel_id, start_time, duration_minutes }) => ({
+      ({ panel_id, start_time, duration_minutes, distance_inches }) => ({
         panel_id,
         start_time,
         duration_minutes,
+        distance_inches,
       }),
     ),
     nsdr_entries: out.nsdr_entries.map(

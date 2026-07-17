@@ -33,7 +33,7 @@ somnus/
 │   │   ├── red_light.py      # Red light therapy dose calculation
 │   │   ├── nap_analysis.py   # Nap impact on subsequent night's sleep
 │   │   ├── seasonal.py       # Daylight hours, season, DST from zip+date
-│   │   ├── validation.py     # Input range validation, outlier detection
+│   │   ├── validation.py     # Input range validation (outlier UI: post-0.1, #53)
 │   │   ├── stats_engine.py   # Dynamic regression & correlation
 │   │   └── recommender.py    # Recommendation logic
 │   ├── science/
@@ -54,7 +54,7 @@ somnus/
 │   │   │   ├── Timeline/     # Historical view with copy-day
 │   │   │   ├── Onboarding/   # First-run setup wizard
 │   │   │   ├── Reports/      # Weekly/monthly summaries
-│   │   │   └── Settings/     # Oura token, preferences, DB path, panels, export
+│   │   │   └── Settings/     # Oura token, preferences, DB path, panels (export UI: post-0.1, #52)
 │   │   ├── hooks/            # Custom React hooks
 │   │   ├── api/              # API client functions
 │   │   └── types/            # TypeScript interfaces
@@ -233,6 +233,9 @@ After 14+ days of data, progressively unlock insights:
 - Track experiment outcomes
 
 ### 5. Science-Backed Reference Data
+
+*Contextual tips across the UI descoped from v0.1.0 (#63, 2026-07-16; revisit post-dogfood). The Analysis explainer + evidence pills are built.*
+
 Built into the UI as contextual tips and info icons:
 
 | Factor | Key Threshold | Evidence Level |
@@ -346,6 +349,8 @@ Track not just total sleep, but whether the user is getting enough of the *right
 - Meta-analysis: +45 min total sleep, +12% efficiency with regular use
 
 ### 9. Morning Sunlight & Solar Intensity Estimation
+
+*Descoped from v0.1.0 (#54, 2026-07-16) — **high-priority post-0.1**. Nothing is lost permanently: entries are date-stamped, so solar/seasonal covariates are retroactively derivable once built. Manual sunlight logging (below) is built; the estimation pipeline is not. Landing this must pair with analysis-change communication (#92).*
 
 **Tracking:**
 - Log first outdoor light exposure: time + duration
@@ -524,6 +529,8 @@ First-run experience that sets up the app without overwhelming the user.
 
 ### 16. Data Validation & Outlier Handling
 
+*Outlier review UI descoped from v0.1.0 (#53, 2026-07-16) — to be designed together with #20's exclusion generalization post-0.1. Validation/soft-warnings below are built.*
+
 **Input validation — sensible range checks:**
 
 | Field | Valid Range | Soft Warning | Hard Reject |
@@ -547,6 +554,8 @@ Soft warnings show a confirmation but allow entry. Hard rejects prevent saving (
 
 ### 17. Illness Tracking
 
+*Built for v0.1.0: sick-day flag + analysis exclusion. Everything beyond exclusion descoped (#62, 2026-07-16) into the post-0.1 analysis-quality cluster.*
+
 Simple toggle on the daily log: "I was sick today"
 
 **Impact on analysis:**
@@ -557,6 +566,8 @@ Simple toggle on the daily log: "I was sick today"
 - Dashboard shows illness periods as shaded regions on trend charts
 
 ### 18. Seasonal & Environmental Confounders
+
+*Descoped from v0.1.0 with #54 (2026-07-16; high-priority post-0.1, retroactively computable). Sick-day exclusion (§17) is the built confounder control in v0.1.*
 
 Derived automatically from zip code + date — zero user effort.
 
@@ -593,6 +604,8 @@ Ethical responsibility: users will read statistical associations as causal. We m
 - When R² is low: "These factors explain only X% of your sleep variation — other unmeasured factors may matter more"
 
 ### 20. Data Export
+
+*Backend endpoints built (JSON / CSV-zip / SQLite). The frontend export UI is descoped from v0.1.0 (#52, 2026-07-16).*
 
 Users own their data. Full portability.
 
@@ -745,7 +758,7 @@ Jet lag is a massive sleep disruptor. When a user travels, Oura data shifts but 
 - **Chronotype inference** and optimal bedtime window regression
 - **Nap impact analysis**: nap timing/duration → same-night sleep quality segmented analysis
 - **Stage deficiency detection**: 7-day rolling averages vs age-adjusted targets
-- **Seasonal covariates**: daylight hours, season, DST transitions (auto-derived from zip code + date)
+- **Seasonal covariates** *(§9/§18, descoped from v0.1.0 → high-priority post-0.1, #54)*: daylight hours, season, DST transitions (auto-derived from zip code + date)
 - **Outlier detection**: z-score flagging, sick day exclusion, user-reviewable outlier list
 - **Correlation ≠ causation guardrails**: careful language, sample sizes on every insight, multicollinearity warnings, R² context
 - Results API endpoint with confidence intervals
@@ -991,7 +1004,7 @@ Every PR must pass a security review before merge. This is a health data applica
 
 13. **Sick days as first-class concept** — Illness demolishes sleep metrics. One toggle excludes the day from regression so a bout of flu doesn't corrupt months of analysis.
 
-14. **Seasonal covariates for free** — Daylight hours, season, and DST transitions auto-derived from zip code + date. Zero user effort, removes a major confounder from the analysis.
+14. **Seasonal covariates for free** *(descoped from v0.1.0 → high-priority post-0.1, #54)* — Daylight hours, season, and DST transitions auto-derived from zip code + date. Zero user effort, removes a major confounder from the analysis.
 
 15. **Relaxed git flow** — Feature branches → `dev` → `main`. `main` always reflects a complete, user-ready release. No half-baked features on main, ever.
 

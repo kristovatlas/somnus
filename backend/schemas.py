@@ -237,7 +237,7 @@ class RedLightPanelCreate(BaseModel):
     name: str = Field(max_length=100)
     wavelength_nm: int | None = Field(default=None, ge=600, le=900)
     irradiance_mw_cm2: float | None = Field(default=None, ge=0)
-    default_distance_inches: float | None = Field(default=None, ge=0)
+    default_distance_inches: float | None = Field(default=None, ge=0, le=240)
     notes: str | None = None
 
 
@@ -259,6 +259,7 @@ class RedLightEntryCreate(BaseModel):
     panel_id: int | None = None
     start_time: dt.time | None = None
     duration_minutes: int | None = Field(default=None, ge=1, le=60)
+    distance_inches: float | None = Field(default=None, gt=0, le=240)
 
 
 class RedLightEntryOut(BaseModel):
@@ -267,6 +268,7 @@ class RedLightEntryOut(BaseModel):
     panel_id: int | None = None
     start_time: dt.time | None = None
     duration_minutes: int | None = None
+    distance_inches: float | None = None
     dose_joules_cm2: float | None = None
 
     model_config = {"from_attributes": True}

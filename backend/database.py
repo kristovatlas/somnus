@@ -131,21 +131,45 @@ def _stamp_version(revision: str) -> None:
         MigrationContext.configure(conn).stamp(_script_directory(), revision)
 
 
+def _schema_matches_head(connection: object) -> bool:
+    """True when the live schema already equals ``Base.metadata`` (head).
+
+    Uses alembic's own autogenerate comparison, ignoring the
+    ``alembic_version`` bookkeeping table — the same check the migration
+    parity test uses. This is what lets adoption stamp *head* for a
+    current-but-unstamped DB without hardcoding the newest migration's
+    delta as a marker (which would need hand-editing on every release).
+    """
+    from alembic.autogenerate import compare_metadata
+
+    ctx = MigrationContext.configure(
+        connection,  # type: ignore[arg-type]
+        opts={
+            "include_name": lambda name, type_, _parent: (
+                not (type_ == "table" and name == "alembic_version")
+            )
+        },
+    )
+    return bool(compare_metadata(ctx, Base.metadata) == [])
+
+
 def _adopt_legacy_db(inspector: Inspector, tables: set[str]) -> str:
-    """Stamp a pre-#49 unstamped database at the revision its schema matches.
+    """Stamp an unstamped database at the revision its schema matches.
 
-    The legacy shapes are FROZEN: every database this code touches gets
-    stamped, so unstamped schemas can only come from pre-fix installs whose
-    models stopped at 002. Do NOT extend the marker set for migrations
-    003+ — their deltas can only ever appear in already-stamped databases.
+    A current-but-unstamped schema (create_all without a stamp, or a
+    manually-cleared version row) is stamped at **head**, detected
+    structurally via :func:`_schema_matches_head` — no per-migration marker
+    to maintain.
 
-    Markers: ``user_settings.last_oura_sync`` is 001's delta; the
-    ``experiments`` table is 002's. The old ``create_all``-on-startup added
-    missing *tables* but never *columns*, so a pre-001 database later booted
-    under 002-era code carries ``experiments`` without ``last_oura_sync`` —
-    a hybrid that matches no revision and that no stamp can repair. Its
-    repair is deterministic (it is exactly 001's delta): add the column,
-    after which the schema genuinely is 002.
+    Older shapes fall to FROZEN pre-fix markers: ``user_settings.last_oura_sync``
+    is 001's delta, the ``experiments`` table is 002's. These need no
+    extension for migrations 003+ — a genuine pre-#76 unstamped DB predates
+    every post-#76 migration, so its schema can only be ≤002-era; anything
+    newer is caught by the head check above. The old ``create_all``-on-startup
+    added missing *tables* but never *columns*, so a pre-001 DB later booted
+    under 002-era code carries ``experiments`` without ``last_oura_sync`` — a
+    hybrid matching no revision, repaired deterministically (001's delta) then
+    stamped 002.
     """
     if "user_settings" not in tables:
         raise RuntimeError(
@@ -154,6 +178,11 @@ def _adopt_legacy_db(inspector: Inspector, tables: set[str]) -> str:
             "alembic_version). Point SOMNUS_DB_PATH at a Somnus database or "
             "at a new, empty location."
         )
+    with engine.connect() as conn:
+        if _schema_matches_head(conn):
+            head = _alembic_head()
+            _stamp_version(head)
+            return head
     columns = {col["name"] for col in inspector.get_columns("user_settings")}
     has_001 = "last_oura_sync" in columns
     has_002 = "experiments" in tables

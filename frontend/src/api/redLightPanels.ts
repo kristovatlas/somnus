@@ -31,3 +31,13 @@ export function createPanel(
     body: JSON.stringify(data),
   });
 }
+
+export function updatePanel(
+  id: number,
+  data: RedLightPanelCreate,
+): Promise<RedLightPanelOut> {
+  return fetchJson<RedLightPanelOut>(`/api/red-light-panels/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}

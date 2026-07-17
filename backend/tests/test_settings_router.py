@@ -175,3 +175,18 @@ def test_patch_settings_timezone_omitted_is_untouched(client: TestClient) -> Non
     resp = client.patch("/api/settings", json={"age": 40})
     assert resp.status_code == 200
     assert resp.json()["timezone"] == "Asia/Tokyo"
+
+
+def test_update_panel_edits_distance(client: TestClient) -> None:
+    """#60: default_distance_inches is editable via the PUT panel endpoint."""
+    resp = client.post(
+        "/api/red-light-panels",
+        json={"name": "Panel", "irradiance_mw_cm2": 100, "default_distance_inches": 6},
+    )
+    panel_id = resp.json()["id"]
+    resp = client.put(
+        f"/api/red-light-panels/{panel_id}",
+        json={"name": "Panel", "irradiance_mw_cm2": 100, "default_distance_inches": 12},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["default_distance_inches"] == 12
