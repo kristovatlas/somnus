@@ -7,6 +7,7 @@ import { SleepScoreCard } from "./SleepScoreCard";
 import { StageBreakdownBar } from "./StageBreakdownBar";
 import { TrendSparklines } from "./TrendSparklines";
 import { ConsistencyMeter } from "./ConsistencyMeter";
+import { BedtimeCountdown } from "./BedtimeCountdown";
 import { LoggingStreak } from "./LoggingStreak";
 import { RedLightSummary } from "./RedLightSummary";
 import { TopRecommendations } from "./TopRecommendations";
@@ -54,6 +55,8 @@ export function DashboardPage() {
         consistency={data.consistency}
         typicalBedtime={data.typical_bedtime}
       />
+
+      <BedtimeCountdown typicalBedtime={data.typical_bedtime} />
 
       <LoggingStreak streak={data.logging_streak} />
 

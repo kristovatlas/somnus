@@ -276,3 +276,16 @@
 .top-recs-link:hover {
   color: var(--color-interactive-hover);
 }
+
+/* #58: bedtime countdown card */
+.bedtime-countdown-label {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0.25rem 0;
+}
+
+.bedtime-countdown-detail {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
