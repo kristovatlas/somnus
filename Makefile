@@ -79,7 +79,9 @@ format:
 # Adoption first (idempotent): an unstamped pre-#76 DB would crash a raw
 # `alembic upgrade head` (it would re-run the baseline against existing
 # tables). init_db stamps/adopts — including the legacy-hybrid repair —
-# then upgrade applies anything still pending.
+# then upgrade applies anything still pending. (A behind-head DB's
+# "run make migrate" log line during this step is self-referential
+# noise — the upgrade on the next line is doing exactly that.)
 migrate:
 	python -c "from backend.database import init_db; init_db()"
 	alembic upgrade head
