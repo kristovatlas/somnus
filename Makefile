@@ -1,4 +1,8 @@
-.PHONY: setup setup-backend setup-frontend dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate audit clean
+.PHONY: setup setup-backend setup-frontend db-location dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate audit clean
+
+# `dev` relies on serial prerequisite order (db-location before migrate);
+# don't run it under `make -j` (parallel) — NOTPARALLEL keeps prereqs ordered.
+.NOTPARALLEL:
 
 # --- Setup ---
 # T-13 (docs/THREAT_MODEL.md, ADR 014): the 7-day install cooldown lives in
@@ -11,7 +15,7 @@
 UV_VERSION := 0.11.26
 UV_PIP := uv pip install $(if $(VIRTUAL_ENV),,--system)
 
-setup: setup-backend setup-frontend
+setup: setup-backend setup-frontend db-location
 
 setup-backend:
 	python -m pip install --quiet uv==$(UV_VERSION)
@@ -32,11 +36,19 @@ setup-backend:
 setup-frontend:
 	cd frontend && npm install
 
+# #41 (ADR 015): resolve the DB location. No-ops if already configured
+# (env var or saved choice) or on a non-TTY; otherwise prompts once.
+# Override headlessly with `make db-location ARGS="--path /your/somnus.db"`
+# or the SOMNUS_DB_PATH env var.
+db-location:
+	python -m backend.db_location $(ARGS)
+
 # --- Development ---
-# #78: apply pending migrations before launching — the normal dev flow
-# always runs against a current schema (startup itself stays passive:
-# it stamps/adopts but never runs migration DDL; see THREAT_MODEL B2).
-dev: migrate
+# #41 (ADR 015): choose the DB location (first-run prompt / env / flag)
+# BEFORE migrate, so init_db and alembic use the chosen path. #78: apply
+# pending migrations before launching so the dev flow runs against a current
+# schema (startup itself stays passive — see THREAT_MODEL B2).
+dev: db-location migrate
 	$(MAKE) dev-backend & $(MAKE) dev-frontend & wait
 
 dev-backend:

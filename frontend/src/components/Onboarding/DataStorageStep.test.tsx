@@ -40,9 +40,17 @@ describe("DataStorageStep", () => {
     expect(alert).toHaveTextContent(/VeraCrypt/);
   });
 
-  it("keeps the SOMNUS_DB_PATH relocation instructions", () => {
+  // #41 (ADR 015): the location is chosen at launch, so this step CONFIRMS
+  // where data lives and how to move it — it no longer instructs a
+  // quit-relaunch-delete dance (that contradicted the launcher).
+  it("confirms the launcher-chosen location and how to change it", () => {
     render(<DataStorageStep onNext={mockNext} onBack={mockBack} />);
-    expect(screen.getByText(/SOMNUS_DB_PATH=/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/location you chose when you started Somnus/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/make db-location/)).toBeInTheDocument();
+    // the obsolete "delete ~/.somnus/somnus.db and relaunch" copy is gone
+    expect(screen.queryByText(/delete/i)).not.toBeInTheDocument();
   });
 
   it("navigates forward and back", async () => {

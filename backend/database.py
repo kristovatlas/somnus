@@ -201,6 +201,42 @@ def _adopt_legacy_db(inspector: Inspector, tables: set[str]) -> str:
     return revision
 
 
+def _explicitly_configured() -> bool:
+    """True when the DB path was pinned (env var or the saved launcher config),
+    as opposed to falling back to the default ``~/.somnus/somnus.db``."""
+    from backend.config import CONFIG_FILE
+
+    return bool(os.environ.get("SOMNUS_DB_PATH")) or CONFIG_FILE.exists()
+
+
+def _guard_configured_path_available(explicitly_configured: bool) -> None:
+    """Refuse to start (rather than create a shadow DB) when a configured DB
+    that was previously initialized has gone missing — the unmounted-encrypted-
+    volume case (#41, ADR 015).
+
+    Parent-directory presence is NOT a reliable signal: on Linux a VeraCrypt
+    mount point typically persists (empty) after unmount, so keying off it
+    would still create a fresh plaintext shadow DB there. Instead we key off
+    the persistent "initialized" marker: if this path was pinned AND a DB was
+    successfully created there before AND the file is now gone, the volume is
+    unmounted / the data moved — refuse. A genuine first creation (no marker
+    for this path yet) proceeds normally, as does the default path.
+    """
+    from backend.config import read_initialized_db_path
+
+    path = settings.db_path
+    if not explicitly_configured or str(path) == ":memory:" or path.exists():
+        return
+    if read_initialized_db_path() == str(path):
+        raise RuntimeError(
+            f"The configured Somnus database at {path} is missing — it was set "
+            "up here before, so the volume is probably not mounted (or the file "
+            "moved). Mount the encrypted volume and start Somnus again, or run "
+            "`make db-location` to choose a new location. Refusing to create a "
+            "new plaintext database in its place."
+        )
+
+
 def init_db() -> None:
     """Create or adopt the database on application startup.
 
@@ -217,7 +253,10 @@ def init_db() -> None:
     # `make migrate` pre-step) imports only this module — without this,
     # a fresh DB would be stamped at head with ZERO tables created.
     import backend.models  # noqa: F401
+    from backend.config import mark_db_initialized
 
+    explicitly_configured = _explicitly_configured()
+    _guard_configured_path_available(explicitly_configured)
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     inspector = inspect(engine)
     model_tables = set(inspector.get_table_names()) - {"alembic_version"}
@@ -247,3 +286,10 @@ def init_db() -> None:
         )
 
     _harden_db_permissions(settings.db_path)
+
+    # Record success so a later launch can tell "first creation" from "the
+    # configured DB vanished" (the guard above). Only for explicitly configured
+    # non-memory paths — the default path never needs it, and unit tests that
+    # don't pin a path stay out of the marker file.
+    if explicitly_configured and str(settings.db_path) != ":memory:":
+        mark_db_initialized(settings.db_path)
