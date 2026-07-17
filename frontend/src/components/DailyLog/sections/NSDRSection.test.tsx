@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { NSDRSection } from "./NSDRSection";
@@ -43,9 +43,10 @@ describe("NSDRSection (#61)", () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /NSDR/ }));
 
+    // Controlled input with a mock parent: per-keystroke typing never sees
+    // its value echoed back, so assert on a single change event instead.
     const input = screen.getByRole("spinbutton"); // NumberInput
-    await user.clear(input);
-    await user.type(input, "37.6");
+    fireEvent.change(input, { target: { value: "37.6" } });
     const last = onChange.mock.calls.at(-1)![0][0] as NSDREntryCreate;
     expect(last.duration_minutes).toBe(38);
   });
