@@ -33,7 +33,7 @@ somnus/
 │   │   ├── red_light.py      # Red light therapy dose calculation
 │   │   ├── nap_analysis.py   # Nap impact on subsequent night's sleep
 │   │   ├── seasonal.py       # Daylight hours, season, DST from zip+date
-│   │   ├── validation.py     # Input range validation, outlier detection
+│   │   ├── validation.py     # Input range validation (outlier UI: post-0.1, #53)
 │   │   ├── stats_engine.py   # Dynamic regression & correlation
 │   │   └── recommender.py    # Recommendation logic
 │   ├── science/
@@ -54,7 +54,7 @@ somnus/
 │   │   │   ├── Timeline/     # Historical view with copy-day
 │   │   │   ├── Onboarding/   # First-run setup wizard
 │   │   │   ├── Reports/      # Weekly/monthly summaries
-│   │   │   └── Settings/     # Oura token, preferences, DB path, panels, export
+│   │   │   └── Settings/     # Oura token, preferences, DB path, panels (export UI: post-0.1, #52)
 │   │   ├── hooks/            # Custom React hooks
 │   │   ├── api/              # API client functions
 │   │   └── types/            # TypeScript interfaces
@@ -235,6 +235,7 @@ After 14+ days of data, progressively unlock insights:
 ### 5. Science-Backed Reference Data
 
 *Contextual tips across the UI descoped from v0.1.0 (#63, 2026-07-16; revisit post-dogfood). The Analysis explainer + evidence pills are built.*
+
 Built into the UI as contextual tips and info icons:
 
 | Factor | Key Threshold | Evidence Level |
