@@ -97,7 +97,7 @@ C4Component
             Component(sunlight_svc, "Sunlight (PLANNED)", "httpx", "PLANNED — not implemented. Morning light tracking; solar intensity estimation via Open-Meteo/NREL.")
             Component(red_light_svc, "Red Light", "Python", "Dose calculation (J/cm²). Panel presets. Inverse square law adjustment.")
             Component(nap_svc, "Nap Analysis", "Python", "Nap impact on subsequent night. Timing/duration segmented analysis.")
-            Component(seasonal_svc, "Seasonal", "Python", "Daylight hours, season, DST from zip+date. Regression covariates.")
+            Component(seasonal_svc, "Seasonal", "Python", "PLANNED (not implemented, #54) — daylight hours, season, DST from zip+date. Regression covariates.")
             Component(validation_svc, "Validation", "Python", "Input range checks. Outlier detection (z-score). Soft warnings vs hard rejects.")
             Component(stats_engine, "Stats Engine", "scipy, statsmodels", "Correlations. Dynamic regression with lagged variables. Multiple targets. ACF/PACF. Stationarity.")
             Component(recommender, "Recommender", "Python", "Rule engine combining regression + science thresholds. Experiment suggestions.")

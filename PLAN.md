@@ -749,7 +749,7 @@ Jet lag is a massive sleep disruptor. When a user travels, Oura data shifts but 
 - **Chronotype inference** and optimal bedtime window regression
 - **Nap impact analysis**: nap timing/duration → same-night sleep quality segmented analysis
 - **Stage deficiency detection**: 7-day rolling averages vs age-adjusted targets
-- **Seasonal covariates**: daylight hours, season, DST transitions (auto-derived from zip code + date)
+- **Seasonal covariates** *(§9/§18, descoped from v0.1.0 → high-priority post-0.1, #54)*: daylight hours, season, DST transitions (auto-derived from zip code + date)
 - **Outlier detection**: z-score flagging, sick day exclusion, user-reviewable outlier list
 - **Correlation ≠ causation guardrails**: careful language, sample sizes on every insight, multicollinearity warnings, R² context
 - Results API endpoint with confidence intervals
@@ -995,7 +995,7 @@ Every PR must pass a security review before merge. This is a health data applica
 
 13. **Sick days as first-class concept** — Illness demolishes sleep metrics. One toggle excludes the day from regression so a bout of flu doesn't corrupt months of analysis.
 
-14. **Seasonal covariates for free** — Daylight hours, season, and DST transitions auto-derived from zip code + date. Zero user effort, removes a major confounder from the analysis.
+14. **Seasonal covariates for free** *(descoped from v0.1.0 → high-priority post-0.1, #54)* — Daylight hours, season, and DST transitions auto-derived from zip code + date. Zero user effort, removes a major confounder from the analysis.
 
 15. **Relaxed git flow** — Feature branches → `dev` → `main`. `main` always reflects a complete, user-ready release. No half-baked features on main, ever.
 
