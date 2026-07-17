@@ -350,6 +350,8 @@ Track not just total sleep, but whether the user is getting enough of the *right
 
 ### 9. Morning Sunlight & Solar Intensity Estimation
 
+*Descoped from v0.1.0 (#54, 2026-07-16) — **high-priority post-0.1**. Nothing is lost permanently: entries are date-stamped, so solar/seasonal covariates are retroactively derivable once built. Manual sunlight logging (below) is built; the estimation pipeline is not. Landing this must pair with analysis-change communication (#92).*
+
 **Tracking:**
 - Log first outdoor light exposure: time + duration
 - First entry each day auto-tagged as "first light" for circadian analysis
@@ -565,6 +567,8 @@ Simple toggle on the daily log: "I was sick today"
 
 ### 18. Seasonal & Environmental Confounders
 
+*Descoped from v0.1.0 with #54 (2026-07-16; high-priority post-0.1, retroactively computable). Sick-day exclusion (§17) is the built confounder control in v0.1.*
+
 Derived automatically from zip code + date — zero user effort.
 
 **Variables computed:**
@@ -754,7 +758,7 @@ Jet lag is a massive sleep disruptor. When a user travels, Oura data shifts but 
 - **Chronotype inference** and optimal bedtime window regression
 - **Nap impact analysis**: nap timing/duration → same-night sleep quality segmented analysis
 - **Stage deficiency detection**: 7-day rolling averages vs age-adjusted targets
-- **Seasonal covariates**: daylight hours, season, DST transitions (auto-derived from zip code + date)
+- **Seasonal covariates** *(§9/§18, descoped from v0.1.0 → high-priority post-0.1, #54)*: daylight hours, season, DST transitions (auto-derived from zip code + date)
 - **Outlier detection**: z-score flagging, sick day exclusion, user-reviewable outlier list
 - **Correlation ≠ causation guardrails**: careful language, sample sizes on every insight, multicollinearity warnings, R² context
 - Results API endpoint with confidence intervals
@@ -1000,7 +1004,7 @@ Every PR must pass a security review before merge. This is a health data applica
 
 13. **Sick days as first-class concept** — Illness demolishes sleep metrics. One toggle excludes the day from regression so a bout of flu doesn't corrupt months of analysis.
 
-14. **Seasonal covariates for free** — Daylight hours, season, and DST transitions auto-derived from zip code + date. Zero user effort, removes a major confounder from the analysis.
+14. **Seasonal covariates for free** *(descoped from v0.1.0 → high-priority post-0.1, #54)* — Daylight hours, season, and DST transitions auto-derived from zip code + date. Zero user effort, removes a major confounder from the analysis.
 
 15. **Relaxed git flow** — Feature branches → `dev` → `main`. `main` always reflects a complete, user-ready release. No half-baked features on main, ever.
 
