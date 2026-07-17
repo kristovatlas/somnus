@@ -1,21 +1,12 @@
 import { useState } from "react";
 import { Toggle } from "../shared/Toggle";
 import { StepNavigation } from "./StepNavigation";
-
-const TRACKING_ITEMS = [
-  { key: "caffeine", label: "Caffeine intake" },
-  { key: "meals", label: "Meal timing" },
-  { key: "supplements", label: "Supplements" },
-  { key: "exercise", label: "Exercise" },
-  { key: "sunlight", label: "Sunlight exposure" },
-  { key: "naps", label: "Naps" },
-  { key: "stress", label: "Stress level" },
-  { key: "alcohol", label: "Alcohol" },
-  { key: "screens", label: "Screen time before bed" },
-  { key: "rituals", label: "Pre-bed rituals" },
-  { key: "redLight", label: "Red light therapy" },
-  { key: "nsdr", label: "NSDR / Yoga Nidra" },
-] as const;
+import {
+  TRACKED_SECTIONS,
+  readTrackedSections,
+  writeTrackedSections,
+} from "../../trackedSections";
+import type { SectionKey } from "../../trackedSections";
 
 interface TrackingSetupStepProps {
   onNext: () => void;
@@ -23,14 +14,10 @@ interface TrackingSetupStepProps {
 }
 
 export function TrackingSetupStep({ onNext, onBack }: TrackingSetupStepProps) {
-  const [selected, setSelected] = useState<Set<string>>(() => {
-    const stored = localStorage.getItem("somnus-tracked-sections");
-    if (stored) return new Set(JSON.parse(stored) as string[]);
-    // Default: most items on
-    return new Set(TRACKING_ITEMS.map((i) => i.key));
-  });
+  const [selected, setSelected] =
+    useState<Set<SectionKey>>(readTrackedSections);
 
-  const toggle = (key: string) => {
+  const toggle = (key: SectionKey) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -40,10 +27,7 @@ export function TrackingSetupStep({ onNext, onBack }: TrackingSetupStepProps) {
   };
 
   const handleNext = () => {
-    localStorage.setItem(
-      "somnus-tracked-sections",
-      JSON.stringify([...selected]),
-    );
+    writeTrackedSections(selected);
     onNext();
   };
 
@@ -56,12 +40,12 @@ export function TrackingSetupStep({ onNext, onBack }: TrackingSetupStepProps) {
           margin: "0.5rem 0 1.5rem",
         }}
       >
-        Choose which items appear in your daily log. You can change this
-        anytime.
+        Choose which sections appear in your daily log. A section that already
+        holds data always shows. You can change this anytime in Settings.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {TRACKING_ITEMS.map((item) => (
+        {TRACKED_SECTIONS.map((item) => (
           <Toggle
             key={item.key}
             label={item.label}

@@ -52,10 +52,18 @@ test.describe("Daily log", () => {
     const start = await timeInputs.nth(0).inputValue();
     const end = await timeInputs.nth(1).inputValue();
     expect(start).toMatch(/^\d{2}:\d{2}$/);
-    expect(end).toMatch(/^\d{2}:\d{2}$/);
     const toMin = (t: string) =>
       Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-    expect((toMin(end) - toMin(start) + 1440) % 1440).toBe(20);
+    // A nap crossing midnight is unrepresentable by design (reconcile clears
+    // end_time when start+duration >= 24:00), so within 20 minutes of
+    // midnight the quick-add legitimately leaves end empty — this test runs
+    // at any hour and must accept both.
+    if (toMin(start) + 20 < 1440) {
+      expect(end).toMatch(/^\d{2}:\d{2}$/);
+      expect((toMin(end) - toMin(start) + 1440) % 1440).toBe(20);
+    } else {
+      expect(end).toBe("");
+    }
 
     // Persists through save + reload
     await page.getByRole("button", { name: "Save" }).click();

@@ -3,6 +3,7 @@ import { OuraSection } from "./OuraSection";
 import { ProfileSection } from "./ProfileSection";
 import { PanelSection } from "./PanelSection";
 import { DisplaySection } from "./DisplaySection";
+import { TrackingSection } from "./TrackingSection";
 import "./SettingsPage.css";
 
 export function SettingsPage() {
@@ -25,6 +26,7 @@ export function SettingsPage() {
       <ProfileSection settings={settings} onUpdate={update} />
       <PanelSection />
       <DisplaySection settings={settings} onUpdate={update} />
+      <TrackingSection />
     </div>
   );
 }
