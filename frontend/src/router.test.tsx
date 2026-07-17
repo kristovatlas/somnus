@@ -8,6 +8,7 @@ import {
   NotFoundPage,
   RouteErrorPage,
 } from "./components/Layout/RouteFallbacks";
+import { resetLaunchSyncGuard } from "./launchSync";
 
 const mockSettingsOnboarded = {
   oura_token_set: false,
@@ -180,5 +181,55 @@ describe("Router guard", () => {
         screen.queryByText(/Backend not reachable/),
       ).not.toBeInTheDocument();
     });
+  });
+
+  // --- #57: launch auto-sync indicator gating ---
+
+  it("renders the sync chip only when an Oura token is set", async () => {
+    resetLaunchSyncGuard();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(
+          JSON.stringify({ ...mockSettingsOnboarded, oura_token_set: true }),
+        );
+      }
+      if (urlStr.includes("/api/oura/sync") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            synced_count: 2,
+            start_date: "2026-07-01",
+            end_date: "2026-07-16",
+            errors: [],
+          }),
+        );
+      }
+      return new Response(JSON.stringify({ detail: "Not found" }), {
+        status: 404,
+      });
+    });
+    render(<RouterProvider router={createRouter("/log/2024-06-15")} />);
+    expect(await screen.findByText("Oura synced · 2 new")).toBeInTheDocument();
+  });
+
+  it("no token, no chip, no sync request", async () => {
+    resetLaunchSyncGuard();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(JSON.stringify(mockSettingsOnboarded));
+      }
+      return new Response(JSON.stringify({ detail: "Not found" }), {
+        status: 404,
+      });
+    });
+    render(<RouterProvider router={createRouter("/log/2024-06-15")} />);
+    await waitFor(() => {
+      expect(screen.queryByText(/Syncing Oura/)).not.toBeInTheDocument();
+    });
+    const syncCalls = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.filter(([url]) => String(url).includes("/api/oura/sync"));
+    expect(syncCalls).toHaveLength(0);
   });
 });
