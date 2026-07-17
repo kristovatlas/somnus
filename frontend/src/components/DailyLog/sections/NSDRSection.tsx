@@ -1,6 +1,7 @@
 import { SectionWrapper } from "./SectionWrapper";
 import { TimePicker } from "../../shared/TimePicker";
 import { SelectInput } from "../../shared/SelectInput";
+import { NumberInput } from "../../shared/NumberInput";
 import { NSDRType, NSDR_TYPE_LABELS } from "../../../types/enums";
 import type { NSDREntryCreate } from "../../../types";
 
@@ -15,13 +16,13 @@ function nowTimeStr(): string {
 }
 
 export function NSDRSection({ entries, onChange }: NSDRSectionProps) {
-  const addQuick = (minutes: number) =>
+  const addQuick = (minutes: number | null, type: NSDRType) =>
     onChange([
       ...entries,
       {
         time: nowTimeStr(),
         duration_minutes: minutes,
-        nsdr_type: NSDRType.YOGA_NIDRA,
+        nsdr_type: type,
       },
     ]);
   const removeEntry = (index: number) =>
@@ -36,12 +37,19 @@ export function NSDRSection({ entries, onChange }: NSDRSectionProps) {
           <button
             key={min}
             type="button"
-            onClick={() => addQuick(min)}
+            onClick={() => addQuick(min, NSDRType.YOGA_NIDRA)}
             className="quick-add-btn"
           >
             + {min} min
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => addQuick(null, NSDRType.OTHER)}
+          className="quick-add-btn"
+        >
+          + Custom
+        </button>
       </div>
 
       {entries.map((entry, i) => (
@@ -68,9 +76,20 @@ export function NSDRSection({ entries, onChange }: NSDRSectionProps) {
             value={entry.time}
             onChange={(v) => updateEntry(i, { ...entry, time: v })}
           />
-          <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-            Duration: {entry.duration_minutes ?? "—"} min
-          </p>
+          <NumberInput
+            label="Duration"
+            value={entry.duration_minutes}
+            onChange={(v) =>
+              updateEntry(i, {
+                ...entry,
+                // integerize typed values (29.7 → 30): backend requires int
+                duration_minutes:
+                  v === null ? null : Math.max(1, Math.round(v)),
+              })
+            }
+            unit="min"
+            min={1}
+          />
           <button
             type="button"
             onClick={() => removeEntry(i)}
