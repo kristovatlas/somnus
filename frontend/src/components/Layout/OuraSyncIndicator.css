@@ -1,0 +1,27 @@
+/* #57: launch auto-sync chip — visible, unobtrusive, unambiguous */
+.oura-sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.oura-sync-chip--done {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.oura-sync-chip--error {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.oura-sync-chip button {
+  font-size: 0.75rem;
+  padding: 0 0.4rem;
+}

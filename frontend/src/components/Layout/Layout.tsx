@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { getSettings } from "../../api/settings";
 import { ApiError } from "../../types/api";
+import { OuraSyncIndicator } from "./OuraSyncIndicator";
 import { applyThemeFromSettings, reapplyTheme } from "../../theme";
 import type { UserSettingsOut } from "../../types";
 import "./Layout.css";
@@ -82,6 +83,9 @@ export function Layout() {
         >
           Somnus
         </h1>
+        {settings?.oura_token_set && settings.onboarding_completed && (
+          <OuraSyncIndicator />
+        )}
         <nav className="layout-nav">
           <button
             className="layout-nav-btn"
