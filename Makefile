@@ -1,4 +1,4 @@
-.PHONY: setup setup-backend setup-frontend dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate clean
+.PHONY: setup setup-backend setup-frontend dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate audit clean
 
 # --- Setup ---
 # T-13 (docs/THREAT_MODEL.md, ADR 014): the 7-day install cooldown lives in
