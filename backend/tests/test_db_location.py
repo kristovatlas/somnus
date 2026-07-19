@@ -79,11 +79,30 @@ def test_non_tty_unconfigured_does_not_block(
     assert "no TTY" in capsys.readouterr().err
 
 
-def test_already_configured_is_a_noop(isolated_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_already_configured_reports_instead_of_prompting(
+    isolated_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setenv("SOMNUS_DB_PATH", str(isolated_home / "env.db"))
-    # Even on a TTY, an existing config short-circuits without prompting.
+    # Even on a TTY, an existing config short-circuits without prompting —
+    # but reports the current location + how to change it (#97), since the
+    # user-facing copy says "re-run make db-location" to move the DB.
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     assert db_location.main([]) == 0
+    out = capsys.readouterr().out
+    assert str(isolated_home / "env.db") in out
+    assert "--force" in out
+
+
+def test_already_configured_reports_saved_path(
+    isolated_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    saved = isolated_home / "vol" / "somnus.db"
+    saved.parent.mkdir()
+    db_location.main(["--path", str(saved)])
+    capsys.readouterr()  # discard the set-confirmation line
+    assert db_location.main([]) == 0
+    out = capsys.readouterr().out
+    assert str(saved) in out and "--force" in out
 
 
 def test_validate_target_blank_and_expanduser(isolated_home: Path) -> None:

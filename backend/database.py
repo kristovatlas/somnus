@@ -232,7 +232,8 @@ def _guard_configured_path_available(explicitly_configured: bool) -> None:
             f"The configured Somnus database at {path} is missing — it was set "
             "up here before, so the volume is probably not mounted (or the file "
             "moved). Mount the encrypted volume and start Somnus again, or run "
-            "`make db-location` to choose a new location. Refusing to create a "
+            '`make db-location ARGS="--force"` to choose a new location. '
+            "Refusing to create a "
             "new plaintext database in its place."
         )
 

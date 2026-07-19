@@ -48,9 +48,26 @@ describe("DataStorageStep", () => {
     expect(
       screen.getByText(/location you chose when you started Somnus/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/make db-location/)).toBeInTheDocument();
+    // #97: the instruction must name the WORKING command — a bare
+    // `make db-location` is a report-only no-op once configured.
+    expect(
+      screen.getByText(/make db-location ARGS="--force"/),
+    ).toBeInTheDocument();
     // the obsolete "delete ~/.somnus/somnus.db and relaunch" copy is gone
     expect(screen.queryByText(/delete/i)).not.toBeInTheDocument();
+  });
+
+  // #98: the old absolute claim ("Nothing is sent to external servers") was
+  // false once Oura is connected — the PAT + date ranges go to Oura's API
+  // (THREAT_MODEL B4). The copy must name that egress, not deny it.
+  it("qualifies the local-only claim with the Oura egress", () => {
+    render(<DataStorageStep onNext={mockNext} onBack={mockBack} />);
+    expect(
+      screen.queryByText(/nothing is sent to external servers/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/only outbound traffic is to Oura/i),
+    ).toBeInTheDocument();
   });
 
   it("navigates forward and back", async () => {

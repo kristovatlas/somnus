@@ -68,7 +68,8 @@ options would have added; the plaintext-at-rest guidance reaches the user at
 the decisive moment.
 
 **Negative / costs:** the choice lives in the launcher, not an in-app Settings
-control, so *changing* the location later means re-running `make db-location`
+control, so *changing* the location later means re-running `make db-location
+ARGS="--force"` (bare `make db-location` reports the current location — #97)
 (or editing the config file / setting the env var) rather than a UI action —
 acceptable for a single-user local tool that rarely relocates its data. A small
 launcher config file is introduced (holds only a path string — no secret — so

@@ -22,6 +22,7 @@ exactly how a headless/containerised deploy is configured.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -119,15 +120,14 @@ def prompt_for_location(*, default: Path = DEFAULT_DB_PATH) -> Path:
 
 def is_configured() -> bool:
     """True when a DB path is already pinned (env var or saved config)."""
-    import os
-
     return bool(os.environ.get("SOMNUS_DB_PATH")) or read_saved_db_path() is not None
 
 
 def main(argv: list[str] | None = None) -> int:
     """Launcher entry point: resolve + persist the DB location.
 
-    Idempotent: does nothing if already configured (unless ``--force``);
+    Idempotent: when already configured it reports the current location
+    and exits (unless ``--force``);
     on a non-TTY, never prompts (headless uses the env var / default).
     """
     parser = argparse.ArgumentParser(
@@ -150,7 +150,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if is_configured() and not args.force:
-        return 0  # respect an existing env var / saved choice
+        # #97: a bare re-run used to exit silently, making the documented
+        # "re-run make db-location to move it" advice a no-op. Report where
+        # data lives and how to actually change it.
+        current = os.environ.get("SOMNUS_DB_PATH") or read_saved_db_path()
+        print(
+            f"Somnus database location: {current} "
+            '(already configured — use ARGS="--force" to change it, '
+            'or ARGS="--path <file>").'
+        )
+        return 0
 
     if not sys.stdin.isatty():
         # Headless with nothing configured: don't block. config.py falls
