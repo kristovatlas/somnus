@@ -90,7 +90,10 @@ def test_already_configured_reports_instead_of_prompting(
     assert db_location.main([]) == 0
     out = capsys.readouterr().out
     assert str(isolated_home / "env.db") in out
-    assert "--force" in out
+    # env outranks the saved config, so --force/--path would be a lie here;
+    # the report must point at the env var instead (PR #121 review).
+    assert "SOMNUS_DB_PATH" in out
+    assert "--force" not in out
 
 
 def test_already_configured_reports_saved_path(

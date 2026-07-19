@@ -152,13 +152,23 @@ def main(argv: list[str] | None = None) -> int:
     if is_configured() and not args.force:
         # #97: a bare re-run used to exit silently, making the documented
         # "re-run make db-location to move it" advice a no-op. Report where
-        # data lives and how to actually change it.
-        current = os.environ.get("SOMNUS_DB_PATH") or read_saved_db_path()
-        print(
-            f"Somnus database location: {current} "
-            '(already configured — use ARGS="--force" to change it, '
-            'or ARGS="--path <file>").'
-        )
+        # data lives and how to actually change it — which depends on HOW it
+        # is pinned: the env var outranks the saved config, so --force/--path
+        # (which only rewrite the saved file) cannot move an env-configured
+        # location (PR #121 review, Codex P2).
+        env_path = os.environ.get("SOMNUS_DB_PATH")
+        if env_path:
+            print(
+                f"Somnus database location: {env_path} "
+                "(set by SOMNUS_DB_PATH — change or unset that variable "
+                "to move it)."
+            )
+        else:
+            print(
+                f"Somnus database location: {read_saved_db_path()} "
+                '(already configured — use ARGS="--force" to change it, '
+                'or ARGS="--path <file>").'
+            )
         return 0
 
     if not sys.stdin.isatty():
