@@ -1,0 +1,29 @@
+.onboarding {
+  max-width: 500px;
+  margin: 2rem auto;
+}
+
+.onboarding-progress {
+  height: 4px;
+  background-color: var(--color-bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.onboarding-progress-bar {
+  height: 100%;
+  background-color: var(--color-interactive);
+  transition: width 0.3s ease;
+}
+
+.onboarding-step {
+  min-height: 300px;
+}
+
+.onboarding-hint {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  margin-top: 1rem;
+}

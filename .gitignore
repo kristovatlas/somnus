@@ -1,0 +1,50 @@
+# Python
+.uv-export.txt
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Somnus data (never commit user data)
+*.db
+*.sqlite
+*.sqlite3
+
+# Claude Code personal memory (not project docs)
+.claude/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local

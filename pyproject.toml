@@ -1,0 +1,120 @@
+[project]
+name = "somnus"
+version = "0.1.0"
+description = "Local sleep optimization app combining Oura Ring data with habit tracking and statistical analysis"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.14.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.28.0",
+    "scipy>=1.14.0",
+    "statsmodels>=0.14.0",
+    "numpy>=2.0.0",
+    "pandas>=2.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
+    "hypothesis>=6.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "bandit>=1.8.0",
+    "pip-audit>=2.7.0",
+    # Locked so the environment copy is pinned+hashed like everything else
+    # (floor = PYSEC-2026-3447 fix; base images ship older, pip-audit gates
+    # the env). Also the build backend for the --no-build-isolation editable
+    # install in `make setup-backend`.
+    "setuptools>=83.0.0",
+]
+
+# T-13 (docs/THREAT_MODEL.md, ADR 014): dependency-install cooldown — the
+# single cooldown key (top-level governs `uv lock` AND the `uv pip`
+# interface; verified on uv 0.11.26). Vetting happens at LOCK time; the
+# frozen, hash-verified install in `make setup-backend` deliberately runs
+# with the cooldown disabled (reproduction, not resolution — npm-ci
+# symmetry, ADR 014 §1). Urgent security fix inside the window: do NOT use
+# UV_EXCLUDE_NEWER (a lock regenerated under it records a different span
+# and fails `uv lock --check`); instead commit a per-package override here,
+#   exclude-newer-package = { <pkg> = "0 days" }
+# then `uv lock`, PR it, and remove the override once the release is 7
+# days old (verified: the override is recorded in uv.lock [options] and
+# `uv lock --check` passes).
+[tool.uv]
+exclude-newer = "7 days"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+allowed-confusables = ["σ", "×", "–"]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "S",    # flake8-bandit
+    "T20",  # flake8-print
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "S101",  # assert used in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/**" = ["S101", "S105", "S106", "S107"]
+"backend/routers/**" = ["B008"]
+# db_location is a terminal launcher (#41, ADR 015); print IS its interface.
+"backend/db_location.py" = ["T201"]
+
+[tool.mypy]
+# No python_version pin: numpy 2.5+ (which resolves on Python 3.12+)
+# ships PEP 695 stubs that mypy can only parse when analyzing as 3.12+,
+# while the 3.11 CI job resolves numpy 2.4.x and must analyze as 3.11.
+# Each CI matrix job therefore type-checks under its own interpreter;
+# only the 3.11 CI leg verifies 3.11 compatibility.
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "scipy.*",
+    "statsmodels.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+asyncio_mode = "auto"
+addopts = "--cov=backend --cov-report=term-missing --cov-fail-under=75"
+
+[tool.coverage.run]
+source = ["backend"]
+omit = ["backend/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+]

@@ -1,0 +1,36 @@
+.caffeine-quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.caffeine-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+}
+
+.caffeine-remove {
+  align-self: flex-end;
+  font-size: 0.8rem;
+  background: transparent;
+  color: var(--color-error);
+  border: none;
+  padding: 4px 8px;
+}
+
+.caffeine-total {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.caffeine-add-custom {
+  background: transparent;
+  color: var(--color-text-accent);
+  border: 1px dashed var(--color-border-light);
+  font-size: 0.85rem;
+}

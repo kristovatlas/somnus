@@ -1,0 +1,291 @@
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.dashboard-card-wide {
+  grid-column: 1 / -1;
+}
+
+.dashboard-card-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.dashboard-card-title {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dashboard-empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.dashboard-hint {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.dashboard-error {
+  color: var(--color-error);
+  text-align: center;
+  padding: 2rem;
+}
+
+/* Sleep Score Card */
+.dashboard-card-subtitle {
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard-missing-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.sleep-score-ring-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.dashboard-metric-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg-elevated);
+  border-radius: 4px;
+  min-width: 48px;
+}
+
+.dashboard-metric-label {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.dashboard-metric-value {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+/* Stage Breakdown Bar */
+.stage-bar-svg {
+  width: 100%;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.stage-labels {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+}
+
+.stage-averages {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.stage-avg-label {
+  color: var(--color-text-muted);
+}
+
+/* Sparkline Grid */
+.sparkline-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.sparkline-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sparkline-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.sparkline-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: none;
+}
+
+.sparkline-range {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+
+/* Consistency */
+.consistency-svg {
+  width: 100%;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.consistency-pills {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.consistency-pill {
+  padding: 0.15rem 0.4rem;
+  background: var(--color-bg-elevated);
+  border-radius: 4px;
+  cursor: help;
+}
+
+.consistency-details {
+  margin: 0.4rem 0 0;
+}
+
+.consistency-legend {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.consistency-glossary {
+  margin: 0.4rem 0 0;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.consistency-glossary dt {
+  margin-top: 0.3rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.consistency-glossary dd {
+  margin: 0;
+}
+
+/* Streak */
+.streak-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.streak-number {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.streak-unit {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* Red Light */
+.red-light-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.red-light-badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Caffeine section */
+.dashboard-caffeine {
+  grid-column: 1 / -1;
+}
+
+/* Top Recommendations */
+.top-recs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+
+.top-recs-item {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.top-recs-item:last-child {
+  border-bottom: none;
+}
+
+.top-recs-link {
+  background: transparent;
+  border: none;
+  color: var(--color-interactive);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.top-recs-link:hover {
+  color: var(--color-interactive-hover);
+}
+
+/* #58: bedtime countdown card */
+.bedtime-countdown-label {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0.25rem 0;
+}
+
+.bedtime-countdown-detail {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}

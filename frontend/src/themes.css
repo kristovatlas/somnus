@@ -1,0 +1,156 @@
+/*
+ * Somnus Display Themes
+ *
+ * Circadian mode (default): Amber/red palette only.
+ * Avoids melanopsin-triggering wavelengths (< 590nm).
+ * No blue, green, white, or pure yellow. See ADR 004.
+ *
+ * Light mode: Standard palette for daytime use.
+ */
+
+/* --- Circadian Mode (default) --- */
+:root,
+body.theme-circadian {
+  --color-bg-primary: #1a0500;
+  --color-bg-secondary: #2d0a00;
+  --color-bg-elevated: #3d1a00;
+
+  --color-text-primary: #ff8c00;
+  --color-text-secondary: #ffd580;
+  --color-text-muted: #e8a0a0;
+  --color-text-accent: #ff6b6b;
+
+  --color-border: #3d1a00;
+  --color-border-light: #5a2d10;
+
+  --color-success: #ff9933;
+  --color-warning: #ff6600;
+  --color-error: #cc3333;
+
+  --color-interactive: #ffb347;
+  --color-interactive-hover: #ff8c00;
+
+  /* Chart palette — amber/red only, no blue/green/white */
+  --color-chart-1: #ff8c00;
+  --color-chart-2: #cc5500;
+  --color-chart-3: #ff6b6b;
+  --color-chart-4: #ffd580;
+  --color-chart-5: #e8a0a0;
+
+  --color-input-bg: #2d0a00;
+  --color-input-border: #5a2d10;
+  --color-input-text: #ffb347;
+  --color-input-placeholder: #8b5e3c;
+
+  --transition-theme: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* --- Light Mode --- */
+body.theme-light {
+  --color-bg-primary: #faf8f5;
+  --color-bg-secondary: #ffffff;
+  --color-bg-elevated: #ffffff;
+
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #4a4a4a;
+  --color-text-muted: #8a8a8a;
+  --color-text-accent: #c44d00;
+
+  --color-border: #e0dcd6;
+  --color-border-light: #f0ece6;
+
+  --color-success: #2d8a4e;
+  --color-warning: #c47a00;
+  --color-error: #cc3333;
+
+  --color-interactive: #c44d00;
+  --color-interactive-hover: #a03d00;
+
+  --color-chart-1: #c44d00;
+  --color-chart-2: #2d8a4e;
+  --color-chart-3: #4a78c4;
+  --color-chart-4: #8a5ec4;
+  --color-chart-5: #c44d7a;
+
+  --color-input-bg: #ffffff;
+  --color-input-border: #d0ccc6;
+  --color-input-text: #1a1a1a;
+  --color-input-placeholder: #aaa;
+}
+
+/* --- Base Styles --- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  transition: var(--transition-theme);
+  min-height: 100vh;
+}
+
+a {
+  color: var(--color-text-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-interactive-hover);
+}
+
+input,
+select,
+textarea {
+  background-color: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  color: var(--color-input-text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 1rem;
+  transition: var(--transition-theme);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-input-placeholder);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-interactive);
+}
+
+button {
+  background-color: var(--color-interactive);
+  color: var(--color-bg-primary);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: var(--transition-theme);
+}
+
+button:hover {
+  background-color: var(--color-interactive-hover);
+}
+
+/* Shared quick-add chip used by daily-log sections (Caffeine, Nap, NSDR,
+   Supplement, Habit) */
+.quick-add-btn {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-accent);
+  border: 1px solid var(--color-border-light);
+  border-radius: 6px;
+  cursor: pointer;
+}

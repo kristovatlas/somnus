@@ -1,0 +1,56 @@
+PR 33 pending review actions: dashboard accuracy regressions
+Recorded: 2026-07-04
+Status: pending action
+
+Summary:
+PR 33 introduced two user-visible dashboard accuracy regressions. Targeted
+builds/tests for PRs 32, 33, and 34 were reported passing, but these issues
+should be fixed before treating PR 33 as fully resolved.
+
+Findings:
+
+1. [P2] Preserve missing latest trend values
+   File: frontend/src/components/Dashboard/TrendSparklines.tsx
+   Review location: line 24
+
+   Problem:
+   When the most recent TrendDay has null for a metric, the component filters
+   out null values and then takes the last remaining value. This makes the bold
+   "latest" number show a stale earlier reading instead of the latest day's
+   missing state.
+
+   Example:
+   If latest HRV is null but yesterday's HRV was 45ms, the UI still renders
+   "45ms" instead of "-".
+
+   Action:
+   Preserve the latest day when computing the displayed latest value. Render
+   the missing-value placeholder for a null latest metric while still allowing
+   the sparkline to omit null points if that is the desired chart behavior.
+
+2. [P2] Do not sign absolute bedtime deltas
+   File: frontend/src/components/Dashboard/ConsistencyMeter.tsx
+   Review location: lines 131-132
+
+   Problem:
+   delta_minutes is still produced by the backend as an absolute mean offset
+   from typical bedtime. Adding a plus sign and describing positive values as
+   "later" mislabels earlier-than-usual bedtimes, because the backend value
+   does not currently carry direction.
+
+   Example:
+   Users whose average bedtime is before their typical bedtime can see
+   "delta +Xm" even though the direction is unknown from this value.
+
+   Action:
+   Display the bedtime delta as an unsigned absolute offset, or update the
+   backend contract to provide a signed directional delta before using plus or
+   minus signs and "earlier/later" language in the dashboard.
+
+Resolution (2026-07-04, fix/dashboard-clarity):
+1. TrendSparklines now takes the displayed "latest" from the actual most
+   recent day (null renders the "—" placeholder); min/max range still
+   computed from recorded days only. Regression test added.
+2. δ is displayed unsigned with direction-free tooltip wording, matching
+   the backend's mean-of-absolute-offsets metric. Signed/directional δ
+   deferred until the backend contract carries direction.

@@ -1,0 +1,29 @@
+.step-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.step-nav-spacer {
+  flex: 1;
+}
+
+.step-nav-back {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-light);
+}
+
+.step-nav-skip {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  text-decoration: underline;
+}
+
+.step-nav-next {
+  min-width: 100px;
+}
