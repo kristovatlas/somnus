@@ -1,3 +1,5 @@
+import { blurOnWheel } from "../../wheelGuard";
+
 interface NumberInputProps {
   label: string;
   value: number | null;
@@ -30,6 +32,7 @@ export function NumberInput({
           min={min}
           max={max}
           step={step}
+          onWheel={blurOnWheel}
           style={{ flex: 1 }}
         />
         {unit && (
