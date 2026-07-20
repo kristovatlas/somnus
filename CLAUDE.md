@@ -41,7 +41,7 @@ CI on `dev` was red from 2026-02 to 2026-07 because merges never verified it. Th
 - **`dev` CI must stay green.** At the start of any work session, check the latest run: `gh run list --branch dev --limit 1`. If it is red, fixing it preempts all other work — never build features on a broken base.
 - **Never merge a PR with failing or pending checks.** Verify with `gh pr checks <number>` immediately before merging. Never use `gh pr merge --admin` to bypass required checks.
 - **After merging to `dev`, wait for the post-merge run and confirm it is green** before starting the next task — two individually green PRs can still break `dev` in combination.
-- Branch protection on `dev` and `main` requires the `backend (3.11)`, `backend (3.12)`, `frontend`, `security`, and `e2e` checks. Keep it enabled. If job names in `ci.yml` change, update the protection rule in the same PR.
+- Branch protection on `dev` and `main` requires the `backend (3.11)`, `backend (3.12)`, `frontend`, `security`, `e2e`, and `review-gate` checks. Keep it enabled. If job names in `ci.yml` change, update the protection rule in the same PR.
 
 ### Architecture Docs
 - ARCHITECTURE.md must be updated in the same commit as any structural change.
@@ -58,6 +58,7 @@ CI on `dev` was red from 2026-02 to 2026-07 because merges never verified it. Th
 ### Pull Requests
 - Every PR description must include a **Test plan** section with a checkbox list.
 - Before submitting a PR, run as many test plan items as possible and **check off the boxes** in the PR description for each verified item.
+- **Every PR carries review artifacts** under `docs/reviews/pr-<N>/` per `docs/process/review-gate.md` — the `review-gate` CI check blocks merge without all four validated leg files matching the current diff hash. No exemptions, including docs-only PRs.
 - At minimum, always run and verify: backend tests, frontend tests, frontend lint, and frontend build.
 
 ### Code Quality

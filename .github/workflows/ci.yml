@@ -182,3 +182,28 @@ jobs:
       - name: E2E tests (Playwright)
         working-directory: frontend
         run: npx playwright test
+
+  review-gate:
+    # Deterministic enforcement that the review battery ran, was validated,
+    # and met thresholds — docs/process/review-gate.md. PR events only (the
+    # artifacts are keyed by PR number).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # PR HEAD, not the merge ref — the merge-base diff must match what
+          # the orchestrator hashed locally when writing the artifacts.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Review gate (stdlib, no deps)
+        run: >
+          python scripts/review_gate.py
+          --pr ${{ github.event.pull_request.number }}
+          --base origin/${{ github.base_ref }}
