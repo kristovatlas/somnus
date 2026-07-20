@@ -15,13 +15,11 @@ export function useDashboard() {
   // silent=true (sync-triggered refetch): no loading flash, and a failure
   // keeps the stale data — what's on screen is still the best known. A
   // SUCCESS clears any prior error: fresh data means we've recovered
-  // (PR #118 review, Claude LOW + Codex P2).
+  // (PR #118 review, Claude LOW + Codex P2). No synchronous setState in
+  // here: the mount effect calls this directly (react-hooks rule), so the
+  // loading flag is set by the initial state / by refresh(), never by load.
   const load = useCallback((silent: boolean) => {
     const seq = ++seqRef.current;
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
     getDashboard()
       .then((d) => {
         if (seq !== seqRef.current) return; // a newer request owns the state
@@ -52,7 +50,11 @@ export function useDashboard() {
     [load],
   );
 
-  const refresh = useCallback(() => load(false), [load]);
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    load(false);
+  }, [load]);
 
   return { data, loading, error, refresh };
 }
