@@ -79,11 +79,47 @@ def test_non_tty_unconfigured_does_not_block(
     assert "no TTY" in capsys.readouterr().err
 
 
-def test_already_configured_is_a_noop(isolated_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_already_configured_reports_instead_of_prompting(
+    isolated_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setenv("SOMNUS_DB_PATH", str(isolated_home / "env.db"))
-    # Even on a TTY, an existing config short-circuits without prompting.
+    # Even on a TTY, an existing config short-circuits without prompting —
+    # but reports the current location + how to change it (#97), since the
+    # user-facing copy says "re-run make db-location" to move the DB.
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     assert db_location.main([]) == 0
+    out = capsys.readouterr().out
+    assert str(isolated_home / "env.db") in out
+    # env outranks the saved config, so --force/--path would be a lie here;
+    # the report must point at the env var instead (PR #121 review).
+    assert "SOMNUS_DB_PATH" in out
+    assert "--force" not in out
+
+
+def test_already_configured_reports_saved_path(
+    isolated_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    saved = isolated_home / "vol" / "somnus.db"
+    saved.parent.mkdir()
+    db_location.main(["--path", str(saved)])
+    capsys.readouterr()  # discard the set-confirmation line
+    assert db_location.main([]) == 0
+    out = capsys.readouterr().out
+    assert str(saved) in out and "--force" in out
+
+
+def test_path_flag_warns_when_env_overrides(
+    isolated_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--path persists, but with SOMNUS_DB_PATH set the success line alone
+    would mislead (env outranks the file) — a stderr note must say so."""
+    monkeypatch.setenv("SOMNUS_DB_PATH", str(isolated_home / "env.db"))
+    target = isolated_home / "vol" / "somnus.db"
+    target.parent.mkdir()
+    assert db_location.main(["--path", str(target)]) == 0
+    captured = capsys.readouterr()
+    assert str(target) in captured.out  # still persisted + confirmed
+    assert "SOMNUS_DB_PATH" in captured.err and "overrides" in captured.err
 
 
 def test_validate_target_blank_and_expanduser(isolated_home: Path) -> None:
@@ -114,9 +150,37 @@ def test_init_db_refuses_previously_initialized_missing_path(
     monkeypatch.setenv("SOMNUS_DB_PATH", str(gone))
     monkeypatch.setattr("backend.database.settings.db_path", gone)
 
-    with pytest.raises(RuntimeError, match="missing"):
+    # env-pinned → the advice must name the env var, not --force (which
+    # only rewrites the saved config the env var outranks) — PR #121 review
+    with pytest.raises(RuntimeError, match="SOMNUS_DB_PATH") as exc:
         database.init_db()
+    assert "--force" not in str(exc.value)
     assert not gone.exists()  # refused to create a shadow DB
+
+
+def test_guard_message_advises_force_for_saved_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Saved-config pinning → the refusal advises make db-location --force."""
+    from backend import config, database
+
+    marker = tmp_path / ".db-initialized"
+    cfg = tmp_path / ".somnus" / "db-location"
+    monkeypatch.setattr(config, "INITIALIZED_MARKER", marker)
+    monkeypatch.setattr(config, "CONFIG_FILE", cfg)
+    monkeypatch.delenv("SOMNUS_DB_PATH", raising=False)
+    mount = tmp_path / "veracrypt"
+    mount.mkdir()
+    gone = mount / "somnus.db"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(f"{gone}\n")  # pinned via the saved launcher config
+    config.mark_db_initialized(gone)
+    monkeypatch.setattr("backend.database.settings.db_path", gone)
+
+    with pytest.raises(RuntimeError, match=r"ARGS=\"--force\"") as exc:
+        database.init_db()
+    assert "SOMNUS_DB_PATH" not in str(exc.value).split("or ")[-1]
+    assert not gone.exists()
 
 
 def test_init_db_first_creation_at_configured_path_is_allowed(

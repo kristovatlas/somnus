@@ -228,11 +228,18 @@ def _guard_configured_path_available(explicitly_configured: bool) -> None:
     if not explicitly_configured or str(path) == ":memory:" or path.exists():
         return
     if read_initialized_db_path() == str(path):
+        # The "choose a new location" advice must match HOW the path is
+        # pinned: --force only rewrites the saved config, which SOMNUS_DB_PATH
+        # outranks (PR #121 review — same asymmetry as db_location's report).
+        if os.environ.get("SOMNUS_DB_PATH"):
+            change_hint = "change or unset SOMNUS_DB_PATH"
+        else:
+            change_hint = 'run `make db-location ARGS="--force"`'
         raise RuntimeError(
             f"The configured Somnus database at {path} is missing — it was set "
             "up here before, so the volume is probably not mounted (or the file "
-            "moved). Mount the encrypted volume and start Somnus again, or run "
-            "`make db-location` to choose a new location. Refusing to create a "
+            f"moved). Mount the encrypted volume and start Somnus again, or "
+            f"{change_hint} to choose a new location. Refusing to create a "
             "new plaintext database in its place."
         )
 

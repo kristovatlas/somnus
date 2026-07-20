@@ -22,6 +22,7 @@ exactly how a headless/containerised deploy is configured.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -119,15 +120,14 @@ def prompt_for_location(*, default: Path = DEFAULT_DB_PATH) -> Path:
 
 def is_configured() -> bool:
     """True when a DB path is already pinned (env var or saved config)."""
-    import os
-
     return bool(os.environ.get("SOMNUS_DB_PATH")) or read_saved_db_path() is not None
 
 
 def main(argv: list[str] | None = None) -> int:
     """Launcher entry point: resolve + persist the DB location.
 
-    Idempotent: does nothing if already configured (unless ``--force``);
+    Idempotent: when already configured it reports the current location
+    and exits (unless ``--force``);
     on a non-TTY, never prompts (headless uses the env var / default).
     """
     parser = argparse.ArgumentParser(
@@ -147,10 +147,30 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         _persist(path)
         print(f"Somnus database location set to {path}")
+        _warn_if_env_overrides()
         return 0
 
     if is_configured() and not args.force:
-        return 0  # respect an existing env var / saved choice
+        # #97: a bare re-run used to exit silently, making the documented
+        # "re-run make db-location to move it" advice a no-op. Report where
+        # data lives and how to actually change it — which depends on HOW it
+        # is pinned: the env var outranks the saved config, so --force/--path
+        # (which only rewrite the saved file) cannot move an env-configured
+        # location (PR #121 review, Codex P2).
+        env_path = os.environ.get("SOMNUS_DB_PATH")
+        if env_path:
+            print(
+                f"Somnus database location: {env_path} "
+                "(set by SOMNUS_DB_PATH — change or unset that variable "
+                "to move it)."
+            )
+        else:
+            print(
+                f"Somnus database location: {read_saved_db_path()} "
+                '(already configured — use ARGS="--force" to change it, '
+                'or ARGS="--path <file>").'
+            )
+        return 0
 
     if not sys.stdin.isatty():
         # Headless with nothing configured: don't block. config.py falls
@@ -166,7 +186,20 @@ def main(argv: list[str] | None = None) -> int:
     chosen = prompt_for_location()
     _persist(chosen)
     print(f"Somnus database location set to {chosen}")
+    _warn_if_env_overrides()
     return 0
+
+
+def _warn_if_env_overrides() -> None:
+    """A saved choice is inert while SOMNUS_DB_PATH is set (env outranks the
+    config file) — say so instead of printing an unqualified success."""
+    env_path = os.environ.get("SOMNUS_DB_PATH")
+    if env_path:
+        print(
+            f"note: SOMNUS_DB_PATH is set (to {env_path}) and overrides the "
+            "saved choice — unset it for the new location to take effect.",
+            file=sys.stderr,
+        )
 
 
 def _persist(path: Path) -> None:
