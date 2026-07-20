@@ -586,19 +586,19 @@ def render_weekly_html(report: dict[str, Any]) -> str:
     neg_factors = r.get("top_negative_factors") or []
     if pos_factors:
         items = " · ".join(
-            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']})"
+            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']:d})"
             for f in pos_factors
         )
         factors_html += f"<p>Associated with better sleep score: {items}</p>"
     if neg_factors:
         items = " · ".join(
-            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']})"
+            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']:d})"
             for f in neg_factors
         )
         factors_html += f"<p>Associated with worse sleep score: {items}</p>"
     if factors_html and r.get("factors_total_days"):
         factors_html += (
-            f'<p class="muted">Computed across all {r["factors_total_days"]} days '
+            f'<p class="muted">Computed across all {r["factors_total_days"]:d} days '
             f"of your data — not specific to this week.</p>"
         )
 
