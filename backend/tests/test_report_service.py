@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+import pytest
 from sqlalchemy.orm import Session
 
 from backend.models import (
@@ -579,12 +580,14 @@ class TestHTMLEscaping:
 
     def test_weekly_escapes_factor_label(self) -> None:
         report = _minimal_weekly_report(
-            top_positive_factor={"label": _XSS, "pearson_r": 0.5},
-            top_negative_factor={"label": _XSS, "pearson_r": -0.5},
+            top_positive_factors=[{"label": _XSS, "pearson_r": 0.5, "n_days": 20}],
+            top_negative_factors=[{"label": _XSS, "pearson_r": -0.5, "n_days": 20}],
+            factors_total_days=30,
         )
         html = render_weekly_html(report)
         assert _XSS not in html
         assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 2
+        assert "across all 30 days" in html
 
     def test_weekly_escapes_consistency_ratings(self) -> None:
         report = _minimal_weekly_report(
@@ -612,3 +615,60 @@ class TestHTMLEscaping:
         html = render_monthly_html(report)
         assert "Caffeine (mg)" in html
         assert "Less caffeine → deeper sleep &amp; higher HRV" in html
+
+
+# ---------------------------------------------------------------------------
+# #102: top factors — top-3 per direction, noise floor, all-time caption data
+# ---------------------------------------------------------------------------
+
+
+class TestGetTopFactors:
+    def _fake_results(self) -> list[dict[str, object]]:
+        def corr(pred: str, r: float, n: int = 30) -> dict[str, object]:
+            return {"predictor": pred, "outcome": "sleep_score", "pearson_r": r, "n_days": n}
+
+        return [
+            corr("sunlight_lux", 0.42),
+            corr("exercise_minutes", 0.31),
+            corr("sauna_minutes", 0.18),
+            corr("warm_shower", 0.12),  # 4th positive — must be cut at 3
+            corr("meals_count", 0.04),  # below the 0.1 noise floor
+            corr("bedtime_hour", -0.32),
+            corr("alcohol_drinks", -0.21),
+            corr("caffeine_mg", -0.09),  # below the noise floor
+            {"predictor": "x", "outcome": "deep_minutes", "pearson_r": 0.9, "n_days": 30},
+        ]
+
+    def test_top3_noise_filtered_with_total(
+        self, db: Session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import pandas as pd
+
+        from backend.services import report_service
+
+        monkeypatch.setattr(
+            "backend.services.stats_engine.prepare_analysis_dataframe",
+            lambda _db: pd.DataFrame({"sleep_score": range(45)}),
+        )
+        monkeypatch.setattr(
+            "backend.services.stats_engine.compute_correlations",
+            lambda _df: (self._fake_results(), 0),
+        )
+        pos, neg, total = report_service._get_top_factors(db)
+        assert total == 45
+        assert [f["pearson_r"] for f in pos] == [0.42, 0.31, 0.18]  # capped at 3
+        assert [f["pearson_r"] for f in neg] == [-0.32, -0.21]  # floor cuts -0.09
+        assert all("n_days" in f and "label" in f for f in pos + neg)
+        # the deep_minutes outcome result never leaks into a sleep-score card
+        assert not any(f["pearson_r"] == 0.9 for f in pos)
+
+    def test_empty_dataframe(self, db: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+        import pandas as pd
+
+        monkeypatch.setattr(
+            "backend.services.stats_engine.prepare_analysis_dataframe",
+            lambda _db: pd.DataFrame(),
+        )
+        from backend.services import report_service
+
+        assert report_service._get_top_factors(db) == ([], [], 0)

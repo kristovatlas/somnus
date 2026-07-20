@@ -688,6 +688,7 @@ class TrendArrows(BaseModel):
 class TopFactor(BaseModel):
     label: str
     pearson_r: float
+    n_days: int
 
 
 class WeeklyReportResponse(BaseModel):
@@ -702,8 +703,12 @@ class WeeklyReportResponse(BaseModel):
     prior: MetricAverages
     trends: TrendArrows
     consistency: ConsistencyMetrics | None = None
-    top_positive_factor: TopFactor | None = None
-    top_negative_factor: TopFactor | None = None
+    # #102: top-3 per direction from FULL-dataset correlations (per-week
+    # windows at n≤7 are statistically meaningless) — factors_total_days
+    # feeds the "across all N days" caption so the card can say so.
+    top_positive_factors: list[TopFactor] = []
+    top_negative_factors: list[TopFactor] = []
+    factors_total_days: int | None = None
     has_insufficient_data: bool
 
 
