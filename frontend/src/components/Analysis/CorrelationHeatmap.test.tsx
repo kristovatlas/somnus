@@ -16,6 +16,8 @@ function result(overrides: Partial<CorrelationResult>): CorrelationResult {
     p_value: 0.03,
     n_days: 30,
     confidence: "moderate",
+    effect: null,
+    contrast: null,
     ...overrides,
   };
 }

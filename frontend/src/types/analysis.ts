@@ -20,6 +20,21 @@ export interface AnalysisStatus {
 
 // --- Correlations ---
 
+export interface EffectSize {
+  value: number;
+  increment_label: string;
+  outcome_unit: string;
+}
+
+export interface BinnedContrast {
+  low_label: string;
+  high_label: string;
+  low_mean: number;
+  high_mean: number;
+  n_low: number;
+  n_high: number;
+}
+
 export interface CorrelationResult {
   predictor: string;
   predictor_label: string;
@@ -30,6 +45,8 @@ export interface CorrelationResult {
   p_value: number;
   n_days: number;
   confidence: "low" | "moderate" | "high";
+  effect: EffectSize | null;
+  contrast: BinnedContrast | null;
 }
 
 export interface CorrelationResponse {

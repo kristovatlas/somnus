@@ -412,6 +412,132 @@ def _confidence_level(n: int) -> str:
     return "low"
 
 
+# ---------------------------------------------------------------------------
+# #17: effect sizes in natural units — slope headline + binned contrast.
+# r stays in the payload but is demoted in the UI; these are what users read.
+# ---------------------------------------------------------------------------
+
+# Natural increment per predictor: (increment in column units, display label).
+# The slope headline reads "≈X <outcome unit> per <label>".
+_EFFECT_INCREMENTS: dict[str, tuple[float, str]] = {
+    "total_caffeine_mg": (100, "100 mg"),
+    "last_caffeine_hour": (1, "hour later"),
+    "last_meal_hour": (1, "hour later"),
+    "exercise_duration_minutes": (30, "30 min"),
+    "stress_level": (1, "point"),
+    "room_temp_f": (5, "5°F"),
+    "stimulating_minutes": (30, "30 min"),
+    "stimulating_last_hour": (1, "hour later"),
+    "nap_total_minutes": (30, "30 min"),
+    "nap_count": (1, "nap"),
+    "sunlight_morning_minutes": (30, "30 min"),
+    "sunlight_first_hour": (1, "hour later"),
+    "red_light_dose_j_cm2": (10, "10 J/cm²"),
+    "nsdr_total_minutes": (15, "15 min"),
+    "ritual_total_minutes": (15, "15 min"),
+    "sigma_7d": (15, "15 min"),
+    "delta_7d": (15, "15 min"),
+    "bedtime_hour": (1, "hour later"),
+}
+
+# Outcome display units for the slope headline. sleep_efficiency is stored
+# as a 0-1 fraction — scaled to percentage points for display.
+_OUTCOME_UNITS: dict[str, str] = {
+    "sleep_score": "points",
+    "deep_minutes": "min",
+    "rem_minutes": "min",
+    "avg_hrv": "ms",
+    "onset_latency_minutes": "min",
+    "sleep_efficiency": "% pts",
+    "total_sleep_minutes": "min",
+}
+
+# Predictors on the continuous evening clock (see _normalize_bedtime_hour):
+# their bin cutoffs render as clock times, wrapping 24+ back to AM.
+_HOUR_PREDICTORS = {
+    "bedtime_hour",
+    "last_caffeine_hour",
+    "last_meal_hour",
+    "stimulating_last_hour",
+    "sunlight_first_hour",
+}
+
+_CONTRAST_MIN_PER_BIN = 5
+
+
+def _fmt_clock(hour: float) -> str:
+    """24.5 → "12:30 AM"; 23.25 → "11:15 PM" (evening-clock aware)."""
+    h = hour % 24
+    minutes = int(round(h * 60))
+    hh, mm = divmod(minutes, 60)
+    hh %= 24
+    suffix = "AM" if hh < 12 else "PM"
+    display_h = hh % 12 or 12
+    return f"{display_h}:{mm:02d} {suffix}"
+
+
+def _cutoff_label(pred: str, cutoff: float) -> str:
+    if pred in _HOUR_PREDICTORS:
+        return _fmt_clock(cutoff)
+    return f"{cutoff:g}"
+
+
+def _effect_size(
+    pred: str, outcome: str, subset: pd.DataFrame, pearson_r: float
+) -> dict[str, Any] | None:
+    """Slope in natural units per predictor increment, or None (binary /
+    unmapped predictors have no meaningful per-unit slope)."""
+    inc = _EFFECT_INCREMENTS.get(pred)
+    if inc is None:
+        return None
+    increment, increment_label = inc
+    sd_x = float(subset[pred].std())
+    sd_y = float(subset[outcome].std())
+    if sd_x == 0:
+        return None
+    slope = pearson_r * sd_y / sd_x
+    value = slope * increment
+    if outcome == "sleep_efficiency":
+        value *= 100  # fraction → percentage points
+    return {
+        "value": round(value, 2),
+        "increment_label": increment_label,
+        "outcome_unit": _OUTCOME_UNITS.get(outcome, ""),
+    }
+
+
+def _binned_contrast(
+    pred: str, outcome: str, subset: pd.DataFrame
+) -> dict[str, Any] | None:
+    """Median-split evidence line: outcome means below vs above the cutoff.
+
+    None when either bin is under _CONTRAST_MIN_PER_BIN (ties on the median
+    can empty the high bin — e.g. zero-heavy predictors)."""
+    cutoff = float(subset[pred].median())
+    low = subset[subset[pred] <= cutoff]
+    high = subset[subset[pred] > cutoff]
+    if len(low) < _CONTRAST_MIN_PER_BIN or len(high) < _CONTRAST_MIN_PER_BIN:
+        return None
+    low_mean = float(low[outcome].mean())
+    high_mean = float(high[outcome].mean())
+    if outcome == "sleep_efficiency":
+        low_mean *= 100
+        high_mean *= 100
+    label = _cutoff_label(pred, cutoff)
+    if pred in _HOUR_PREDICTORS:
+        low_label, high_label = f"before {label}", f"after {label}"
+    else:
+        low_label, high_label = f"≤ {label}", f"> {label}"
+    return {
+        "low_label": low_label,
+        "high_label": high_label,
+        "low_mean": round(low_mean, 1),
+        "high_mean": round(high_mean, 1),
+        "n_low": len(low),
+        "n_high": len(high),
+    }
+
+
 def compute_correlations(
     df: pd.DataFrame,
     min_days: int = 14,
@@ -464,6 +590,8 @@ def compute_correlations(
                     "p_value": round(float(p_val), 6),
                     "n_days": n,
                     "confidence": _confidence_level(n),
+                    "effect": _effect_size(pred, outcome, subset, float(pearson_r)),
+                    "contrast": _binned_contrast(pred, outcome, subset),
                 }
             )
 

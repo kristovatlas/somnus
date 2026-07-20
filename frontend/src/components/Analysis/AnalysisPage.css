@@ -326,3 +326,21 @@
 .nap-table tr:last-child td {
   border-bottom: none;
 }
+
+/* #17: slope headline + evidence lines in the correlations list */
+.correlation-headline {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.correlation-evidence {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.1rem;
+}
+
+.correlation-row .correlation-stats {
+  opacity: 0.75;
+  font-size: 0.8rem;
+}
