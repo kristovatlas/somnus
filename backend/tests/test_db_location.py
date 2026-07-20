@@ -108,6 +108,20 @@ def test_already_configured_reports_saved_path(
     assert str(saved) in out and "--force" in out
 
 
+def test_path_flag_warns_when_env_overrides(
+    isolated_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--path persists, but with SOMNUS_DB_PATH set the success line alone
+    would mislead (env outranks the file) — a stderr note must say so."""
+    monkeypatch.setenv("SOMNUS_DB_PATH", str(isolated_home / "env.db"))
+    target = isolated_home / "vol" / "somnus.db"
+    target.parent.mkdir()
+    assert db_location.main(["--path", str(target)]) == 0
+    captured = capsys.readouterr()
+    assert str(target) in captured.out  # still persisted + confirmed
+    assert "SOMNUS_DB_PATH" in captured.err and "overrides" in captured.err
+
+
 def test_validate_target_blank_and_expanduser(isolated_home: Path) -> None:
     path, reason = db_location._validate_target("   ")
     assert path is None and reason is not None
@@ -136,9 +150,37 @@ def test_init_db_refuses_previously_initialized_missing_path(
     monkeypatch.setenv("SOMNUS_DB_PATH", str(gone))
     monkeypatch.setattr("backend.database.settings.db_path", gone)
 
-    with pytest.raises(RuntimeError, match="missing"):
+    # env-pinned → the advice must name the env var, not --force (which
+    # only rewrites the saved config the env var outranks) — PR #121 review
+    with pytest.raises(RuntimeError, match="SOMNUS_DB_PATH") as exc:
         database.init_db()
+    assert "--force" not in str(exc.value)
     assert not gone.exists()  # refused to create a shadow DB
+
+
+def test_guard_message_advises_force_for_saved_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Saved-config pinning → the refusal advises make db-location --force."""
+    from backend import config, database
+
+    marker = tmp_path / ".db-initialized"
+    cfg = tmp_path / ".somnus" / "db-location"
+    monkeypatch.setattr(config, "INITIALIZED_MARKER", marker)
+    monkeypatch.setattr(config, "CONFIG_FILE", cfg)
+    monkeypatch.delenv("SOMNUS_DB_PATH", raising=False)
+    mount = tmp_path / "veracrypt"
+    mount.mkdir()
+    gone = mount / "somnus.db"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(f"{gone}\n")  # pinned via the saved launcher config
+    config.mark_db_initialized(gone)
+    monkeypatch.setattr("backend.database.settings.db_path", gone)
+
+    with pytest.raises(RuntimeError, match=r"ARGS=\"--force\"") as exc:
+        database.init_db()
+    assert "SOMNUS_DB_PATH" not in str(exc.value).split("or ")[-1]
+    assert not gone.exists()
 
 
 def test_init_db_first_creation_at_configured_path_is_allowed(

@@ -268,7 +268,7 @@ No endpoint requires authentication (verified: no `Security`/`Depends(auth)` any
 ### T‑16 — Logging discipline (standing control) — **Mitigated** — *n/a*
 `backend/` (no `logging.basicConfig`; module loggers declared but never invoked)
 
-**STRIDE:** Information disclosure (preventive). Verified: **no log call sites and no `print`** in non-test backend; the token and health data never reach logs; `flake8-print` (`T20`) in CI would fail a stray `print`. uvicorn access logs record request lines only — dates/format in query strings, never the token or bodies (`oura.py:40`, `export.py:26`). This is the control that keeps the E2/E3 info-disclosure rows closed; **any PR that adds logging must preserve it** (see checklist §8).
+**STRIDE:** Information disclosure (preventive). Verified: **no log call sites and no `print`** in non-test backend (sole exception: `backend/db_location.py`, the T201-exempted terminal launcher — prints paths and guidance only, never secrets or health data); the token and health data never reach logs; `flake8-print` (`T20`) in CI would fail a stray `print`. uvicorn access logs record request lines only — dates/format in query strings, never the token or bodies (`oura.py:40`, `export.py:26`). This is the control that keeps the E2/E3 info-disclosure rows closed; **any PR that adds logging must preserve it** (see checklist §8).
 
 ### T‑17 — SQLite export may capture a torn / inconsistent copy — **Mitigated** — *Low*
 `backend/routers/export.py` (`_consistent_sqlite_snapshot`, `GET /api/export/sqlite`)

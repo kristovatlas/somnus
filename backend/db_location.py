@@ -147,6 +147,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         _persist(path)
         print(f"Somnus database location set to {path}")
+        _warn_if_env_overrides()
         return 0
 
     if is_configured() and not args.force:
@@ -185,7 +186,20 @@ def main(argv: list[str] | None = None) -> int:
     chosen = prompt_for_location()
     _persist(chosen)
     print(f"Somnus database location set to {chosen}")
+    _warn_if_env_overrides()
     return 0
+
+
+def _warn_if_env_overrides() -> None:
+    """A saved choice is inert while SOMNUS_DB_PATH is set (env outranks the
+    config file) — say so instead of printing an unqualified success."""
+    env_path = os.environ.get("SOMNUS_DB_PATH")
+    if env_path:
+        print(
+            f"note: SOMNUS_DB_PATH is set (to {env_path}) and overrides the "
+            "saved choice — unset it for the new location to take effect.",
+            file=sys.stderr,
+        )
 
 
 def _persist(path: Path) -> None:

@@ -59,7 +59,7 @@ describe("DataStorageStep", () => {
 
   // #98: the old absolute claim ("Nothing is sent to external servers") was
   // false once Oura is connected — the PAT + date ranges go to Oura's API
-  // (THREAT_MODEL B4). The copy must name that egress, not deny it.
+  // (THREAT_MODEL B3). The copy must name that egress, not deny it.
   it("qualifies the local-only claim with the Oura egress", () => {
     render(<DataStorageStep onNext={mockNext} onBack={mockBack} />);
     expect(
