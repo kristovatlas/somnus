@@ -329,28 +329,29 @@ def generate_recommendations(db: Session) -> dict[str, Any]:
 def get_top_recommendations(db: Session, limit: int = 3) -> list[dict[str, str]]:
     """Lightweight version for the dashboard — top N as {id, title, category}.
 
-    Deduped by factor (#101): data-driven recs are emitted per (factor,
-    outcome) pair, and a strong factor affecting several outcomes would fill
-    the widget with near-identical titles. The widget shows each factor once,
-    using its factor label (the outcome split stays on the full page).
+    Deduped by factor WITHIN data-driven recs (#101): those are emitted per
+    (factor, outcome) pair, so a strong factor affecting several outcomes
+    filled the widget with identical titles. Data-driven entries show the
+    factor label once (the outcome split stays on the full page); other
+    categories keep their actionable titles ("Try tracking morning
+    sunlight") and are never suppressed by a same-factor data-driven rec —
+    their phrasing is visibly distinct, which was never the #101 complaint.
     """
     result = generate_recommendations(db)
     if not result["has_sufficient_data"]:
         return []
     top: list[dict[str, str]] = []
-    seen_factors: set[str] = set()
+    seen_data_driven_factors: set[str] = set()
     for r in result["recommendations"]:
-        factor = r.get("factor") or r["id"]  # non-data-driven recs have no factor
-        if factor in seen_factors:
-            continue
-        seen_factors.add(factor)
-        top.append(
-            {
-                "id": r["id"],
-                "title": r.get("factor_label") or r["title"],
-                "category": r["category"],
-            }
-        )
+        if r["category"] == "data_driven":
+            factor = r["factor"]
+            if factor in seen_data_driven_factors:
+                continue
+            seen_data_driven_factors.add(factor)
+            title = r["factor_label"]
+        else:
+            title = r["title"]
+        top.append({"id": r["id"], "title": title, "category": r["category"]})
         if len(top) == limit:
             break
     return top

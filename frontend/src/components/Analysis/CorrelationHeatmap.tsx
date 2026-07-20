@@ -20,12 +20,16 @@ const OUTCOME_SHORT: Record<string, string> = {
 };
 
 const CELL = 36;
-const PAD = { left: 140, top: 30 };
+// left gutter sized for the longest predictor label at fontSize 9
+// ("Last Stimulating Activity (hour)" ≈ 160px) — labels clip, not wrap.
+const PAD = { left: 175, top: 30 };
 
 // #104: round FIRST, then sign — r=-0.04 used to render "-0.0" next to a
 // "+0.0" (r=+0.04), a distinction without a difference. `|| 0` folds -0 to 0.
 function fmtR(r: number): string {
-  const v = Math.round(r * 10) / 10 || 0;
+  // Math.sign keeps half-rounding symmetric (Math.round alone sends -0.05
+  // to 0.0 but +0.05 to +0.1); `|| 0` folds the resulting -0.
+  const v = (Math.sign(r) * Math.round(Math.abs(r) * 10)) / 10 || 0;
   return (v > 0 ? "+" : "") + v.toFixed(1);
 }
 

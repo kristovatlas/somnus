@@ -678,9 +678,15 @@ def test_top_recommendations_dedupe_by_factor(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(recommender, "generate_recommendations", lambda db: fake)
     # generate_recommendations is stubbed, so the session is never touched
     top = recommender.get_top_recommendations(cast(Session, None), limit=3)
-    assert [r["title"] for r in top] == ["Bedtime (hour)", "Morning sunlight"]
-    factors = [r["id"] for r in top]
-    assert len(factors) == len(set(factors))
+    # The two data-driven bedtime recs collapse to one factor-labeled entry;
+    # science/timing recs KEEP their actionable titles and are not suppressed
+    # by the same-factor data-driven rec (PR #124 review).
+    assert [r["title"] for r in top] == [
+        "Bedtime (hour)",
+        "Try tracking morning sunlight",
+        "Consistent bedtime",
+    ]
+    assert len({r["id"] for r in top}) == 3
 
 
 def test_data_driven_titles_include_outcome(db: Session) -> None:
@@ -690,6 +696,7 @@ def test_data_driven_titles_include_outcome(db: Session) -> None:
     _seed_full_data(db)
     result = generate_recommendations(db)
     dd = [r for r in result["recommendations"] if r["category"] == "data_driven"]
+    assert dd, "seed produced no data-driven recs — test would be vacuous"
     for rec in dd:
         assert "→" in rec["title"], rec["title"]
         assert rec["outcome_label"] in rec["title"]
