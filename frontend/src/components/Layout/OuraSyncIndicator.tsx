@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { syncOura } from "../../api/oura";
 import { launchSyncHasFired, markLaunchSyncFired } from "../../launchSync";
+import { announceSyncComplete } from "../../syncEvents";
 import type { OuraSyncResponse } from "../../types";
 import "./OuraSyncIndicator.css";
 
@@ -35,6 +36,7 @@ export function OuraSyncIndicator() {
           syncedCount: result.synced_count,
           errors: result.errors,
         });
+        announceSyncComplete(result.synced_count);
       })
       .catch(() => setState({ phase: "failed" }));
   }, []);
@@ -48,6 +50,7 @@ export function OuraSyncIndicator() {
           syncedCount: result.synced_count,
           errors: result.errors,
         });
+        announceSyncComplete(result.synced_count);
       })
       .catch(() => setState({ phase: "failed" }));
   };
