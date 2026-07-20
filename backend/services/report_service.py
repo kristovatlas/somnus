@@ -113,8 +113,22 @@ def _metric_rows_html(cur: dict[str, Any], pri: dict[str, Any], trends: dict[str
     return "\n".join(rows)
 
 
-def _get_top_factors(db: Session) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """Return (top_positive, top_negative) factor from full-dataset correlations."""
+# #102: |r| below this is indistinguishable from noise at dogfood-scale n —
+# don't pad the Top Factors card with r=0.0x entries just to reach three.
+_TOP_FACTOR_MIN_R = 0.1
+_TOP_FACTORS_PER_DIRECTION = 3
+
+
+def _get_top_factors(
+    db: Session,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
+    """Top factors from FULL-dataset correlations (deliberately not windowed
+    to the report's week — n≤7 correlations are meaningless; the card carries
+    an "across all N days" caption instead, #102).
+
+    Returns (top_positive, top_negative, total_days): up to 3 factors per
+    direction vs sleep_score, noise-filtered at |r| ≥ 0.1.
+    """
     from backend.services.stats_engine import (
         VARIABLE_LABELS,
         compute_correlations,
@@ -123,32 +137,33 @@ def _get_top_factors(db: Session) -> tuple[dict[str, Any] | None, dict[str, Any]
 
     df = prepare_analysis_dataframe(db)
     if df.empty:
-        return None, None
+        return [], [], 0
 
     results, _ = compute_correlations(df)
-    # Filter to sleep_score outcome only
-    sleep_corrs = [r for r in results if r["outcome"] == "sleep_score"]
-    if not sleep_corrs:
-        return None, None
+    sleep_corrs = [
+        r
+        for r in results
+        if r["outcome"] == "sleep_score" and abs(r["pearson_r"]) >= _TOP_FACTOR_MIN_R
+    ]
 
-    positive = [r for r in sleep_corrs if r["pearson_r"] > 0]
-    negative = [r for r in sleep_corrs if r["pearson_r"] < 0]
+    def _factor(r: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "label": VARIABLE_LABELS.get(r["predictor"], r["predictor"]),
+            "pearson_r": r["pearson_r"],
+            "n_days": r["n_days"],
+        }
 
-    top_pos = None
-    top_neg = None
-    if positive:
-        best = max(positive, key=lambda r: r["pearson_r"])
-        top_pos = {
-            "label": VARIABLE_LABELS.get(best["predictor"], best["predictor"]),
-            "pearson_r": best["pearson_r"],
-        }
-    if negative:
-        worst = min(negative, key=lambda r: r["pearson_r"])
-        top_neg = {
-            "label": VARIABLE_LABELS.get(worst["predictor"], worst["predictor"]),
-            "pearson_r": worst["pearson_r"],
-        }
-    return top_pos, top_neg
+    positive = sorted(
+        (r for r in sleep_corrs if r["pearson_r"] > 0),
+        key=lambda r: r["pearson_r"],
+        reverse=True,
+    )
+    negative = sorted((r for r in sleep_corrs if r["pearson_r"] < 0), key=lambda r: r["pearson_r"])
+    return (
+        [_factor(r) for r in positive[:_TOP_FACTORS_PER_DIRECTION]],
+        [_factor(r) for r in negative[:_TOP_FACTORS_PER_DIRECTION]],
+        len(df),
+    )
 
 
 def _get_contributing_factors(db: Session, date: dt.date) -> list[str]:
@@ -303,8 +318,9 @@ def get_week_report(
                 _compute_metric_averages(records), _compute_metric_averages([])
             ),
             "consistency": None,
-            "top_positive_factor": None,
-            "top_negative_factor": None,
+            "top_positive_factors": [],
+            "top_negative_factors": [],
+            "factors_total_days": None,
             "has_insufficient_data": True,
         }
 
@@ -327,8 +343,8 @@ def get_week_report(
     typical_bedtime = settings.typical_bedtime if settings else None
     consistency = _compute_consistency(records, typical_bedtime)
 
-    # Top factors (full dataset)
-    top_pos, top_neg = _get_top_factors(db)
+    # Top factors (full dataset — see _get_top_factors on why not weekly)
+    top_pos, top_neg, factors_total_days = _get_top_factors(db)
 
     return {
         "period_start": monday,
@@ -342,8 +358,9 @@ def get_week_report(
         "prior": prior,
         "trends": trends,
         "consistency": consistency,
-        "top_positive_factor": top_pos,
-        "top_negative_factor": top_neg,
+        "top_positive_factors": top_pos,
+        "top_negative_factors": top_neg,
+        "factors_total_days": factors_total_days,
         "has_insufficient_data": False,
     }
 
@@ -565,17 +582,24 @@ def render_weekly_html(report: dict[str, Any]) -> str:
     trends = r["trends"]
 
     factors_html = ""
-    if r.get("top_positive_factor"):
-        f = r["top_positive_factor"]
-        factors_html += (
-            f"<p>Associated with better sleep score: "
-            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.3f})</p>"
+    pos_factors = r.get("top_positive_factors") or []
+    neg_factors = r.get("top_negative_factors") or []
+    if pos_factors:
+        items = " · ".join(
+            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']:d})"
+            for f in pos_factors
         )
-    if r.get("top_negative_factor"):
-        f = r["top_negative_factor"]
+        factors_html += f"<p>Associated with better sleep score: {items}</p>"
+    if neg_factors:
+        items = " · ".join(
+            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']:d})"
+            for f in neg_factors
+        )
+        factors_html += f"<p>Associated with worse sleep score: {items}</p>"
+    if factors_html and r.get("factors_total_days"):
         factors_html += (
-            f"<p>Associated with worse sleep score: "
-            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.3f})</p>"
+            f'<p class="muted">Computed across all {r["factors_total_days"]:d} days '
+            f"of your data — not specific to this week.</p>"
         )
 
     consistency_html = ""

@@ -67,12 +67,14 @@ export function MetricsComparisonCard({ current, prior, trends }: Props) {
               {fmt(m.cur)}
               {m.unit ? ` ${m.unit}` : ""}
             </div>
+            {/* #102: the bare prior value read as a destination ("86.8 →
+                85.6" looked like a drop) — label it, arrow after. */}
             <div className="report-metric-row">
-              <span className={trendClass(m.trend)}>{trendArrow(m.trend)}</span>
               <span className="report-metric-prior">
-                {fmt(m.pri)}
+                prev {fmt(m.pri)}
                 {m.unit ? ` ${m.unit}` : ""}
               </span>
+              <span className={trendClass(m.trend)}>{trendArrow(m.trend)}</span>
             </div>
           </div>
         ))}

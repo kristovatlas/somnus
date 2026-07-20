@@ -40,8 +40,13 @@ const weeklyData: WeeklyReport = {
     bedtime_dots: [],
     days_counted: 5,
   },
-  top_positive_factor: { label: "Morning Sunlight (min)", pearson_r: 0.45 },
-  top_negative_factor: { label: "Total Caffeine (mg)", pearson_r: -0.32 },
+  top_positive_factors: [
+    { label: "Morning Sunlight (min)", pearson_r: 0.45, n_days: 40 },
+  ],
+  top_negative_factors: [
+    { label: "Total Caffeine (mg)", pearson_r: -0.32, n_days: 38 },
+  ],
+  factors_total_days: 45,
   has_insufficient_data: false,
 };
 
@@ -98,8 +103,9 @@ const insufficientWeekly: WeeklyReport = {
   days_with_data: 1,
   has_insufficient_data: true,
   consistency: null,
-  top_positive_factor: null,
-  top_negative_factor: null,
+  top_positive_factors: [],
+  top_negative_factors: [],
+  factors_total_days: null,
 };
 
 function mockFetch(weekly: WeeklyReport, monthly: MonthlyReport) {

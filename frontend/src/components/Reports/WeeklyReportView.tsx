@@ -111,8 +111,9 @@ export function WeeklyReportView({ year, week, onNavigate }: Props) {
       )}
 
       <TopFactorsCard
-        positive={data.top_positive_factor}
-        negative={data.top_negative_factor}
+        positive={data.top_positive_factors}
+        negative={data.top_negative_factors}
+        totalDays={data.factors_total_days}
       />
 
       <div className="report-export">

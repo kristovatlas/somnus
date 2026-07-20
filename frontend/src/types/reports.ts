@@ -20,6 +20,7 @@ export interface TrendArrows {
 export interface TopFactor {
   label: string;
   pearson_r: number;
+  n_days: number;
 }
 
 export interface WeeklyReport {
@@ -34,8 +35,9 @@ export interface WeeklyReport {
   prior: MetricAverages;
   trends: TrendArrows;
   consistency: ConsistencyMetrics | null;
-  top_positive_factor: TopFactor | null;
-  top_negative_factor: TopFactor | null;
+  top_positive_factors: TopFactor[];
+  top_negative_factors: TopFactor[];
+  factors_total_days: number | null;
   has_insufficient_data: boolean;
 }
 
