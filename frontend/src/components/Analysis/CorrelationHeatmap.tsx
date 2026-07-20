@@ -22,6 +22,13 @@ const OUTCOME_SHORT: Record<string, string> = {
 const CELL = 36;
 const PAD = { left: 140, top: 30 };
 
+// #104: round FIRST, then sign — r=-0.04 used to render "-0.0" next to a
+// "+0.0" (r=+0.04), a distinction without a difference. `|| 0` folds -0 to 0.
+function fmtR(r: number): string {
+  const v = Math.round(r * 10) / 10 || 0;
+  return (v > 0 ? "+" : "") + v.toFixed(1);
+}
+
 function cellColor(r: number): string {
   // Amber (positive) → muted (zero) → red (negative)
   const abs = Math.min(Math.abs(r), 1);
@@ -91,9 +98,9 @@ export function CorrelationHeatmap({ results }: CorrelationHeatmapProps) {
               fill="var(--color-text-secondary)"
               fontSize="9"
             >
-              {row.label.length > 20
-                ? row.label.slice(0, 18) + "..."
-                : row.label}
+              {/* #104: full label + native tooltip — no truncation */}
+              <title>{row.label}</title>
+              {row.label}
             </text>
 
             {/* Cells */}
@@ -117,7 +124,7 @@ export function CorrelationHeatmap({ results }: CorrelationHeatmapProps) {
                     fill="var(--color-text-primary)"
                     fontSize="9"
                   >
-                    {r != null ? (r > 0 ? "+" : "") + r.toFixed(1) : "—"}
+                    {r != null ? fmtR(r) : "—"}
                   </text>
                 </g>
               );

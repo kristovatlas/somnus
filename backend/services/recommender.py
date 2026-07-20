@@ -64,6 +64,11 @@ def _make_rec_id(category: str, factor: str, outcome: str | None = None) -> str:
     return ":".join(parts)
 
 
+def _fmt_p(p_value: float) -> str:
+    """#101: p rounds to 0.000 below 0.0005 — print the honest bound instead."""
+    return "p<0.001" if p_value < 0.001 else f"p={p_value:.3f}"
+
+
 def _data_driven_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Generate recommendations from regression coefficients."""
 
@@ -97,14 +102,16 @@ def _data_driven_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
             priority = max(1, _BASE_PRIORITY["data_driven"] + evidence_adj + coef_adj)
 
             body = action_text.format(outcome=outcome_label)
-            body += f" (n={result['n_days']} days, p={coef['p_value']:.3f})."
+            body += f" (n={result['n_days']} days, {_fmt_p(coef['p_value'])})."
 
             recs.append(
                 {
                     "id": _make_rec_id("data_driven", predictor, outcome),
                     "category": "data_driven",
                     "priority": priority,
-                    "title": VARIABLE_LABELS.get(predictor, predictor),
+                    # #101: one rec is emitted per (factor, outcome) pair, so
+                    # the outcome must be in the title or identical titles stack.
+                    "title": f"{VARIABLE_LABELS.get(predictor, predictor)} → {outcome_label}",
                     "body": body,
                     "factor": predictor,
                     "factor_label": VARIABLE_LABELS.get(predictor, predictor),
@@ -320,14 +327,33 @@ def generate_recommendations(db: Session) -> dict[str, Any]:
 
 
 def get_top_recommendations(db: Session, limit: int = 3) -> list[dict[str, str]]:
-    """Lightweight version for the dashboard — top N as {id, title, category}."""
+    """Lightweight version for the dashboard — top N as {id, title, category}.
+
+    Deduped by factor (#101): data-driven recs are emitted per (factor,
+    outcome) pair, and a strong factor affecting several outcomes would fill
+    the widget with near-identical titles. The widget shows each factor once,
+    using its factor label (the outcome split stays on the full page).
+    """
     result = generate_recommendations(db)
     if not result["has_sufficient_data"]:
         return []
-    return [
-        {"id": r["id"], "title": r["title"], "category": r["category"]}
-        for r in result["recommendations"][:limit]
-    ]
+    top: list[dict[str, str]] = []
+    seen_factors: set[str] = set()
+    for r in result["recommendations"]:
+        factor = r.get("factor") or r["id"]  # non-data-driven recs have no factor
+        if factor in seen_factors:
+            continue
+        seen_factors.add(factor)
+        top.append(
+            {
+                "id": r["id"],
+                "title": r.get("factor_label") or r["title"],
+                "category": r["category"],
+            }
+        )
+        if len(top) == limit:
+            break
+    return top
 
 
 def complete_stale_experiments(db: Session) -> None:
