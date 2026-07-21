@@ -11,7 +11,14 @@ no exemptions (a docs-only carve-out would be an escape hatch).
 **What it cannot guarantee** (accepted, by design): that the artifacts are
 *genuine*. It guards against forgetting and threshold-fudging, not
 deception. Artifacts are permanent audit records; raw leg output is
-embedded so fabrication would be a deliberate act, not drift.
+embedded so fabrication would be a deliberate act, not drift. Two further
+accepted residuals (PR #128 review): `docs/reviews/` is hash-exempt, so a
+PR could rewrite *prior* PRs' artifacts without tripping staleness (audit
+history is protected by git history + human spot-checks, not the gate);
+and on `pull_request` events the workflow file itself comes from the PR
+branch, so a PR that guts its own gate job is caught only by review of
+`ci.yml` diffs — an inherent GitHub Actions property, not specific to this
+gate.
 
 ## Artifacts
 
@@ -65,9 +72,12 @@ leg). `disposition` ∈ `fixed | dismissed`.
 3. **Threshold:** no finding with `validated: true` at a blocking severity
    (security critical/high; review P1) may have any disposition other than
    `fixed`.
-4. **Staleness binding:** `reviewed_diff_sha256` must equal
-   `sha256(git diff --no-color --no-renames --unified=3 <merge-base>...HEAD
-   -- . ':(exclude)docs/reviews')` recomputed by CI. Any code change after
+4. **Staleness binding:** `reviewed_diff_sha256` must equal the sha256 of
+   the raw bytes of `git diff <merge-base>...HEAD -- . ':(exclude)docs/reviews'`
+   as produced by `compute_diff_hash` — which pins every byte-affecting knob
+   (`--no-ext-diff --no-renames --full-index --unified=3 --no-color` plus
+   `-c` overrides for prefix/algorithm/quotepath) so local and CI hashes
+   agree regardless of user git config. Any code change after
    the reviews invalidates them — which mechanically enforces the
    re-review-after-fix rule: a "fixed" blocking finding can only pass the
    gate via a post-fix re-attestation whose hash matches the fixed code.
@@ -82,6 +92,15 @@ leg). `disposition` ∈ `fixed | dismissed`.
 3. Commit the artifacts (hash unaffected — excluded path).
 4. `python scripts/review_gate.py --pr <N> --base origin/dev` locally must
    pass before pushing; CI runs the same command as a required check.
+
+## Scope note: release PRs
+
+dev→main release PRs are in scope like any other PR ("no exemptions"):
+the gate runs with `--base origin/main`, so a release requires artifacts
+attesting a battery over the release diff. Open question recorded for
+Kristov: whether a release battery should be a fresh 4-leg review of the
+combined diff (current behavior) or a lighter release-audit convention —
+until decided, the strict reading stands.
 
 ## CI
 

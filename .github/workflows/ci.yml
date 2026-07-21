@@ -42,13 +42,13 @@ jobs:
         run: uv lock --check
 
       - name: Lint (ruff)
-        run: ruff check backend alembic
+        run: ruff check backend alembic scripts
 
       - name: Format check (ruff)
-        run: ruff format --check backend alembic
+        run: ruff format --check backend alembic scripts
 
       - name: Type check (mypy)
-        run: mypy backend --ignore-missing-imports
+        run: mypy backend scripts --ignore-missing-imports
 
       - name: Security scan (bandit)
         run: bandit -r backend -x backend/tests -q

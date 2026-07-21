@@ -61,13 +61,31 @@ REQUIRED_FINDING_FIELDS = {
 def compute_diff_hash(base: str) -> str:
     """sha256 of the merge-base diff, excluding the review artifacts
     themselves (so committing artifacts doesn't invalidate the hash they
-    attest to). Flags pinned so the bytes are stable across environments."""
+    attest to).
+
+    Byte-stability across environments (PR #128 review, P2): every config
+    knob that changes diff bytes is pinned via -c, external diff drivers are
+    disabled, index lines use full object ids (core.abbrev varies with repo
+    size), and the RAW BYTES are hashed (no locale-dependent decode).
+    """
+    if base.startswith("-"):  # option-injection guard (PR #128 review, Low)
+        raise SystemExit(f"review-gate: invalid --base ref {base!r}")
     diff = subprocess.run(
         [
             "git",
+            "-c",
+            "core.quotepath=true",
+            "-c",
+            "diff.algorithm=myers",
+            "-c",
+            "diff.noprefix=false",
+            "-c",
+            "diff.mnemonicprefix=false",
             "diff",
             "--no-color",
+            "--no-ext-diff",
             "--no-renames",
+            "--full-index",
             "--unified=3",
             f"{base}...HEAD",
             "--",
@@ -76,10 +94,9 @@ def compute_diff_hash(base: str) -> str:
         ],
         cwd=REPO_ROOT,
         capture_output=True,
-        text=True,
         check=True,
     ).stdout
-    return hashlib.sha256(diff.encode()).hexdigest()
+    return hashlib.sha256(diff).hexdigest()
 
 
 def check_artifact(path: Path, leg: str, leg_type: str, expected_hash: str) -> list[str]:
@@ -89,6 +106,8 @@ def check_artifact(path: Path, leg: str, leg_type: str, expected_hash: str) -> l
         data = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError) as exc:
         return [f"{path.name}: unreadable or invalid JSON ({exc})"]
+    if not isinstance(data, dict):
+        return [f"{path.name}: top-level JSON must be an object"]
 
     missing = REQUIRED_ARTIFACT_FIELDS - set(data)
     if missing:
@@ -107,11 +126,20 @@ def check_artifact(path: Path, leg: str, leg_type: str, expected_hash: str) -> l
     if not isinstance(data["findings"], list):
         fails.append(f"{path.name}: findings must be a list")
         return fails
-    if not str(data.get("raw_output", "")).strip():
-        fails.append(f"{path.name}: raw_output is empty — embed the leg's actual output")
+    raw = data.get("raw_output")
+    if not isinstance(raw, str) or not raw.strip():
+        fails.append(
+            f"{path.name}: raw_output must be a non-empty string — embed the leg's actual output"
+        )
+    for field in ("model", "reviewed_at"):
+        if not isinstance(data.get(field), str) or not str(data[field]).strip():
+            fails.append(f"{path.name}: {field} must be a non-empty string")
 
     valid_sev = SEVERITIES[leg_type]
     for i, f in enumerate(data["findings"]):
+        if not isinstance(f, dict):
+            fails.append(f"{path.name} finding[{i}]: must be an object")
+            continue
         tag = f"{path.name} finding[{i}]({f.get('id', '?')})"
         missing_f = REQUIRED_FINDING_FIELDS - set(f)
         if missing_f:
@@ -120,6 +148,11 @@ def check_artifact(path: Path, leg: str, leg_type: str, expected_hash: str) -> l
         if not isinstance(f["validated"], bool):
             fails.append(f"{tag}: validated must be true/false")
             continue
+        if f["severity_claimed"] not in valid_sev:
+            fails.append(
+                f"{tag}: severity_claimed {f['severity_claimed']!r} not in "
+                f"{sorted(valid_sev)} for a {leg_type} leg"
+            )
         if f["severity_validated"] not in valid_sev:
             fails.append(
                 f"{tag}: severity_validated {f['severity_validated']!r} not in "

@@ -141,7 +141,56 @@ class TestRunGate:
             write(pr_dir, leg, artifact(leg))
         assert review_gate.run_gate(7, "origin/dev") == 0
 
-    def test_hash_is_deterministic_and_ignores_reviews_dir(self) -> None:
-        h1 = review_gate.compute_diff_hash("origin/dev")
-        h2 = review_gate.compute_diff_hash("origin/dev")
+    def test_hash_is_deterministic(self) -> None:
+        # HEAD...HEAD is an empty diff but exercises the full subprocess
+        # path; origin/dev is NOT used — it doesn't exist in the backend CI
+        # jobs' shallow checkout (PR #128 review, P1).
+        h1 = review_gate.compute_diff_hash("HEAD")
+        h2 = review_gate.compute_diff_hash("HEAD")
         assert h1 == h2 and len(h1) == 64
+
+    def test_hash_rejects_option_injection_base(self) -> None:
+        with pytest.raises(SystemExit):
+            review_gate.compute_diff_hash("--output=/tmp/pwn")
+
+
+class TestMalformedArtifacts:
+    """PR #128 review P3: malformed inputs must produce diagnostics, never
+    tracebacks (and the gate must stay fail-closed either way)."""
+
+    def test_non_dict_finding_entry(self, tmp_path: Path) -> None:
+        a = artifact("codex-review", findings=[])
+        a["findings"] = ["not a dict"]
+        p = write(tmp_path, "codex-review", a)
+        fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
+        assert any("must be an object" in m for m in fails)
+
+    def test_top_level_non_dict(self, tmp_path: Path) -> None:
+        p = tmp_path / "codex-review.json"
+        p.write_text(json.dumps(["a", "list"]))
+        fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
+        assert any("top-level" in m for m in fails)
+
+    def test_leg_name_filename_mismatch(self, tmp_path: Path) -> None:
+        p = write(tmp_path, "claude-security-review", artifact("claude-code-review"))
+        fails = review_gate.check_artifact(p, "claude-security-review", "security", HASH)
+        assert any("leg is" in m for m in fails)
+
+    def test_invalid_disposition(self, tmp_path: Path) -> None:
+        f = finding(disposition="wontfix")
+        p = write(tmp_path, "codex-review", artifact("codex-review", [f]))
+        fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
+        assert any("disposition" in m for m in fails)
+
+    def test_invalid_severity_claimed(self, tmp_path: Path) -> None:
+        f = finding(severity_claimed="high")  # security enum on review leg
+        p = write(tmp_path, "codex-review", artifact("codex-review", [f]))
+        fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
+        assert any("severity_claimed" in m for m in fails)
+
+    def test_non_string_raw_output(self, tmp_path: Path) -> None:
+        a = artifact("codex-review")
+        a["raw_output"] = False
+        p = write(tmp_path, "codex-review", a)
+        fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
+        assert any("raw_output" in m for m in fails)
