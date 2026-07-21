@@ -19,7 +19,21 @@ import json
 import subprocess
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+
+def _repo_root() -> Path:
+    """The enclosing git repo — NOT derived from __file__: in CI the gate
+    runs as a trusted copy of the base branch's script from /tmp against
+    the PR checkout as data (PR #128 review, Codex security)."""
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    return Path(out)
+
+
+REPO_ROOT = _repo_root()
 REVIEWS_ROOT = REPO_ROOT / "docs" / "reviews"
 
 # leg file stem -> leg type

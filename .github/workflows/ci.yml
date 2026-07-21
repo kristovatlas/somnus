@@ -189,6 +189,8 @@ jobs:
     # artifacts are keyed by PR number).
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -196,14 +198,26 @@ jobs:
           # the orchestrator hashed locally when writing the artifacts.
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python 3.12
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
-      - name: Review gate (stdlib, no deps)
-        run: >
-          python scripts/review_gate.py
-          --pr ${{ github.event.pull_request.number }}
-          --base origin/${{ github.base_ref }}
+      # Run the BASE branch's copy of the gate against the PR checkout as
+      # data (PR #128 review, Codex security): a PR editing the gate script
+      # can't weaken its own enforcement — it would have to visibly edit
+      # this workflow instead. Bootstrap fallback: before the gate exists
+      # on the base branch, use the PR copy.
+      - name: Review gate (trusted base copy; stdlib, no deps)
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          if git cat-file -e "$BASE:scripts/review_gate.py" 2>/dev/null; then
+            git show "$BASE:scripts/review_gate.py" > /tmp/trusted_review_gate.py
+            echo "using trusted gate from $BASE"
+          else
+            cp scripts/review_gate.py /tmp/trusted_review_gate.py
+            echo "::warning::bootstrap: gate not on base branch yet; using PR copy"
+          fi
+          python /tmp/trusted_review_gate.py             --pr ${{ github.event.pull_request.number }}             --base "$BASE"

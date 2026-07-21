@@ -16,9 +16,12 @@ accepted residuals (PR #128 review): `docs/reviews/` is hash-exempt, so a
 PR could rewrite *prior* PRs' artifacts without tripping staleness (audit
 history is protected by git history + human spot-checks, not the gate);
 and on `pull_request` events the workflow file itself comes from the PR
-branch, so a PR that guts its own gate job is caught only by review of
-`ci.yml` diffs — an inherent GitHub Actions property, not specific to this
-gate.
+branch — CI therefore runs the **base branch's copy of the gate script**
+against the PR checkout as data (a PR editing `scripts/review_gate.py`
+cannot weaken its own enforcement), but a PR editing `ci.yml`'s gate *job*
+can still neuter it; that last step is caught only by review of `ci.yml`
+diffs — an inherent GitHub Actions property. The job runs with
+`contents: read` and no persisted credentials.
 
 ## Artifacts
 
