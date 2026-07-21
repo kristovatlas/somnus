@@ -1,0 +1,27 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "0b652204c6a85de0fa25ca2be6e8366d4b2b557e6aac91db98ee577697cc113c",
+  "reviewed_at": "2026-07-21",
+  "raw_output": "PR #129 review (Claude, Fable 5). Correctness: F1 (P2) \u2014 'the required review-gate CI check' overstates current enforcement: live ruleset 18500043 requires only backend(3.11)/backend(3.12)/frontend/security; neither review-gate nor e2e is required yet (admin step pending). Fix: soften to 'enforced by' or land the ruleset first. F2 (nit) \u2014 plain backticks instead of a markdown link, inconsistent with README's other doc references. Verified accurate: artifact path matches spec+CLAUDE.md verbatim; check/job name matches ci.yml; 'including docs-only changes' matches the no-exemptions rule; link target exists on dev and covers the promised content; placement/rendering sane; no other README claim newly contradicted. Observation: pr-129 artifacts absent at review time (expected bootstrap; this battery produces them).\nSecurity: no findings. Docs-only prose; no sinks, no surface; note that advertising 'required' pre-ruleset could create false assurance \u2014 same fix as F1.\n\n--- Post-review delta note ---\nAfter this leg's review, one wording fix landed (Claude F1/F2: 'required' -> 'enforced by', backticks -> markdown link) within the same 7-line section; attested hash covers the fixed text. Delta verified: same section, claims now accurate against the live ruleset.",
+  "findings": [
+    {
+      "id": "F1",
+      "summary": "'required review-gate check' overstates enforcement \u2014 ruleset doesn't list it yet",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "Wording softened to 'enforced by' \u2014 true today and after the pending ruleset update."
+    },
+    {
+      "id": "F2",
+      "summary": "Spec referenced as inline code instead of a markdown link",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "Relative markdown link, consistent with the README's other doc references."
+    }
+  ]
+}
