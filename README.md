@@ -47,6 +47,13 @@ Open http://localhost:5173 in your browser. The onboarding wizard walks you thro
 | `make audit` | Run pip-audit + npm audit |
 | `make clean` | Remove caches and build artifacts |
 
+## Contributing / pull requests
+
+Every PR — including docs-only changes — must carry validated review
+artifacts under `docs/reviews/pr-<N>/`, enforced by the `review-gate` CI
+check. See [docs/process/review-gate.md](docs/process/review-gate.md) for
+the artifact format, thresholds, and authoring workflow.
+
 ## Stack
 
 - **Backend**: Python, FastAPI, SQLAlchemy, SQLite, scipy, statsmodels
