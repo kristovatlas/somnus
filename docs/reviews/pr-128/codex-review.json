@@ -1,0 +1,27 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "8013afe9f26c83cbae054cd4ddb84cb5046fd962835a70d93ce74a6942ead275",
+  "reviewed_at": "2026-07-21",
+  "raw_output": "  When the artifact hash is generated on a machine with a different Git abbreviation setting, the `index` lines in `git diff` use a different number of object-ID characters than CI, so the same code diff hashes differently and valid artifacts are reported as stale. Add a deterministic option such as `--full-index` or a fixed `--abbrev` before hashing the diff.\nThe new backend test can fail in the repository's PR CI checkout, breaking required checks. The hash computation also is not fully deterministic across Git configurations, which can incorrectly reject current review artifacts.\n\nFull review comments:\n\n- [P1] Avoid relying on origin/dev in backend tests \u2014 /workspaces/sleep-optimizer/backend/tests/test_review_gate.py:145-146\n  When this test runs in the existing `pull_request` backend CI job, `actions/checkout` uses the default shallow PR checkout and does not create an `origin/dev` ref, so `compute_diff_hash(\"origin/dev\")` raises `CalledProcessError` and fails the required backend checks before the new gate can run. Build the hash test against a temporary repo/ref or mock the subprocess instead of depending on that remote ref.\n\n- [P2] Pin diff hash output to full object IDs \u2014 /workspaces/sleep-optimizer/scripts/review_gate.py:68-72\n  When the artifact hash is generated on a machine with a different Git abbreviation setting, the `index` lines in `git diff` use a different number of object-ID characters than CI, so the same code diff hashes differently and valid artifacts are reported as stale. Add a deterministic option such as `--full-index` or a fixed `--abbrev` before hashing the diff.\n",
+  "findings": [
+    {
+      "id": "CXR1",
+      "summary": "Backend tests rely on origin/dev, absent in shallow PR CI checkout \u2014 required checks fail",
+      "severity_claimed": "P1",
+      "validated": true,
+      "severity_validated": "P1",
+      "disposition": "fixed",
+      "reason": "Independent convergence with CCR1; same fix (HEAD-based test)."
+    },
+    {
+      "id": "CXR2",
+      "summary": "Diff hash uses abbreviated object ids \u2014 core.abbrev variance falsely reports artifacts stale",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "Independent convergence with CCR2; --full-index in the pinned command."
+    }
+  ]
+}

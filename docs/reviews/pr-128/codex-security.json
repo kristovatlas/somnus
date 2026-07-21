@@ -1,0 +1,27 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "8013afe9f26c83cbae054cd4ddb84cb5046fd962835a70d93ce74a6942ead275",
+  "reviewed_at": "2026-07-21",
+  "raw_output": "   The required `review-gate` check runs the PR-controlled copy of the enforcement code. The job checks out `${{ github.event.pull_request.head.sha }}` and then runs `python scripts/review_gate.py` from that same checkout at lines 205-209. A PR can modify the gate script or workflow step to exit 0 while preserving the required job name. Keep `pull_request`, but run a trusted base-branch copy of the gate against the PR checkout as data, or protect workflow/gate changes with a separate trusted required check.\n\n2. **Medium \u2014 [.github/workflows/ci.yml](/workspaces/sleep-optimizer/.github/workflows/ci.yml:193)**  \n   The job executes PR-head code after `actions/checkout` with default credential persistence and no explicit `permissions`. If repo defaults grant write-scoped `GITHUB_TOKEN` for same-repo PRs, modified PR code can use persisted checkout credentials. Add `permissions: contents: read` and `persist-credentials: false` for this job, ideally all non-push CI jobs.\n\n**Explicit Non-Findings**\n\n- `--base` injection: no exploitable shell/subprocess injection in current CI. The script uses fixed argv, and CI supplies `origin/${{ github.base_ref }}` with PR bases limited to `main`/`dev`.\n- Crafted JSON fail-open: none found. Bad JSON fails; malformed types can crash, but Python exits nonzero, so fail-closed.\n- Threat model: no new app/runtime surface. This is existing B5/T-13 CI/supply-chain surface; update process/T-13 docs if the trusted-gate and token-permission controls are added.\n\u001b[90m4:10AM\u001b[0m \u001b[31mWRN\u001b[0m leaks found: 2\n",
+  "findings": [
+    {
+      "id": "CXS1",
+      "summary": "review-gate job runs the PR-controlled copy of the enforcement script \u2014 a PR can weaken its own gate",
+      "severity_claimed": "high",
+      "validated": true,
+      "severity_validated": "medium",
+      "disposition": "fixed",
+      "reason": "Severity adjusted on validation: deliberate bypass is an accepted-by-design residual (spec: guards forgetting, not deception) and repo has two trusted committers; the accidental self-break class is real. Fixed regardless: CI runs the BASE branch's copy against the PR checkout as data (bootstrap fallback until this PR merges); residual (ci.yml job itself PR-controlled) recorded in spec."
+    },
+    {
+      "id": "CXS2",
+      "summary": "Gate job executes PR-head code with default token permissions and persisted checkout credentials",
+      "severity_claimed": "medium",
+      "validated": true,
+      "severity_validated": "medium",
+      "disposition": "fixed",
+      "reason": "permissions: contents:read + persist-credentials:false added to the job; workflow-wide hardening tracked as #127."
+    }
+  ]
+}
