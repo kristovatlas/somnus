@@ -21,7 +21,23 @@ against the PR checkout as data (a PR editing `scripts/review_gate.py`
 cannot weaken its own enforcement), but a PR editing `ci.yml`'s gate *job*
 can still neuter it; that last step is caught only by review of `ci.yml`
 diffs — an inherent GitHub Actions property. The job runs with
-`contents: read` and no persisted credentials.
+`contents: read` and no persisted credentials. Because a job skipped via an
+edited `if:` condition **reports success to required-check evaluation**
+(GitHub-documented behavior), the ci.yml residual has no red-flag failure
+mode — therefore **any PR touching `.github/workflows/` or
+`scripts/review_gate.py` always escalates to the human**, regardless of
+review outcomes (the one standing exception to no-code-review). Bootstrap
+note: the gate's own introducing PR (#128) is necessarily unprotected by
+itself; it ran the gate by convention.
+
+**Recommended ruleset settings** (admin, alongside adding the required
+checks): enable *"require branches to be up to date before merging"* — a
+base-branch advance then forces a branch update, which moves the
+merge-base, which changes the three-dot diff hash, which stales the
+artifacts and forces re-review. Without it, reviews attested at an older
+merge-base remain valid while dev advances (deterministic jobs still test
+the prospective merge ref; the residual is AI-review-level semantic
+interaction, compensated by serial merges + the post-merge dev run).
 
 ## Artifacts
 
@@ -63,7 +79,11 @@ Schema (all fields required unless noted):
 
 Severity enums — review legs: `P1 | P2 | P3 | nit`; security legs:
 `critical | high | medium | low | info`. `findings: []` is valid (clean
-leg). `disposition` ∈ `fixed | dismissed`.
+leg). `disposition` ∈ `fixed | dismissed`. **`findings[]` is the canonical
+machine record** — the gate thresholds it and only it; `raw_output` is an
+audit aid so a human spot-check can catch a findings table that
+under-reports its own prose (a sub-case of the genuineness residual,
+deliberately not machine-checked).
 
 ## Gate rules (all enforced by `scripts/review_gate.py`)
 

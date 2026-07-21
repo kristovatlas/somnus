@@ -188,6 +188,18 @@ class TestMalformedArtifacts:
         fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
         assert any("severity_claimed" in m for m in fails)
 
+    def test_unhashable_severity_diagnostic_not_traceback(self, tmp_path: Path) -> None:
+        f = finding(severity_claimed=[], severity_validated={"x": 1})
+        p = write(tmp_path, "codex-review", artifact("codex-review", [f]))
+        fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
+        assert any("severities must be strings" in m for m in fails)
+
+    def test_unhashable_disposition_diagnostic(self, tmp_path: Path) -> None:
+        f = finding(disposition=["fixed"])
+        p = write(tmp_path, "codex-review", artifact("codex-review", [f]))
+        fails = review_gate.check_artifact(p, "codex-review", "review", HASH)
+        assert any("disposition" in m for m in fails)
+
     def test_non_string_raw_output(self, tmp_path: Path) -> None:
         a = artifact("codex-review")
         a["raw_output"] = False

@@ -162,6 +162,14 @@ def check_artifact(path: Path, leg: str, leg_type: str, expected_hash: str) -> l
         if not isinstance(f["validated"], bool):
             fails.append(f"{tag}: validated must be true/false")
             continue
+        # Unhashable/non-string severities would TypeError at set membership
+        # (fail-closed but a traceback, not a diagnostic) — Kristov's Codex
+        # pass on PR #128, P3.
+        if not isinstance(f["severity_claimed"], str) or not isinstance(
+            f["severity_validated"], str
+        ):
+            fails.append(f"{tag}: severities must be strings")
+            continue
         if f["severity_claimed"] not in valid_sev:
             fails.append(
                 f"{tag}: severity_claimed {f['severity_claimed']!r} not in "
@@ -173,7 +181,10 @@ def check_artifact(path: Path, leg: str, leg_type: str, expected_hash: str) -> l
                 f"{sorted(valid_sev)} for a {leg_type} leg"
             )
             continue
-        if f["disposition"] not in {"fixed", "dismissed"}:
+        if not isinstance(f["disposition"], str) or f["disposition"] not in {
+            "fixed",
+            "dismissed",
+        }:
             fails.append(f"{tag}: disposition must be fixed|dismissed")
             continue
         needs_reason = f["disposition"] == "dismissed" or f["validated"] is False
