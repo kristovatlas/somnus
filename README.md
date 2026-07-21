@@ -100,3 +100,5 @@ The onboarding wizard surfaces this same guidance before the Oura step.
 ## License
 
 Private — not yet licensed for distribution.
+
+<!-- ruleset enforcement test — delete me -->
