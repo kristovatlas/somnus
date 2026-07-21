@@ -100,10 +100,11 @@ leg). `disposition` ∈ `fixed | dismissed`.
 
 dev→main release PRs are in scope like any other PR ("no exemptions"):
 the gate runs with `--base origin/main`, so a release requires artifacts
-attesting a battery over the release diff. Open question recorded for
-Kristov: whether a release battery should be a fresh 4-leg review of the
-combined diff (current behavior) or a lighter release-audit convention —
-until decided, the strict reading stands.
+attesting a fresh 4-leg battery over the entire release diff. **Decided
+(Kristov, 2026-07-21): the strict reading stands** — a release is the
+highest-stakes merge and gets the full battery; the redundancy with
+per-PR batteries is accepted deliberately ("I'm not hurting on token
+funds").
 
 ## CI
 
