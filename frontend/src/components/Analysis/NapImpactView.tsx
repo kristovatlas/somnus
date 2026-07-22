@@ -57,7 +57,7 @@ export function NapImpactView({ data }: NapImpactViewProps) {
               <th>Timing</th>
               <th>Duration</th>
               <th>Days</th>
-              <th>Onset Δ</th>
+              <th>Onset change</th>
             </tr>
           </thead>
           <tbody>

@@ -50,15 +50,20 @@ export function SleepProfileStep({
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         <TimePicker
-          label="Typical Bedtime"
+          label="Target Bedtime (optional)"
           value={typicalBedtime}
           onChange={(v) => onUpdate({ typical_bedtime: v })}
         />
         <TimePicker
-          label="Target Wake Time"
+          label="Target Wake Time (optional)"
           value={targetWakeTime}
           onChange={(v) => onUpdate({ target_wake_time: v })}
         />
+        <p style={hintStyle}>
+          These are your intentions, not measurements — Oura tracks what
+          actually happens. Targets power the bedtime countdown, the caffeine
+          chart's bedtime marker, and your consistency stats.
+        </p>
         <SelectInput
           label="Caffeine Sensitivity"
           value={caffeineSensitivity}

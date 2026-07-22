@@ -68,13 +68,13 @@ export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
         </div>
 
         <TimePicker
-          label="Typical Bedtime"
+          label="Target Bedtime (optional)"
           value={settings.typical_bedtime}
           onChange={(v) => handleChange({ typical_bedtime: v })}
         />
 
         <TimePicker
-          label="Target Wake Time"
+          label="Target Wake Time (optional)"
           value={settings.target_wake_time}
           onChange={(v) => handleChange({ target_wake_time: v })}
         />

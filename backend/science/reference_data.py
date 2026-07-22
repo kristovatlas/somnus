@@ -470,8 +470,8 @@ PREDICTOR_ACTIONS: dict[str, dict[str, str]] = {
         "positive": "Your data shows an unexpected pattern with bedtime variability and {outcome}",
     },
     "delta_7d": {
-        "negative": "Less bedtime drift appears associated with better {outcome}",
-        "positive": "Your data shows an unexpected pattern with bedtime drift and {outcome}",
+        "negative": "A smaller bedtime offset appears associated with better {outcome}",
+        "positive": "Your data shows an unexpected pattern with bedtime offset and {outcome}",
     },
     "bedtime_hour": {
         "negative": "An earlier bedtime appears associated with better {outcome}",

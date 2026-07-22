@@ -48,7 +48,7 @@ export function computeBedtimeStatus(
   const sourceLabel =
     source === "optimal"
       ? `optimal window ${fmtClock(startHour)}–${fmtClock(endHour ?? startHour)}`
-      : `typical bedtime ${fmtClock(startHour)}`;
+      : `target bedtime ${fmtClock(startHour)}`;
 
   if (sinceStart <= windowLen) {
     return {
