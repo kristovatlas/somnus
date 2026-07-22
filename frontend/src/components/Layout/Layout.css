@@ -6,23 +6,32 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* Narrow screens: let the title row and the nav wrap onto two rows
+     instead of overflowing the viewport. */
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
   padding: 1rem 2rem;
   border-bottom: 1px solid var(--color-border);
 }
 
 .layout-nav {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   align-items: center;
 }
 
+/* #36: labeled nav — icon with a short word below, per the owner's
+   design record. Curved line under the active icon marks the page. */
 .layout-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px; /* room for the active arc between icon and label */
   background: transparent;
   border: none;
   color: var(--color-text-muted);
-  font-size: 1.4rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 10px 2px;
   line-height: 1;
 }
 
@@ -31,11 +40,72 @@
   background: transparent;
 }
 
+.layout-nav-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+}
+
+.layout-nav-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+
+/* Keyboard focus indicator for the nav buttons and the title-as-button */
+.layout-nav-btn:focus-visible,
+.layout-title:focus-visible {
+  outline: 2px solid var(--color-interactive);
+  outline-offset: 2px;
+}
+
+.layout-nav-btn-active {
+  color: var(--color-text-primary);
+}
+
+/* Curved line under the active icon (selected-state indicator) */
+.layout-nav-btn-active .layout-nav-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 7px;
+  border-bottom: 2.5px solid currentColor;
+  border-radius: 0 0 100% 100% / 0 0 200% 200%;
+}
+
 .layout-title {
   cursor: pointer;
   font-size: 1.5rem;
   color: var(--color-text-primary);
   user-select: none;
+}
+
+/* Narrow screens (review P2): with word labels the six buttons need
+   ~65-70px each ("Dashboard"/"Analysis" at 0.7rem ≈ 45-50px + 20px
+   padding) → >400px for the nav alone, plus the ~90px title and 4rem
+   of header padding — far over a 360px phone viewport. Below 640px,
+   drop the word labels (tooltips + aria-labels keep every destination
+   named), tighten paddings, and let flex-wrap (above) catch anything
+   left. Icon-only buttons ≈ 18px icon + 12px padding = 30px; six of
+   them + five 4px gaps ≈ 200px, which with the title (~85px) and 2rem
+   header padding (~32px) ≈ 317px — one row on a 360px screen. */
+@media (max-width: 640px) {
+  .layout-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .layout-nav-label {
+    display: none;
+  }
+
+  .layout-nav-btn {
+    gap: 0;
+    padding: 6px;
+  }
 }
 
 .layout-main {

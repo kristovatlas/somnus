@@ -1,4 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { Layout } from "./components/Layout/Layout";
@@ -44,6 +50,7 @@ function createRouter(initialPath: string) {
         children: [
           { path: "onboarding", element: <OnboardingWizard /> },
           { path: "log/:date", element: <DailyLogPage /> },
+          { path: "dashboard", element: <div>Dashboard stub page</div> },
           { path: "explodes", element: <ThrowingPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
@@ -127,6 +134,103 @@ describe("Router guard", () => {
     await waitFor(() => {
       expect(screen.getByText("Somnus")).toBeInTheDocument();
     });
+  });
+
+  // --- #36: labeled nav (owner design record) ---
+
+  function mockOnboardedFetch() {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/settings")) {
+        return new Response(JSON.stringify(mockSettingsOnboarded));
+      }
+      if (urlStr.includes("/api/daily-log/")) {
+        return new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+        });
+      }
+      if (urlStr.includes("/api/red-light-panels")) {
+        return new Response(JSON.stringify([]));
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+  }
+
+  it("renders six labeled nav buttons with accessible names", async () => {
+    mockOnboardedFetch();
+    render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
+
+    const nav = await screen.findByRole("navigation");
+    const names = [
+      "Daily Log",
+      "Dashboard",
+      "Analysis",
+      "Coach",
+      "Reports",
+      "Settings",
+    ];
+    for (const name of names) {
+      expect(within(nav).getByRole("button", { name })).toBeInTheDocument();
+    }
+    expect(within(nav).getAllByRole("button")).toHaveLength(6);
+  });
+
+  it("marks the current route's nav button as active", async () => {
+    mockOnboardedFetch();
+    render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
+
+    const nav = await screen.findByRole("navigation");
+    const logBtn = within(nav).getByRole("button", { name: "Daily Log" });
+    expect(logBtn.className).toContain("layout-nav-btn-active");
+    expect(logBtn).toHaveAttribute("aria-current", "page");
+
+    const dashBtn = within(nav).getByRole("button", { name: "Dashboard" });
+    expect(dashBtn.className).not.toContain("layout-nav-btn-active");
+    expect(dashBtn).not.toHaveAttribute("aria-current");
+  });
+
+  it("the Somnus title navigates to the Dashboard and carries a tooltip", async () => {
+    mockOnboardedFetch();
+    render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
+
+    // WCAG 2.5.3: the accessible name contains the visible text "Somnus"
+    const title = await screen.findByText("Somnus");
+    expect(title).toHaveAttribute("title", "Somnus — go to Dashboard");
+    expect(title).toHaveAttribute("aria-label", "Somnus — go to Dashboard");
+    title.click();
+    expect(await screen.findByText("Dashboard stub page")).toBeInTheDocument();
+
+    // On /dashboard the Dashboard nav button becomes the active one
+    const nav = screen.getByRole("navigation");
+    expect(
+      within(nav).getByRole("button", { name: "Dashboard" }).className,
+    ).toContain("layout-nav-btn-active");
+  });
+
+  it("the Somnus title activates on Enter (role=button keyboard contract)", async () => {
+    mockOnboardedFetch();
+    render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
+
+    const title = await screen.findByRole("button", {
+      name: "Somnus — go to Dashboard",
+    });
+    // A non-activation key must not navigate
+    fireEvent.keyDown(title, { key: "a" });
+    expect(screen.queryByText("Dashboard stub page")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(title, { key: "Enter" });
+    expect(await screen.findByText("Dashboard stub page")).toBeInTheDocument();
+  });
+
+  it("the Somnus title activates on Space", async () => {
+    mockOnboardedFetch();
+    render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
+
+    const title = await screen.findByRole("button", {
+      name: "Somnus — go to Dashboard",
+    });
+    fireEvent.keyDown(title, { key: " " });
+    expect(await screen.findByText("Dashboard stub page")).toBeInTheDocument();
   });
 
   // --- #51: router hardening ---
