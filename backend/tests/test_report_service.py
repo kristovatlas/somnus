@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 
 import pytest
 from sqlalchemy.orm import Session
@@ -454,6 +455,54 @@ class TestMonthlyReport:
         assert report["best_night"] is not None
         assert report["worst_night"] is not None
 
+    def test_best_worst_night_context(self, db: Session) -> None:
+        """#113: best/worst carry weekday, sleep start, duration, deep/REM/HRV."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 2 + i), sleep_score=75))
+        db.add(
+            SleepRecord(
+                date=dt.date(2026, 2, 10),  # a Tuesday
+                sleep_score=95,
+                bedtime=dt.datetime(2026, 2, 9, 23, 42),
+                total_sleep_minutes=458,
+                deep_minutes=71,
+                rem_minutes=96,
+                avg_hrv=44.4,
+            )
+        )
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        best = report["best_night"]
+        assert best["weekday"] == "Tuesday"
+        assert best["bedtime"] == "11:42 PM"
+        assert best["total_sleep_minutes"] == 458
+        assert best["deep_minutes"] == 71
+        assert best["rem_minutes"] == 96
+        assert best["avg_hrv"] == 44.4
+
+    def test_best_worst_night_context_null_fields(self, db: Session) -> None:
+        """#113 + ADR 003: unrecorded metrics stay None, never fabricated."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 1 + i), sleep_score=60 + i))
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        worst = report["worst_night"]
+        assert worst["weekday"] == "Sunday"  # 2026-02-01
+        assert worst["bedtime"] is None
+        assert worst["total_sleep_minutes"] is None
+        assert worst["deep_minutes"] is None
+        assert worst["rem_minutes"] is None
+        assert worst["avg_hrv"] is None
+
+    def test_bedtime_formats_across_midnight_boundaries(self, db: Session) -> None:
+        """12-hour clock edge cases: midnight and noon."""
+        from backend.services.report_service import _fmt_clock_12h
+
+        assert _fmt_clock_12h(dt.datetime(2026, 2, 10, 0, 5)) == "12:05 AM"
+        assert _fmt_clock_12h(dt.datetime(2026, 2, 10, 12, 0)) == "12:00 PM"
+        assert _fmt_clock_12h(dt.datetime(2026, 2, 9, 22, 7)) == "10:07 PM"
+        assert _fmt_clock_12h(None) is None
+
 
 # ---------------------------------------------------------------------------
 # HTML rendering
@@ -495,6 +544,49 @@ class TestHTMLRendering:
         report = get_week_report(db, 2026, 8, today=dt.date(2026, 2, 19))
         html = render_weekly_html(report)
         assert "Insufficient data" in html
+
+    def test_monthly_html_night_context(self, db: Session) -> None:
+        """#113 export parity: the same night enrichment the SPA card shows."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 2 + i), sleep_score=75))
+        db.add(
+            SleepRecord(
+                date=dt.date(2026, 2, 10),
+                sleep_score=95,
+                bedtime=dt.datetime(2026, 2, 9, 23, 42),
+                total_sleep_minutes=458,
+                deep_minutes=71,
+                rem_minutes=96,
+                avg_hrv=44.4,
+            )
+        )
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        html = render_monthly_html(report)
+        assert "Tuesday, 2026-02-10" in html
+        assert "bed 11:42 PM" in html
+        assert "7h 38m" in html
+        assert "deep 71m" in html
+        assert "REM 96m" in html
+        assert "HRV 44" in html
+
+    def test_monthly_html_night_context_null_fields_graceful(self, db: Session) -> None:
+        """A night with no bedtime/stages/HRV renders without 'None' leakage."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 1 + i), sleep_score=60 + i))
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        html = render_monthly_html(report)
+        assert "Best Night" in html and "Worst Night" in html
+        assert "Sunday, 2026-02-01" in html  # weekday always present
+        assert "None" not in html
+        # No detail line at all when nothing beyond date/score was recorded.
+        # The "bed <clock>" label needs a digit-anchored needle: bare "bed"
+        # would false-positive on "Pre-bed ritual" factor tags or "Bedtime"
+        # headings elsewhere in report HTML. "HRV " (trailing space) only
+        # appears in the detail line; metric tables use bare "HRV" cells.
+        assert re.search(r"bed \d", html) is None
+        assert "HRV " not in html
 
     def test_weekly_html_factor_slope_phrase(self) -> None:
         """#17 export parity: factor items carry the compact slope phrase
@@ -661,6 +753,28 @@ class TestHTMLEscaping:
         html = render_monthly_html(report)
         assert _XSS not in html
         assert "&lt;script&gt;" in html
+
+    def test_monthly_escapes_night_context_fields(self) -> None:
+        """#113 added weekday/bedtime string holes; both are backend-generated
+        today, but the invariant says every non-numeric hole goes through
+        _esc anyway."""
+        report = _minimal_monthly_report(
+            best_night={
+                "date": dt.date(2026, 2, 3),
+                "sleep_score": 90,
+                "weekday": _XSS,
+                "bedtime": _XSS,
+                "total_sleep_minutes": 458,
+                "deep_minutes": 71,
+                "rem_minutes": 96,
+                "avg_hrv": 44.4,
+                "contributing_factors": [],
+            }
+        )
+        html = render_monthly_html(report)
+        assert _XSS not in html
+        # weekday + bedtime
+        assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 2
 
     def test_weekly_escapes_factor_label(self) -> None:
         report = _minimal_weekly_report(

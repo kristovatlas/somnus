@@ -1,0 +1,18 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "5efbc0b3499d6b23b34d839dc4374a10a001e77c67039eb76f0bcd6862e5eb38",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on fix/134-evening-clock df20e41: 'The normalization fixes post-midnight ordering but cannot distinguish those events from legitimate early-morning entries, causing incorrect last-event values and statistical results for affected logs. [P2] Preserve genuine morning events when wrapping times \u2014 backend/services/stats_engine.py:123-124: For users who record a real morning event before 6 AM, this unconditional conversion treats it as a post-midnight evening event. For example, caffeine at 05:30 followed by caffeine at 14:00 yields last_caffeine_hour == 29.5, and an unflagged 05:30 breakfast can beat a 20:00 dinner, corrupting the newly enabled correlations and contrasts. Distinguish late-night rollover using the log/sleep boundary or explicit date context rather than wall-clock time alone.'\n\n--- Post-review delta ---\nFix round commit b2679aa: P3-1 fixed (recommender folds evening-clock column means onto 0-24 via _EVENING_CLOCK_COLUMNS + avg % 24 at the single format site; test pins avg=25.0 -> 'around 1:00', not '25:00'). P3-2 fixed (docstring: input is 'an event time', heuristic caveat for genuine early-morning events, tradeoff tracked in #142). P3-3 fixed (boundary test: 5:59 -> ~29.983, 6:00 -> 6.0). P3-4 fixed (wave-1 report: 'Milestone at wave close: 13 closed / 9 open', recounted via gh, wave closed exactly #17/#105/#106/#108/#112). SCOPE OVERFLOW RECORDED: backend/services/recommender.py + backend/tests/test_recommender.py were not in lane 1's predicted touch-set; touched to fix the 'around 25:00' downstream consumer of the wrapped columns (noted in the commit message per the ship touch-set gate). Post-fix verification: backend pytest 558 passed exit 0 (coverage 98.01%), mypy 0, ruff 0; frontend untouched by the fix round.",
+  "findings": [
+    {
+      "id": "X1",
+      "summary": "<6 AM wrap misclassifies genuine early-morning events as post-midnight evening events",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "dismissed",
+      "reason": "real but bounded, and a challenge to the design issue #134 explicitly decided (mirror bedtime's <6->+24 convention); entries carry no date context so the robust fix needs schema/UX work \u2014 tracked as issue #142 (options: narrower wrap window for consumption events, explicit after-midnight affordance, or document); docstring caveat added in b2679aa; converges with Claude P3-2"
+    }
+  ]
+}

@@ -109,6 +109,26 @@ def _time_to_hour(t: dt.time | None) -> float | None:
     return t.hour + t.minute / 60
 
 
+def _evening_time_to_hour(t: dt.time | None) -> float | None:
+    """Convert an event time to the continuous 24+ evening clock.
+
+    Same convention as _normalize_bedtime_hour (dashboard_service): hours
+    before 6 AM shift to 24+, so 00:30 → 24.5 (later than 23:00), not 0.5
+    (which would sort as the earliest event of the day and corrupt
+    correlations — see #134). Applied to ALL meal/caffeine/stimulating
+    times, so the wrap is a heuristic: a genuinely early-morning event
+    (5:30 AM coffee) also wraps to 29.5 and will beat afternoon entries as
+    the day's "last". Tradeoff accepted to fix the far more common
+    after-midnight case; tracked in issue #142. Used for last_caffeine_hour,
+    last_meal_hour, and stimulating_last_hour; NOT for sunlight_first_hour,
+    which is a genuine morning clock time.
+    """
+    h = _time_to_hour(t)
+    if h is not None and h < 6:
+        h += 24
+    return h
+
+
 def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     """Aggregate all sub-entries of a DailyLog into flat numeric features."""
     row: dict[str, Any] = {"is_sick": True if log.is_sick else None}
@@ -116,17 +136,19 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     # Caffeine
     if log.caffeine_entries:
         row["total_caffeine_mg"] = sum(e.amount_mg for e in log.caffeine_entries)
-        times = [h for e in log.caffeine_entries if (h := _time_to_hour(e.time)) is not None]
+        times = [
+            h for e in log.caffeine_entries if (h := _evening_time_to_hour(e.time)) is not None
+        ]
         row["last_caffeine_hour"] = max(times) if times else None
     else:
         row["total_caffeine_mg"] = None
         row["last_caffeine_hour"] = None
 
     # Meals
-    meal_times = [h for e in log.meal_entries if (h := _time_to_hour(e.time)) is not None]
+    meal_times = [h for e in log.meal_entries if (h := _evening_time_to_hour(e.time)) is not None]
     last_meal_entries = [e for e in log.meal_entries if e.is_last_meal]
     if last_meal_entries and last_meal_entries[0].time is not None:
-        row["last_meal_hour"] = _time_to_hour(last_meal_entries[0].time)
+        row["last_meal_hour"] = _evening_time_to_hour(last_meal_entries[0].time)
     elif meal_times:
         row["last_meal_hour"] = max(meal_times)
     else:
@@ -185,7 +207,7 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
         end_times = [
             h
             for e in log.stimulating_activity_entries
-            if (h := _time_to_hour(e.end_time)) is not None
+            if (h := _evening_time_to_hour(e.end_time)) is not None
         ]
         row["stimulating_last_hour"] = max(end_times) if end_times else None
     else:
@@ -421,10 +443,13 @@ def _confidence_level(n: int) -> str:
 # The slope headline reads "≈X <outcome unit> per <label>".
 _EFFECT_INCREMENTS: dict[str, tuple[float, str]] = {
     "total_caffeine_mg": (100, "100 mg"),
+    "last_caffeine_hour": (1, "hour later"),
+    "last_meal_hour": (1, "hour later"),
     "exercise_duration_minutes": (30, "30 min"),
     "stress_level": (1, "point"),
     "room_temp_f": (5, "5°F"),
     "stimulating_minutes": (30, "30 min"),
+    "stimulating_last_hour": (1, "hour later"),
     "nap_total_minutes": (30, "30 min"),
     "nap_count": (1, "nap"),
     "sunlight_morning_minutes": (30, "30 min"),
@@ -450,25 +475,18 @@ _OUTCOME_UNITS: dict[str, str] = {
 }
 
 # Clock-time predictors whose scale supports "hour later" slopes and
-# clock-labeled bin cutoffs: bedtime_hour is on the continuous 24+ evening
-# scale (see _normalize_bedtime_hour), and sunlight_first_hour is a genuine
-# morning clock time (0-12) — both are monotonic in "later", so slopes and
-# cutoffs are meaningful and _fmt_clock renders them correctly.
+# clock-labeled bin cutoffs: bedtime_hour, last_caffeine_hour,
+# last_meal_hour, and stimulating_last_hour are all on the continuous 24+
+# evening clock (see _normalize_bedtime_hour / _evening_time_to_hour: hours
+# before 6 AM shift to 24+, fixed in #134), and sunlight_first_hour is a
+# genuine morning clock time (0-12) — all are monotonic in "later", so
+# slopes and cutoffs are meaningful and _fmt_clock renders them correctly.
 _HOUR_PREDICTORS = {
     "bedtime_hour",
-    "sunlight_first_hour",
-}
-
-# Evening event-time columns stored on the RAW 0-24 clock (NOT the 24+
-# evening scale bedtime_hour uses): an after-midnight event (e.g. 0.5 =
-# 12:30 AM) sorts *below* an evening one (23.0 = 11:00 PM), so "per hour
-# later" slopes and before/after bins are false for them. Effect and
-# contrast display is suppressed for these until the columns are normalized
-# onto the evening scale — see issue #134.
-_UNNORMALIZED_CLOCK = {
     "last_caffeine_hour",
     "last_meal_hour",
     "stimulating_last_hour",
+    "sunlight_first_hour",
 }
 
 _CONTRAST_MIN_PER_BIN = 5
@@ -496,8 +514,6 @@ def _effect_size(
 ) -> dict[str, Any] | None:
     """Slope in natural units per predictor increment, or None (binary /
     unmapped predictors have no meaningful per-unit slope)."""
-    if pred in _UNNORMALIZED_CLOCK:
-        return None  # raw 0-24 clock — slope is false after midnight (#134)
     inc = _EFFECT_INCREMENTS.get(pred)
     if inc is None:
         return None
@@ -522,8 +538,6 @@ def _binned_contrast(pred: str, outcome: str, subset: pd.DataFrame) -> dict[str,
 
     None when either bin is under _CONTRAST_MIN_PER_BIN (ties on the median
     can empty the high bin — e.g. zero-heavy predictors)."""
-    if pred in _UNNORMALIZED_CLOCK:
-        return None  # raw 0-24 clock — bins misplace after-midnight rows (#134)
     cutoff = float(subset[pred].median())
     low = subset[subset[pred] <= cutoff]
     high = subset[subset[pred] > cutoff]

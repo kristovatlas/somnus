@@ -251,6 +251,21 @@ class TestScienceThresholdRecs:
         caffeine_hour_recs = [r for r in recs if r["factor"] == "last_caffeine_hour"]
         assert len(caffeine_hour_recs) == 0
 
+    def test_evening_clock_avg_folds_onto_24h_clock(self) -> None:
+        """#134 review: a wrapped evening-clock average (25.0 = 1 AM on the
+        24+ clock) renders as "around 1:00" in the rec body, not "around
+        25:00"."""
+        n = 14
+        df = pd.DataFrame({"last_caffeine_hour": [25.0] * n})
+        df.index = pd.date_range("2025-01-01", periods=n)
+        df.index.name = "date"
+
+        recs = _science_threshold_recs(df)
+        caffeine_recs = [r for r in recs if r["factor"] == "last_caffeine_hour"]
+        assert len(caffeine_recs) == 1
+        assert "around 1:00" in caffeine_recs[0]["body"]
+        assert "25:00" not in caffeine_recs[0]["body"]
+
     def test_insufficient_recent_data_skipped(self, db: Session) -> None:
         """Less than 7 recent days should skip the threshold."""
         base = dt.date(2025, 1, 1)

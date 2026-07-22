@@ -1,0 +1,45 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "26a180b8397d2d4b06b0b5511452b3b893ffa453e41d3d8a68537a82fb154478",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #139 review (Claude, Fable 5), feat/113-monthly-nights 7f332ab vs origin/dev (6 files, +281/-24). Verification in scratch worktree, exit codes: backend pytest 556 exit 0 (coverage 95.28%), mypy 0, ruff 0, frontend vitest 314/45 exit 0, cold-cache eslint 0, prettier 0, build 0. FINDINGS: C1 MEDIUM \u2014 'slept 11:42 PM' label dishonest: SleepRecord.bedtime is Oura bedtime_start (time into bed); sleep onset = bedtime_start + latency (stored separately as onset_latency_minutes); label wrong by 10-30 min nightly; everywhere else the app calls this 'Bedtime'. C2 LOW \u2014 weekday (from rec.date, night-ending Oura day convention, matches the displayed date) juxtaposed with a pre-midnight clock time invites 'Tuesday - 11:42 PM' to read as Tuesday evening when it was Monday evening; after-midnight starts genuinely on the labeled day; midnight/noon edges verified and tested. C3 NIT \u2014 'SPA and HTML export render identically' overstated (weekday.slice(0,3) vs full; Python round-half-even vs JS half-up at .5). C4 NIT \u2014 test_bedtime_formats_across_midnight_boundaries is a pure unit test sitting in TestMonthlyReport with an unused db fixture and in-function import. VERIFIED CLEAN: ADR 003 sparse rendering (omit-when-NULL both sides, join-based separators, no dangling separators for any combination; deep=0 renders 'deep 0m' \u2014 recorded zero is data; 'None' not in html asserted); 'HRV ' sentinel sound (tables use bare HRV cells, only the night line emits 'HRV '); NightSummary consumed only by MonthlyReportResponse best/worst_night (response_model set); all new fields optional-with-defaults in Pydantic and TS, legacy-payload test present; .report-muted CSS exists.\n\n--- Post-review delta ---\nFix round commit 2d32e28: C1 fixed \u2014 label 'slept' -> 'bed' in _night_html and SPA nightDetails (both surfaces read e.g. 'bed 11:42 PM'); C3 fixed \u2014 _night_summary docstring softened to 'render the same fields' (SPA abbreviates weekday; avg_hrv rounding may differ at .5). Test sentinels hardened: null-fields sentinel is now re.search(r'bed \\d', html) is None \u2014 probed against real rendered HTML including the 'Pre-bed ritual' factor tag, which does NOT match, while the real label does. Delta scope: report_service.py, test_report_service.py, BestWorstNightsCard.tsx + test \u2014 all within the lane touch-set (BestWorstNightsCard substitution recorded in the wave plan). Post-fix verification: backend pytest 556 exit 0 (coverage 97.91%), mypy 0, ruff 0; frontend cold-cache lint 0, format:check 0, vitest 314/45 files exit 0, build 0.",
+  "findings": [
+    {
+      "id": "C1",
+      "summary": "'slept <time>' mislabels time-into-bed (Oura bedtime_start) as sleep onset",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "label -> 'bed <time>' on both surfaces; assertions + robust sentinels updated (2d32e28)"
+    },
+    {
+      "id": "C2",
+      "summary": "Weekday + pre-midnight bedtime juxtaposition invites off-by-one-evening misreading",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "rec.date is the night-ending Oura day convention used repo-wide and matches the date the card already shows; 'bed' labeling reduces ambiguity; changing day attribution would diverge from every other surface"
+    },
+    {
+      "id": "C3",
+      "summary": "Docstring overstates SPA/export parity ('render identically')",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "softened to 'render the same fields' with the concrete caveats (2d32e28)"
+    },
+    {
+      "id": "C4",
+      "summary": "Pure unit test placed in TestMonthlyReport with unused db fixture",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "cosmetic; test is correct and load-bearing where it is"
+    }
+  ]
+}
