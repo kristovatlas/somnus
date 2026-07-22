@@ -15,6 +15,7 @@ export function RedLightSummary({ summary }: RedLightSummaryProps) {
       data-testid="red-light-summary"
     >
       <h3 className="dashboard-card-title">Red Light Therapy</h3>
+      <div className="dashboard-card-subtitle">Last 7 days</div>
       <div className="red-light-stats">
         <span>
           {summary.session_count} session
@@ -38,7 +39,7 @@ export function RedLightSummary({ summary }: RedLightSummaryProps) {
       >
         {summary.meets_minimum
           ? "On track"
-          : `${remaining} more session${remaining !== 1 ? "s" : ""} recommended`}
+          : `${remaining} more session${remaining !== 1 ? "s" : ""} to reach 3 in the last 7 days`}
       </div>
     </div>
   );

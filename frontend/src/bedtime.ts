@@ -52,7 +52,10 @@ export function computeBedtimeStatus(
 
   if (sinceStart <= windowLen) {
     return {
-      label: source === "optimal" ? "Bedtime window is open" : "It's bedtime",
+      label:
+        source === "optimal"
+          ? "You're in your optimal bedtime window"
+          : "It's bedtime",
       detail: sourceLabel,
     };
   }
