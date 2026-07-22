@@ -1,0 +1,18 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "41f87a8765f4d50c1bebb58439ecbb1b73ce7d22c0cfb0e1d8533cb4ce92e67a",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "\nexec\n/bin/bash -lc 'npm test' in /workspaces/sleep-optimizer/.claude/worktrees/agent-a435101459d59ea55/frontend\ncodex\nThe changes consistently extend the decay curve and chart domain for after-midnight bedtimes, and production call sites pass the required bedtime value. The frontend build, lint, and relevant tests pass without exposing a regression.\nThe changes consistently extend the decay curve and chart domain for after-midnight bedtimes, and production call sites pass the required bedtime value. The frontend build, lint, and relevant tests pass without exposing a regression.\n\n--- security re-run ---\n- Display/math-only changes. React safely escapes new labels/callout.\n- No new sinks, dependencies/lockfile changes, storage, endpoint/router, network, auth, or backend changes.\n- Unrelated functional delta: \u201cAdd custom entry\u201d renamed to \u201cAdd entry\u201d; behavior unchanged.\n\nValidation: changed-area tests 40/40, build/typecheck, ESLint, Prettier, and `npm audit` (0 vulnerabilities) passed. Full Vitest run stalled in this environment; targeted affected suites passed. Python audit was network-blocked, but no Python dependencies changed.\n",
+  "findings": [
+    {
+      "id": "CXR1",
+      "summary": "After-midnight bedtimes read the curve before the day's intake \u2014 callout materially wrong",
+      "severity_claimed": "P1",
+      "validated": true,
+      "severity_validated": "P1",
+      "disposition": "fixed",
+      "reason": "Same finding as Claude C1 (independent convergence); fixed + full battery re-run clean."
+    }
+  ]
+}

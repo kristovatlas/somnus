@@ -55,8 +55,20 @@ describe("CaffeineSection", () => {
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
-  it("renders add custom entry button", () => {
+  it("renders add entry button", () => {
     render(<CaffeineSection entries={[]} onChange={vi.fn()} />);
-    expect(screen.getByText("+ Add custom entry")).toBeInTheDocument();
+    expect(screen.getByText("+ Add entry")).toBeInTheDocument();
+  });
+
+  it("adds a prefilled entry on add entry click", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<CaffeineSection entries={[]} onChange={onChange} />);
+    await user.click(screen.getByText("+ Add entry"));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ amount_mg: 95, source: "other" }),
+      ]),
+    );
   });
 });
