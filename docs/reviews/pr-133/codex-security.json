@@ -1,0 +1,8 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "55767731569916223eb86cb9c3c6ed09b4d58e5162b0979128b0bad150716b32",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "- README/process documentation does not weaken these controls.\n- No workflow files changed.\n\n[Full security report](/tmp/codex-security-scans/sleep-optimizer/5b93dd64f209b24f0fc8ec74fe1291c8020c4703_20260722T161647Z/report.md)\n\nScan completed in about 8 minutes.\n\u001b[90m4:24PM\u001b[0m \u001b[32mINF\u001b[0m no leaks found\n",
+  "findings": []
+}
