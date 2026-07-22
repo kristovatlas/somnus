@@ -716,6 +716,28 @@ class TestHTMLRendering:
         assert "drifting" not in html
         assert "Weekend Drift" in html
 
+        # Discriminate the DRIFT cell specifically (PR #146 review, P2):
+        # every real drift band value (minimal/moderate/significant) is
+        # identity under the map, so the two reports above cannot detect a
+        # dropped _rating_label at that one call site. The renderer doesn't
+        # validate vocabulary membership, so push a synthetic underscore
+        # value through the drift cell alone — sigma/delta here render
+        # "consistent"/"on target", so the mapped needle can only come from
+        # the drift cell.
+        report = _minimal_weekly_report(
+            consistency={
+                "sigma_minutes": 20.0,
+                "sigma_rating": "consistent",
+                "delta_minutes": 20.0,
+                "delta_rating": "on_target",
+                "weekend_drift_minutes": 35.0,
+                "drift_rating": "somewhat_inconsistent",
+            }
+        )
+        html = render_weekly_html(report)
+        assert "<td>somewhat inconsistent</td>" in html
+        assert "somewhat_inconsistent" not in html
+
     def test_rating_label_covers_every_band_value(self) -> None:
         """#143: every value rate_sigma/rate_delta/rate_drift can emit maps
         sensibly — only ``drifting`` gets a word swap, the rest are
