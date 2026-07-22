@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { computeDecayCurve, mgAtHour } from "./caffeineCalc";
+import {
+  computeDecayCurve,
+  curveEndHour,
+  mgAtHour,
+  wrapBedtimeHour,
+} from "./caffeineCalc";
 
 describe("computeDecayCurve", () => {
   it("returns 96 points (24h * 4 per hour)", () => {
@@ -71,6 +76,49 @@ describe("computeDecayCurve", () => {
     );
     const at8 = points.find((p) => p.hour === 8);
     expect(at8?.mg).toBe(0);
+  });
+
+  it("extends past 24h when endHour is given", () => {
+    const points = computeDecayCurve(
+      [{ time: "14:00:00", amount_mg: 200 }],
+      "normal",
+      25,
+    );
+    expect(points).toHaveLength(100); // 25h * 4 per hour
+    expect(points[points.length - 1].hour).toBe(24.75);
+    // 10.5h after the 14:00 dose: 200 * 0.5^(10.5/4) = 32.42 -> 32.4.
+    const at2430 = points.find((p) => p.hour === 24.5);
+    expect(at2430?.mg).toBe(32.4);
+  });
+});
+
+describe("wrapBedtimeHour", () => {
+  it("wraps hours before the 6 AM cutoff onto the evening scale", () => {
+    expect(wrapBedtimeHour(0.5)).toBe(24.5); // 00:30 -> 24.5
+    expect(wrapBedtimeHour(0)).toBe(24);
+    expect(wrapBedtimeHour(5.75)).toBe(29.75);
+  });
+
+  it("leaves daytime and evening hours unchanged", () => {
+    expect(wrapBedtimeHour(6)).toBe(6);
+    expect(wrapBedtimeHour(22.5)).toBe(22.5);
+  });
+});
+
+describe("curveEndHour", () => {
+  it("defaults to 24 without a bedtime", () => {
+    expect(curveEndHour(null)).toBe(24);
+    expect(curveEndHour(undefined)).toBe(24);
+  });
+
+  it("stays at 24 for evening bedtimes", () => {
+    expect(curveEndHour(22)).toBe(24);
+    expect(curveEndHour(23.5)).toBe(24);
+  });
+
+  it("extends just past a wrapped after-midnight bedtime", () => {
+    expect(curveEndHour(0.5)).toBe(25); // 00:30 -> 24.5 + 0.5
+    expect(curveEndHour(2)).toBe(26.5);
   });
 });
 
