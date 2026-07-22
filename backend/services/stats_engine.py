@@ -112,19 +112,22 @@ def _time_to_hour(t: dt.time | None) -> float | None:
 def _evening_time_to_hour(t: dt.time | None) -> float | None:
     """Convert an event time to the continuous 24+ evening clock.
 
-    Same convention as _normalize_bedtime_hour (dashboard_service): hours
-    before 6 AM shift to 24+, so 00:30 → 24.5 (later than 23:00), not 0.5
-    (which would sort as the earliest event of the day and corrupt
-    correlations — see #134). Applied to ALL meal/caffeine/stimulating
-    times, so the wrap is a heuristic: a genuinely early-morning event
-    (5:30 AM coffee) also wraps to 29.5 and will beat afternoon entries as
-    the day's "last". Tradeoff accepted to fix the far more common
-    after-midnight case; tracked in issue #142. Used for last_caffeine_hour,
-    last_meal_hour, and stimulating_last_hour; NOT for sunlight_first_hour,
-    which is a genuine morning clock time.
+    Same idea as _normalize_bedtime_hour (dashboard_service): early-morning
+    hours shift to 24+, so 00:30 → 24.5 (later than 23:00), not 0.5 (which
+    would sort as the earliest event of the day and corrupt correlations —
+    see #134). The cutoff here is deliberately NARROWER than bedtime's:
+    consumption events before 4 AM wrap (post-midnight caffeine/meals
+    cluster 00:00–03:00), while 4–6 AM reads as a genuine early-riser
+    morning event and stays raw; bedtime keeps its < 6 cutoff (nobody's
+    evening bedtime is 5 AM). Owner-decided 2026-07-22 (#142). Still a
+    heuristic — a real 3:30 AM breakfast wraps, a 4:30 AM post-all-nighter
+    espresso doesn't; the travel/timezone-robust replacement is tracked in
+    #144. Used for last_caffeine_hour, last_meal_hour, and
+    stimulating_last_hour; NOT for sunlight_first_hour, which is a genuine
+    morning clock time.
     """
     h = _time_to_hour(t)
-    if h is not None and h < 6:
+    if h is not None and h < 4:
         h += 24
     return h
 
@@ -477,8 +480,9 @@ _OUTCOME_UNITS: dict[str, str] = {
 # Clock-time predictors whose scale supports "hour later" slopes and
 # clock-labeled bin cutoffs: bedtime_hour, last_caffeine_hour,
 # last_meal_hour, and stimulating_last_hour are all on the continuous 24+
-# evening clock (see _normalize_bedtime_hour / _evening_time_to_hour: hours
-# before 6 AM shift to 24+, fixed in #134), and sunlight_first_hour is a
+# evening clock (see _normalize_bedtime_hour / _evening_time_to_hour: early
+# hours shift to 24+ — before 6 AM for bedtime, before 4 AM for consumption
+# events per #142 — fixed in #134), and sunlight_first_hour is a
 # genuine morning clock time (0-12) — all are monotonic in "later", so
 # slopes and cutoffs are meaningful and _fmt_clock renders them correctly.
 _HOUR_PREDICTORS = {
