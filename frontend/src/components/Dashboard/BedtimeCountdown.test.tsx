@@ -33,11 +33,11 @@ describe("computeBedtimeStatus", () => {
 
   it("optimal window: open, past, and upcoming states wrap midnight", () => {
     const open = computeBedtimeStatus(22.75, 23.5, "optimal", at(23, 10));
-    expect(open.label).toBe("Bedtime window is open");
+    expect(open.label).toBe("You're in your optimal bedtime window");
     expect(open.detail).toBe("optimal window 10:45 PM–11:30 PM");
 
     expect(computeBedtimeStatus(23.5, 0.5, "optimal", at(0, 15)).label).toBe(
-      "Bedtime window is open", // crosses midnight
+      "You're in your optimal bedtime window", // crosses midnight
     );
     expect(computeBedtimeStatus(22.75, 23.5, "optimal", at(1, 0)).label).toBe(
       "Past bedtime by 1h 30m",
