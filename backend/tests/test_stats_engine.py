@@ -373,13 +373,16 @@ class TestPrepareAnalysisDataframe:
         df = prepare_analysis_dataframe(db)
         assert df.iloc[0]["stimulating_last_hour"] == pytest.approx(25.0)
 
-    def test_evening_clock_6am_cutoff_boundary(self) -> None:
-        """#134: the wrap cutoff is exactly 6 AM — 5:59 wraps to 29.983…,
-        6:00 stays at 6.0."""
+    def test_evening_clock_4am_cutoff_boundary(self) -> None:
+        """#142 (owner-decided): consumption events wrap below exactly 4 AM —
+        3:59 wraps to 27.983…, 4:00 stays at 4.0. Bedtime's cutoff stays 6 AM
+        (see _normalize_bedtime_hour); a 5:30 AM coffee is morning, not
+        post-midnight."""
         from backend.services.stats_engine import _evening_time_to_hour
 
-        assert _evening_time_to_hour(dt.time(5, 59)) == pytest.approx(29.983, abs=0.001)
-        assert _evening_time_to_hour(dt.time(6, 0)) == pytest.approx(6.0)
+        assert _evening_time_to_hour(dt.time(3, 59)) == pytest.approx(27.983, abs=0.001)
+        assert _evening_time_to_hour(dt.time(4, 0)) == pytest.approx(4.0)
+        assert _evening_time_to_hour(dt.time(5, 30)) == pytest.approx(5.5)
 
     def test_nap_aggregation(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
