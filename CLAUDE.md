@@ -50,8 +50,8 @@ CI on `dev` was red from 2026-02 to 2026-07 because merges never verified it. Th
 
 ### Shipping process (the `ship` skill)
 - **Somnus ships via the `ship` skill: https://github.com/kristovatlas/ship (adopted 2026-07-22 at v0.2.0).** It governs milestone shaping, wave planning with touch-set-gated lanes, the review battery, and the autonomous merge gate with its escalation list. Read the skill before shipping work; this section only records repo-specific bindings.
-- If `~/.claude/skills/ship/` is missing on this machine, install it: `git clone https://github.com/kristovatlas/ship ~/.claude/skills/ship && git -C ~/.claude/skills/ship checkout v0.2.0`.
-- **Merge policy under ship:** a PR merges without human review only when the skill's Phase 4 gate passes and nothing on its escalation list applies (product/UX choices, scope, security posture, non-additive data changes, releases, and any change to `.github/workflows/` or `scripts/review_gate.py`). Escalated PRs merge only after the conversation. The human interface is the wave report, and decisions rather than diffs.
+- The adopted version is tag `v0.2.0` = commit `33affa20e5456342ed3a1904bf862616dbf5c42e` (tags are mutable; the commit SHA is the pin). At session start, verify the install and pin: `git -C ~/.claude/skills/ship rev-parse HEAD` must print that SHA — if the directory is missing or on any other commit, `git clone https://github.com/kristovatlas/ship ~/.claude/skills/ship 2>/dev/null; git -C ~/.claude/skills/ship fetch && git -C ~/.claude/skills/ship checkout 33affa20e5456342ed3a1904bf862616dbf5c42e`. Version bumps happen via a PR editing this pin, never by drifting.
+- **Merge policy under ship:** a PR merges without human review only when the skill's Phase 4 gate passes and nothing on its escalation list applies (product/UX choices that are not bug fixes; scope; security posture; data — non-additive schema changes, anything touching existing user data, destructive operations; releases; and any change to `.github/workflows/` or `scripts/review_gate.py`). Escalated PRs merge only after the conversation. The human interface is the wave report, and decisions rather than diffs.
 - Somnus bindings for the skill's preflight: base branch `dev`, release branch `main`, tracker = GitHub issues/milestones, review gate = `review-gate` required check per `docs/process/review-gate.md`, merge method = squash to dev / merge-commit for dev→main releases.
 
 ### Git Workflow
@@ -59,7 +59,7 @@ CI on `dev` was red from 2026-02 to 2026-07 because merges never verified it. Th
 - `main` always reflects a complete, user-ready release.
 - Squash merge to dev. Tag releases on main with semver.
 - **All code changes go through feature branches and PRs to dev.** Bug fixes, features, test additions — always `feature/*` or `fix/*` branch → PR to `dev`. Never commit directly to `dev`.
-- The former CLAUDE.md direct-to-dev exception is retired: the ruleset requires a PR for every change (admin bypass exists for the human only), so CLAUDE.md changes ride normal PRs like everything else.
+- The former CLAUDE.md direct-to-dev exception is retired: the ruleset requires a PR for every change, so CLAUDE.md changes ride normal PRs like everything else. (An admin-role bypass exists in the ruleset; by policy only the human uses it — the agent never pushes to dev directly and never uses `gh pr merge --admin`.)
 
 ### Pull Requests
 - Every PR description must include a **Test plan** section with a checkbox list.
