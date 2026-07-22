@@ -1,0 +1,36 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "c258432b2dacdad3adaa9d360b8e68bdd949e209ae86ffab7bed59f133974158",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/main re-run over the full release diff. Three P2s raised: (1) useDashboard.ts silent-refetch failure can leave loading stuck -> filed #156, validated real, non-blocking, deferred v0.1.2; (2) caffeineCalc after-midnight entries not wrapped onto extended domain -> = #153, owner-deferred v0.1.2; (3) CaffeineChart mgAtHour clamps at/after 23:45 sample -> DISMISSED as false positive by orchestrator validation: production curve is built by useCaffeineDecay(entries, sensitivity, bedtimeHour) with curveEndHour(bedtimeHour)=max(24, wrapped+0.5); the +0.5h margin (1-2 samples) guarantees the last sample exceeds the wrapped bedtime marker in every branch, so mgAtHour never hits the clamp; DashboardPage and DailyLogPage both pass identical bedtimeHour to hook and chart (no mismatch). No P1.\n\n--- Release battery note ---\nv0.1.1 dev->main release, full-diff battery (163 files, main...dev). RE-RUN after release-prep #155 (version 0.1.0->0.1.1, uv.lock regenerated, doc fixes) advanced the base. Every constituent PR (#118..#155) already passed its own 4-leg battery; this is the release-level combined-state pass per the strict release-scope reading (docs/process/review-gate.md). Dispositions: caffeine after-midnight P2 = issue #153 (owner-deferred to v0.1.2); dashboard stuck-loading P2 = issue #156 (filed, non-blocking, deferred v0.1.2); caffeine bedtime-callout P2 = DISMISSED false positive (curve built via useCaffeineDecay with curveEndHour(bedtimeHour); +0.5h margin guarantees a sample past the marker; both pages wire bedtimeHour identically to hook and chart, verified). e2e flake = #154. No P1, no security finding.",
+  "findings": [
+    {
+      "id": "X1",
+      "summary": "useDashboard: silent refetch failure after superseding initial load can leave loading stuck",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "dismissed",
+      "reason": "validated real but non-blocking (P2); narrow race (sync-during-initial-load + localhost refetch failure), pre-existing since #118/#100 and dogfooded; filed as #156 for v0.1.2 per the owner's tag-now-defer-non-blockers decision"
+    },
+    {
+      "id": "X2",
+      "summary": "caffeineCalc after-midnight entries not wrapped onto extended domain (near-zero mg-at-bedtime)",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "dismissed",
+      "reason": "= issue #153, owner-deferred to v0.1.2 (tag-now decision); non-blocking P2; fix wants #142's cutoff + rides #117's decay-model port"
+    },
+    {
+      "id": "X3",
+      "summary": "CaffeineChart mgAtHour clamps for bedtimes after the 23:45 sample",
+      "severity_claimed": "P2",
+      "validated": false,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "FALSE POSITIVE: curve built via useCaffeineDecay with curveEndHour(bedtimeHour) (+0.5h margin) guarantees a sample past the wrapped marker in every branch; both pages wire identical bedtimeHour to hook and chart; mgAtHour never hits the clamp for real inputs (verified by branch analysis)"
+    }
+  ]
+}

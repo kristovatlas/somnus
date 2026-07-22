@@ -1,0 +1,8 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "Codex security scan of the carrier (report: /tmp/codex-security-scans/sleep-optimizer/d6b4505d8697401a05318368c093fa5b01122aac_20260722T234706Z/report.md): Reportable findings 0. Docs-only artifact addition; no secrets, no code, no surface.\n\n--- Carrier note ---\nDocs-only release-artifact carrier (docs/process/review-gate.md release scope): adds docs/reviews/pr-151/ (the v0.1.1 dev->main battery legs) plus this pr-157/ set. Entire diff is under docs/reviews/, which the gate excludes from its hash \u2014 so the reviewed_diff_sha256 here is the empty-string sha256 (e3b0c44...), and merging this carrier does not restale PR #151's attestation.",
+  "findings": []
+}
