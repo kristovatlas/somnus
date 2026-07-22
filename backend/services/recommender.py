@@ -45,6 +45,11 @@ _EVIDENCE_ADJ: dict[str, int] = {
     "low": 3,
 }
 
+# Columns on the continuous 24+ evening clock (see stats_engine._evening_time_to_hour):
+# their averages can exceed 24, so fold onto the 0-24 clock before rendering
+# "around {avg:.0f}:00" copy (avoids "around 25:00").
+_EVENING_CLOCK_COLUMNS = {"last_caffeine_hour", "last_meal_hour", "stimulating_last_hour"}
+
 
 def _evidence_from_n(n: int) -> str:
     """Map sample size to evidence level."""
@@ -162,7 +167,12 @@ def _science_threshold_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
         if not violated:
             continue
 
-        body = thresh.body_template.format(avg=avg, threshold=thresh.threshold_value, n_days=n_days)
+        # Fold 24+ evening-clock averages back onto the 0-24 clock for display
+        # (e.g. 25.0 renders "1:00", not "25:00").
+        display_avg = avg % 24 if thresh.column in _EVENING_CLOCK_COLUMNS else avg
+        body = thresh.body_template.format(
+            avg=display_avg, threshold=thresh.threshold_value, n_days=n_days
+        )
 
         evidence_adj = _EVIDENCE_ADJ.get(thresh.evidence_level, 0)
         priority = max(1, _BASE_PRIORITY["science_threshold"] + evidence_adj)

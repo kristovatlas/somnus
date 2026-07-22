@@ -40,7 +40,10 @@ export function Explainer() {
           <p>
             <strong>Bedtime (hour)</strong> uses a continuous evening clock so
             that after-midnight bedtimes count as <em>later</em>, not earlier:
-            11:30 PM is 23.5 and 12:30 AM is 24.5. Windows labeled
+            11:30 PM is 23.5 and 12:30 AM is 24.5. Other late-evening times
+            (last caffeine, last meal, and last stimulating activity after
+            midnight) now count as 24+ too, so their correlations may shift
+            slightly if you have after-midnight entries. Windows labeled
             &quot;7d&quot; are approximately the last week of recorded data
             (calendar days on the Dashboard; the last 7 recorded nights here).
           </p>
