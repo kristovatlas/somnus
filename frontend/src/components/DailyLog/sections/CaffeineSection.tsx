@@ -107,7 +107,7 @@ export function CaffeineSection({ entries, onChange }: CaffeineSectionProps) {
           })
         }
       >
-        + Add custom entry
+        + Add entry
       </button>
     </SectionWrapper>
   );
