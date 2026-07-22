@@ -1,0 +1,27 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "54d4a7f3c02c5abc10eb6c131cd3334d45c7627bd3641046510f618516707be7",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #146 review (Claude, Fable 5), fix/143-rating-display d74e4b3 vs origin/dev, detached scratch worktree, real exit codes: full backend pytest 566 exit 0 (coverage 95.53%), mypy 0, ruff check 0, ruff format --check 0; frontend untouched per diff. FINDINGS: P2 \u2014 drift call site not test-discriminated: mutation-tested all three sites; sigma and delta mutants fail the new test, but removing _rating_label at the drift cell (report_service.py:692) left all 62 report-service tests passing \u2014 every real drift band value (minimal/moderate/significant) is identity under the map. Guard would silently evaporate if the drift vocabulary ever gains an underscore/renamed value. NIT \u2014 order-swap (_rating_label(_esc(x))) also undiscriminated; benign (map output has no HTML metacharacters, escaped entities have no underscores) but the docstring states order as an invariant. VERIFIED CLEAN: surface completeness (grep sigma/delta/drift_rating backend+frontend non-test: only the three weekly-export cells render rating WORDS; render_monthly_html read in full \u2014 no rating cells; dashboard uses ratings solely as ratingColor keys); owner-decision reading right (only drifting word-swapped, underscores spaced; delta ladder on target / off target / misaligned reads sensibly ordinal; 'drift' text survives only as the Weekend Drift row label; all nine values enumerated in test_rating_label_covers_every_band_value); _esc outermost at all three sites; None-safety unchanged (ratings set iff paired minutes set, rows gated on minutes); no API/schema/frontend change (schemas.py:468-472 and dashboard.ts:62-66 untouched).\n\n--- Post-review delta ---\nFix round commit 7fccf6a: P2 fixed \u2014 third mini-report pushes a synthetic underscore value (drift_rating='somewhat_inconsistent'; the renderer doesn't validate vocabulary membership) through the drift cell alone (sigma/delta render 'consistent'/'on target' so the mapped needle can only come from the drift cell). Mutation-verified by the orchestrator: dropping _rating_label at the drift call site now FAILS the test; restored, 3/3 rating tests pass. Nit dispositioned dismissed (order-swap benign: map output introduces no HTML metacharacters, escaped entities contain no underscores). Delta scope: backend/tests/test_report_service.py only. Post-fix verification: full backend pytest exit 0, mypy 0, ruff 0.",
+  "findings": [
+    {
+      "id": "C1",
+      "summary": "Drift call site's display map not discriminated by tests (mutant passes)",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "synthetic-underscore drift-cell test added; mutation re-verified failing/passing (7fccf6a)"
+    },
+    {
+      "id": "N1",
+      "summary": "Escape-order swap at any site also undiscriminated by tests",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "benign by construction: _rating_label output introduces no HTML metacharacters and escaped entities contain no underscores; order remains a documented invariant checked in review"
+    }
+  ]
+}
