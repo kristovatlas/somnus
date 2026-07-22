@@ -8,6 +8,17 @@ interface SunlightSectionProps {
   onChange: (entries: SunlightEntryCreate[]) => void;
 }
 
+// Typical illuminance values so users don't have to guess lux by hand
+// (#108). Clicking a chip writes the value through the same onChange path
+// as the manual input; the field stays fully editable afterwards.
+const LUX_PRESETS: { label: string; lux: number }[] = [
+  { label: "Heavy overcast (1,000 lux)", lux: 1000 },
+  { label: "Overcast (5,000 lux)", lux: 5000 },
+  { label: "Partly cloudy (20,000 lux)", lux: 20000 },
+  { label: "Full sun (80,000 lux)", lux: 80000 },
+  { label: "Indoor, by window (1,000 lux)", lux: 1000 },
+];
+
 function nowTimeStr(): string {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`;
@@ -59,6 +70,20 @@ export function SunlightSection({ entries, onChange }: SunlightSectionProps) {
             unit="min"
             min={1}
           />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            {LUX_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="quick-add-btn"
+                onClick={() =>
+                  updateEntry(i, { ...entry, estimated_lux: preset.lux })
+                }
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
           <NumberInput
             label="Estimated Lux"
             value={entry.estimated_lux}
