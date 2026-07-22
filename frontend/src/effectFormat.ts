@@ -28,8 +28,10 @@ export function effectHeadline(
 }
 
 /** Duration idiom for minute-unit outcome averages (#147): "7h 27m", or
- * "45m" under an hour — matches the monthly night line's `_fmt_duration`.
- * Rounded to whole minutes; a rounded-up 59.6 correctly becomes "1h 0m". */
+ * "45m" under an hour — same style as the monthly night line's
+ * `_fmt_duration` (which always shows the hour part; here sub-hour values
+ * drop it, per the issue spec). Rounded to whole minutes; a rounded-up
+ * 59.6 correctly becomes "1h 0m". */
 function fmtMinutesAsDuration(v: number): string {
   const total = Math.round(v);
   const h = Math.floor(total / 60);
