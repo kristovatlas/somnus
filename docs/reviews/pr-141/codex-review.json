@@ -1,0 +1,18 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "66abbd92c491a7cbd8809eb19568cfde047b4fdef1a2493fab40a61fef1d9924",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on fix/37-38-renames aa052b3: 'The terminology changes are otherwise consistent, but the substantially longer pill labels introduce horizontal overflow on narrow mobile layouts in both dashboard and report views. [P2] Allow the renamed consistency pills to wrap \u2014 frontend/src/components/Dashboard/ConsistencyMeter.tsx:132: At narrow mobile widths (for example 320-360 px), the three longer word labels exceed the card's available width, while .consistency-pills remains a non-wrapping flex row. This causes the dashboard card to overflow horizontally; the same regression exists in WeeklyReportView because .report-consistency-pills also lacks wrapping. Add wrapping or a responsive stacked layout for both pill rows.'\n\n--- Post-review delta ---\nFix round commit 7a77334: C1/Codex-P2 fixed (flex-wrap + row-gap on .consistency-pills and .report-consistency-pills); C2 fixed (analysis delta_7d label -> 'Bedtime Offset (7d avg)', rec copy aligned to 'your recent (7-day) average bedtime'; no tests pinned old strings \u2014 grepped); C3 fixed (hint now attributes correctly: bedtime target -> countdown/caffeine marker/consistency stats; wake target -> Auto display-mode schedule); C7 fixed (same corrected hint added to Settings ProfileSection with a .settings-field-hint class matching the Settings hint idiom); C6 fixed (cursor:help removed); C5 partially fixed (PLAN.md:446 user-facing copy example de-Greeked; internal Greek framing left). TOUCH-SET OVERFLOW RECORDED (ship Phase 3 gate): plan predicted frontend-only (ConsistencyMeter, SleepProfileStep, ProfileSection, weekly consistency card, tests); actual lane also touched backend stats_engine VARIABLE_LABELS + reference_data rec copy (the renames genuinely live there \u2014 plan's 'ONLY if frontend-side' assumption was wrong), report_service export template, PLAN.md/ARCHITECTURE.md lines, DashboardPage/ReportsPage/SettingsPage CSS. Recorded in the wave-2 report. Post-review commits also include: merge of origin/dev (clean; the shared-file composition with #140's stats_engine edits and #139's report_service edits is exercised by this PR's own CI at the attested hash) and docs/waves/2026-07-22-wave-2-report.md (ship Phase 5: the wave report rides the wave's final PR before attestation; by design it is not itself leg-reviewed). Post-fix verification: backend pytest 550 exit 0 (coverage 97.88%), mypy 0, ruff 0; frontend cold-cache lint 0, format:check 0, vitest 311/44 exit 0, build 0.",
+  "findings": [
+    {
+      "id": "X1",
+      "summary": "Renamed consistency pills overflow horizontally on narrow widths (dashboard + report, non-wrapping flex)",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "flex-wrap + row-gap on both pill rows (7a77334); convergent with Claude C1"
+    }
+  ]
+}
