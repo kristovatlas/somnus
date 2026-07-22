@@ -12,23 +12,58 @@
 
 .layout-nav {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   align-items: center;
 }
 
+/* #36: labeled nav — icon with a short word below, per the owner's
+   design record. Curved line under the active icon marks the page. */
 .layout-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px; /* room for the active arc between icon and label */
   background: transparent;
   border: none;
   color: var(--color-text-muted);
-  font-size: 1.4rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 10px 2px;
   line-height: 1;
 }
 
 .layout-nav-btn:hover {
   color: var(--color-text-primary);
   background: transparent;
+}
+
+.layout-nav-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+}
+
+.layout-nav-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+}
+
+.layout-nav-btn-active {
+  color: var(--color-text-primary);
+}
+
+/* Curved line under the active icon (selected-state indicator) */
+.layout-nav-btn-active .layout-nav-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 7px;
+  border-bottom: 2.5px solid currentColor;
+  border-radius: 0 0 100% 100% / 0 0 200% 200%;
 }
 
 .layout-title {

@@ -33,29 +33,58 @@ test.describe("Page navigation", () => {
   });
 
   test("all nav buttons navigate to correct pages", async ({ page }) => {
+    // #36: labeled nav — six destinations; scope to the nav landmark since
+    // the "Somnus" title is also a button accessibly named "Dashboard".
+    const nav = page.getByRole("navigation");
+
     // Dashboard
-    await page.getByRole("button", { name: "Dashboard" }).click();
+    await nav.getByRole("button", { name: "Dashboard" }).click();
     await expect(page).toHaveURL(/\/dashboard/);
 
     // Analysis
-    await page.getByRole("button", { name: "Analysis" }).click();
+    await nav.getByRole("button", { name: "Analysis" }).click();
     await expect(page).toHaveURL(/\/analysis/);
 
-    // Recommendations
-    await page.getByRole("button", { name: "Recommendations" }).click();
+    // Coach (route stays /recommendations)
+    await nav.getByRole("button", { name: "Coach" }).click();
     await expect(page).toHaveURL(/\/recommendations/);
 
     // Reports
-    await page.getByRole("button", { name: "Reports" }).click();
+    await nav.getByRole("button", { name: "Reports" }).click();
     await expect(page).toHaveURL(/\/reports/);
 
     // Settings
-    await page.getByRole("button", { name: "Settings" }).click();
+    await nav.getByRole("button", { name: "Settings" }).click();
     await expect(page).toHaveURL(/\/settings/);
 
-    // Title click → back to /log
-    await page.getByText("Somnus").first().click();
+    // Daily Log (first position, pencil)
+    await nav.getByRole("button", { name: "Daily Log" }).click();
     await expect(page).toHaveURL(/\/log\//);
+
+    // Title click → Dashboard (#36: repointed from /log)
+    await page.getByText("Somnus").first().click();
+    await expect(page).toHaveURL(/\/dashboard/);
+  });
+
+  test("active nav button tracks the current route (#36)", async ({ page }) => {
+    const nav = page.getByRole("navigation");
+
+    await nav.getByRole("button", { name: "Settings" }).click();
+    await expect(page).toHaveURL(/\/settings/);
+    await expect(nav.getByRole("button", { name: "Settings" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(nav.locator(".layout-nav-btn-active")).toHaveCount(1);
+
+    await nav.getByRole("button", { name: "Daily Log" }).click();
+    await expect(page).toHaveURL(/\/log\//);
+    await expect(
+      nav.getByRole("button", { name: "Daily Log" }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(
+      nav.getByRole("button", { name: "Settings" }),
+    ).not.toHaveAttribute("aria-current", "page");
   });
 
   test("pages load without errors", async ({ page }) => {

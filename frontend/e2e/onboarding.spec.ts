@@ -17,13 +17,12 @@ test.describe("Onboarding flow", () => {
     // Should be on the daily log page
     await expect(page).toHaveURL(/\/log\/\d{4}-\d{2}-\d{2}/);
 
-    // Nav should be visible (Layout is rendering the main app)
-    await expect(
-      page.getByRole("button", { name: "Dashboard" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Settings" }),
-    ).toBeVisible();
+    // Nav should be visible (Layout is rendering the main app).
+    // #36: scope to the nav landmark — the "Somnus" title is also a
+    // button accessibly named "Dashboard".
+    const nav = page.getByRole("navigation");
+    await expect(nav.getByRole("button", { name: "Dashboard" })).toBeVisible();
+    await expect(nav.getByRole("button", { name: "Settings" })).toBeVisible();
   });
 
   test("completed user is redirected away from /onboarding", async ({
