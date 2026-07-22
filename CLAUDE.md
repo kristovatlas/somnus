@@ -48,12 +48,18 @@ CI on `dev` was red from 2026-02 to 2026-07 because merges never verified it. Th
 - New ADRs created for significant architectural decisions.
 - **Docs must describe what the code in the SAME change actually does — never a planned/intended end-state.** A doc (THREAT_MODEL, ADR, PLAN, README) that says a component "now does X" or "becomes Y" requires the code in that same PR to actually make it so; otherwise describe the true current state and file the rest as follow-up. This bit us on #41/PR #95: ADR 015 + THREAT_MODEL were written saying the onboarding step "becomes confirmation," but the frontend copy was left unchanged "to keep scope tight" — so the canonical docs contradicted the shipped UI (a never-lags-the-code violation) and left actively-misleading relocation instructions in the app. Lesson: **frontend/user-facing copy is in-scope for the change that makes its docs true; do not add aspirational doc claims and defer the code.** When a feature changes how an existing flow works, sweep every surface that describes the old flow in the same PR.
 
+### Shipping process (the `ship` skill)
+- **Somnus ships via the `ship` skill: https://github.com/kristovatlas/ship (adopted 2026-07-22 at v0.2.0).** It governs milestone shaping, wave planning with touch-set-gated lanes, the review battery, and the autonomous merge gate with its escalation list. Read the skill before shipping work; this section only records repo-specific bindings.
+- If `~/.claude/skills/ship/` is missing on this machine, install it: `git clone https://github.com/kristovatlas/ship ~/.claude/skills/ship && git -C ~/.claude/skills/ship checkout v0.2.0`.
+- **Merge policy under ship:** a PR merges without human review only when the skill's Phase 4 gate passes and nothing on its escalation list applies (product/UX choices, scope, security posture, non-additive data changes, releases, and any change to `.github/workflows/` or `scripts/review_gate.py`). Escalated PRs merge only after the conversation. The human interface is the wave report, and decisions rather than diffs.
+- Somnus bindings for the skill's preflight: base branch `dev`, release branch `main`, tracker = GitHub issues/milestones, review gate = `review-gate` required check per `docs/process/review-gate.md`, merge method = squash to dev / merge-commit for dev→main releases.
+
 ### Git Workflow
 - Relaxed git flow: feature/* → dev → main.
 - `main` always reflects a complete, user-ready release.
 - Squash merge to dev. Tag releases on main with semver.
 - **All code changes go through feature branches and PRs to dev.** Bug fixes, features, test additions — always `feature/*` or `fix/*` branch → PR to `dev`. Never commit directly to `dev`.
-- **Exception:** Changes to `CLAUDE.md` itself may be committed directly to `dev` so all Claude Code sessions see them immediately.
+- The former CLAUDE.md direct-to-dev exception is retired: the ruleset requires a PR for every change (admin bypass exists for the human only), so CLAUDE.md changes ride normal PRs like everything else.
 
 ### Pull Requests
 - Every PR description must include a **Test plan** section with a checkbox list.
