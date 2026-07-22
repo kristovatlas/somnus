@@ -1,0 +1,8 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "3d47ebd9b22d82edf81dc6d112b40afec194853d2b379544c408910d66c33257",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "Codex security leg re-run on chore/v011-release-prep: 'uv lock --check passed (Resolved 82 packages); uv.lock exactly 1 addition/1 deletion \u2014 only somnus 0.1.0 -> 0.1.1; no dependency-resolution churn, no dependency audit obligation; backend, project metadata, and health-test versions consistently use 0.1.1.' No findings.\n\n--- Review history ---\nInitial battery found a validated P1 (Codex): the version bump left uv.lock recording somnus 0.1.0, so `uv export --locked` (make setup-backend) and CI's `uv lock --check` would fail on a stale lock. Fixed by regenerating uv.lock (commit f998f8c \u2014 single line, somnus 0.1.0->0.1.1, zero dependency-resolution churn so no audit obligation) plus a P3 Makefile-comment accuracy fix (583d4fe, non-TTY-unconfigured branch prints a fallback notice, not a location report). Per the ship severity-validated re-run rule, the FULL battery was re-run on the fixed head \u2014 this artifact records the re-run, which found no P1/P2/P3/security findings across all four legs.",
+  "findings": []
+}
