@@ -529,3 +529,112 @@ class TestVariableLabels:
     def test_all_columns_have_labels(self) -> None:
         for col in OUTCOME_COLUMNS + PREDICTOR_COLUMNS:
             assert col in VARIABLE_LABELS, f"Missing label for {col}"
+
+
+# ---------------------------------------------------------------------------
+# #17: effect sizes — slope headline + binned contrast + clock labels
+# ---------------------------------------------------------------------------
+
+
+class TestEffectSizes:
+    def test_fmt_clock_evening_and_after_midnight(self) -> None:
+        from backend.services.stats_engine import _fmt_clock
+
+        assert _fmt_clock(23.5) == "11:30 PM"
+        assert _fmt_clock(24.5) == "12:30 AM"  # 00:30 on the 24+ evening scale
+        assert _fmt_clock(23.25) == "11:15 PM"
+        assert _fmt_clock(12.0) == "12:00 PM"
+        assert _fmt_clock(0.0) == "12:00 AM"
+
+    def test_cutoff_label_hour_vs_plain(self) -> None:
+        from backend.services.stats_engine import _cutoff_label
+
+        assert _cutoff_label("bedtime_hour", 24.5) == "12:30 AM"  # hour predictor
+        assert _cutoff_label("total_caffeine_mg", 150.0) == "150"  # plain number
+
+    def test_effect_size_slope_natural_units(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        # Construct data with a known slope: score drops ~3 pts per bedtime hour.
+        hours = [23.0, 23.5, 24.0, 24.5, 25.0, 25.5]
+        scores = [90.0, 88.5, 87.0, 85.5, 84.0, 82.5]  # exactly -3/hour
+        df = pd.DataFrame({"bedtime_hour": hours, "sleep_score": scores})
+        r = float(df["bedtime_hour"].corr(df["sleep_score"]))  # -1.0 here
+        eff = _effect_size("bedtime_hour", "sleep_score", df, r)
+        assert eff is not None
+        assert eff["increment_label"] == "hour later"
+        assert eff["outcome_unit"] == "points"
+        assert eff["value"] == pytest.approx(-3.0, abs=0.05)
+
+    def test_effect_size_per_100mg_increment(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        mg = [0.0, 100.0, 200.0, 300.0, 400.0]
+        score = [88.0, 86.0, 84.0, 82.0, 80.0]  # -2 pts per 100mg
+        df = pd.DataFrame({"total_caffeine_mg": mg, "sleep_score": score})
+        r = float(df["total_caffeine_mg"].corr(df["sleep_score"]))
+        eff = _effect_size("total_caffeine_mg", "sleep_score", df, r)
+        assert eff is not None
+        assert eff["increment_label"] == "100 mg"
+        assert eff["value"] == pytest.approx(-2.0, abs=0.05)
+
+    def test_effect_size_efficiency_scaled_to_pct_points(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        mg = [0.0, 100.0, 200.0, 300.0]
+        eff_frac = [0.95, 0.93, 0.91, 0.89]  # -0.02/100mg = -2 pct pts
+        df = pd.DataFrame({"total_caffeine_mg": mg, "sleep_efficiency": eff_frac})
+        r = float(df["total_caffeine_mg"].corr(df["sleep_efficiency"]))
+        result = _effect_size("total_caffeine_mg", "sleep_efficiency", df, r)
+        assert result is not None
+        assert result["outcome_unit"] == "% pts"
+        assert result["value"] == pytest.approx(-2.0, abs=0.05)
+
+    def test_effect_size_none_for_unmapped_or_binary(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        df = pd.DataFrame({"alcohol": [1.0, 1.0, 0.0], "sleep_score": [80.0, 82.0, 88.0]})
+        # alcohol is not in _EFFECT_INCREMENTS (binary) → no per-unit slope
+        assert _effect_size("alcohol", "sleep_score", df, -0.5) is None
+
+    def test_effect_size_none_on_zero_variance(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        df = pd.DataFrame({"bedtime_hour": [24.0, 24.0, 24.0], "sleep_score": [80.0, 85.0, 90.0]})
+        assert _effect_size("bedtime_hour", "sleep_score", df, 0.0) is None
+
+    def test_binned_contrast_hour_labels_and_means(self) -> None:
+        from backend.services.stats_engine import _binned_contrast
+
+        # 6 early (before midnight, good) + 6 late (after, worse); median splits them
+        hours = [23.0, 23.2, 23.4, 23.6, 23.8, 23.9, 24.2, 24.4, 24.6, 24.8, 25.0, 25.2]
+        scores = [88, 89, 90, 87, 88, 89, 82, 81, 80, 83, 79, 82]
+        df = pd.DataFrame({"bedtime_hour": hours, "sleep_score": [float(s) for s in scores]})
+        c = _binned_contrast("bedtime_hour", "sleep_score", df)
+        assert c is not None
+        assert c["low_label"].startswith("before ")
+        assert c["high_label"].startswith("after ")
+        assert c["low_mean"] > c["high_mean"]  # earlier bedtime, better score
+        assert c["n_low"] >= 5 and c["n_high"] >= 5
+
+    def test_binned_contrast_none_when_a_bin_too_small(self) -> None:
+        from backend.services.stats_engine import _binned_contrast
+
+        # zero-heavy: median is 0, so the high bin (>0) has too few rows
+        vals = [0.0] * 10 + [50.0, 60.0]
+        score = [85.0] * 12
+        df = pd.DataFrame({"total_caffeine_mg": vals, "sleep_score": score})
+        assert _binned_contrast("total_caffeine_mg", "sleep_score", df) is None
+
+    def test_compute_correlations_attaches_effect_and_contrast(self) -> None:
+        from backend.services.stats_engine import compute_correlations
+
+        n = 30
+        hours = [23.0 + 0.1 * i for i in range(n)]
+        scores = [90.0 - 0.6 * i for i in range(n)]
+        df = pd.DataFrame({"bedtime_hour": hours, "sleep_score": scores})
+        results, _ = compute_correlations(df, min_days=14)
+        row = next(r for r in results if r["predictor"] == "bedtime_hour")
+        assert row["effect"] is not None
+        assert row["effect"]["increment_label"] == "hour later"
+        assert row["contrast"] is not None
