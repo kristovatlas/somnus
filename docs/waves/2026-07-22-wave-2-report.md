@@ -4,7 +4,7 @@ Four lanes, four PRs, all merged autonomously under the ship v0.2.0 Phase 4 gate
 with green post-merge dev runs: #140 (evening-clock fix, #134), #138 (nav
 redesign, #36), #139 (monthly best/worst night detail, #113), #141 (stats
 renames, #37/#38 — the PR carrying this report). Milestone v0.1.1 after the
-wave: 17 closed / 5 open (#107, #109, #110, #117 remain, plus de-milestoned
+wave: 18 closed / 4 open (#107, #109, #110, #117 remain, plus de-milestoned
 follow-ups tracked separately). Plan: `docs/waves/2026-07-22-wave-2.md`.
 
 ## 1. Decisions needed
