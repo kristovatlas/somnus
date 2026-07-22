@@ -1,0 +1,8 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on chore/pr-151-release-artifacts: 'The change only adds valid review artifacts for release PR #151. Their attested hash matches the current origin/main release diff, and the review gate passes for PR #151.' No findings.\n\n--- Carrier note ---\nDocs-only release-artifact carrier (docs/process/review-gate.md release scope): adds docs/reviews/pr-151/ (the v0.1.1 dev->main battery legs) plus this pr-157/ set. Entire diff is under docs/reviews/, which the gate excludes from its hash \u2014 so the reviewed_diff_sha256 here is the empty-string sha256 (e3b0c44...), and merging this carrier does not restale PR #151's attestation.",
+  "findings": []
+}

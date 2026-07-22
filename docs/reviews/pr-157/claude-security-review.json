@@ -1,0 +1,8 @@
+{
+  "leg": "claude-security-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #157 security review (Claude, Fable 5, orchestrator). NO FINDINGS. Carrier adds only review-attestation JSON. No secrets/tokens/health data in the artifacts (they contain review prose, severities, dispositions, file:line refs, issue numbers \u2014 no PAT, no Oura data, no credentials). No .github/workflows or scripts/review_gate.py change. No executable content. Threat model impact: none.\n\n--- Carrier note ---\nDocs-only release-artifact carrier (docs/process/review-gate.md release scope): adds docs/reviews/pr-151/ (the v0.1.1 dev->main battery legs) plus this pr-157/ set. Entire diff is under docs/reviews/, which the gate excludes from its hash \u2014 so the reviewed_diff_sha256 here is the empty-string sha256 (e3b0c44...), and merging this carrier does not restale PR #151's attestation.",
+  "findings": []
+}
