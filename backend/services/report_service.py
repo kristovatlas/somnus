@@ -602,6 +602,23 @@ def _esc(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
+def _rating_label(rating: str) -> str:
+    """Display label for a consistency-rating band value (#143).
+
+    The band vocabularies in ``backend/science/reference_data.py``
+    (``rate_sigma``: consistent / somewhat_inconsistent / erratic;
+    ``rate_delta``: on_target / drifting / misaligned; ``rate_drift``:
+    minimal / moderate / significant) are shared API vocabulary — the
+    dashboard keys pill colors off them — so they are NOT renamed. This is
+    a display mapping at the export sink only: underscores become spaces,
+    and ``drifting`` renders as "off target" (owner's word pick, 2026-07-22)
+    so the word "drift" stays reserved for the Weekend Drift row.
+
+    Callers must keep ``_esc`` outermost — map first, escape after (T-04).
+    """
+    return {"drifting": "off target"}.get(rating, rating.replace("_", " "))
+
+
 def _weekly_factor_item(f: dict[str, Any]) -> str:
     """One Top Factors item — mirrors the SPA TopFactorsCard's compact slope
     phrase (#17), e.g. "<strong>Bedtime</strong> ≈2.3 points lower per hour
@@ -659,18 +676,20 @@ def render_weekly_html(report: dict[str, Any]) -> str:
         <table>
             <tr><th>Metric</th><th>Value</th><th>Rating</th></tr>
             <tr><td>Variability</td>
-                <td>{c["sigma_minutes"]:.0f} min</td><td>{_esc(c["sigma_rating"])}</td></tr>
+                <td>{c["sigma_minutes"]:.0f} min</td>
+                <td>{_esc(_rating_label(c["sigma_rating"]))}</td></tr>
         """
         if c.get("delta_minutes") is not None:
             consistency_html += (
                 f"<tr><td>Bedtime Offset</td>"
-                f"<td>{c['delta_minutes']:.0f} min</td><td>{_esc(c['delta_rating'])}</td></tr>"
+                f"<td>{c['delta_minutes']:.0f} min</td>"
+                f"<td>{_esc(_rating_label(c['delta_rating']))}</td></tr>"
             )
         if c.get("weekend_drift_minutes") is not None:
             consistency_html += (
                 f"<tr><td>Weekend Drift</td>"
                 f"<td>{c['weekend_drift_minutes']:.0f} min</td>"
-                f"<td>{_esc(c['drift_rating'])}</td></tr>"
+                f"<td>{_esc(_rating_label(c['drift_rating']))}</td></tr>"
             )
         consistency_html += "</table>"
 

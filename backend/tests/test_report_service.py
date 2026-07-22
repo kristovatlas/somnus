@@ -23,6 +23,7 @@ from backend.services.report_service import (
     _compute_trend_arrows,
     _get_contributing_factors,
     _month_date_range,
+    _rating_label,
     _week_date_range,
     _weeks_in_month,
     get_month_report,
@@ -671,6 +672,63 @@ class TestHTMLRendering:
         html = render_weekly_html(report)
         assert "&#8776;" not in html
         assert "<strong>Naps</strong> (r=0.12, n=30)" in html
+
+    def test_weekly_html_rating_column_display_maps_band_values(self) -> None:
+        """#143: the Rating column shows display labels, never raw enum values.
+
+        Underscores become spaces; ``drifting`` renders as "off target"
+        (owner's word pick) so "drift" stays reserved for the Weekend Drift
+        row. Needles are anchored on the rendered ``<td>…</td>`` cell so a
+        substring elsewhere in the page can't false-positive.
+        """
+        report = _minimal_weekly_report(
+            consistency={
+                "sigma_minutes": 45.0,
+                "sigma_rating": "somewhat_inconsistent",
+                "delta_minutes": 20.0,
+                "delta_rating": "on_target",
+                "weekend_drift_minutes": 5.0,
+                "drift_rating": "minimal",
+            }
+        )
+        html = render_weekly_html(report)
+        assert "<td>somewhat inconsistent</td>" in html
+        assert "<td>on target</td>" in html
+        assert "<td>minimal</td>" in html
+        assert "somewhat_inconsistent" not in html
+        assert "on_target" not in html
+
+        report = _minimal_weekly_report(
+            consistency={
+                "sigma_minutes": 20.0,
+                "sigma_rating": "consistent",
+                "delta_minutes": 45.0,
+                "delta_rating": "drifting",
+                "weekend_drift_minutes": 35.0,
+                "drift_rating": "moderate",
+            }
+        )
+        html = render_weekly_html(report)
+        assert "<td>off target</td>" in html
+        assert "<td>drifting</td>" not in html
+        # "drifting" never renders as a cell; the Weekend Drift row label is
+        # the only legitimate "drift" text left on the page.
+        assert "drifting" not in html
+        assert "Weekend Drift" in html
+
+    def test_rating_label_covers_every_band_value(self) -> None:
+        """#143: every value rate_sigma/rate_delta/rate_drift can emit maps
+        sensibly — only ``drifting`` gets a word swap, the rest are
+        underscore→space (identity for single words)."""
+        assert _rating_label("consistent") == "consistent"
+        assert _rating_label("somewhat_inconsistent") == "somewhat inconsistent"
+        assert _rating_label("erratic") == "erratic"
+        assert _rating_label("on_target") == "on target"
+        assert _rating_label("drifting") == "off target"
+        assert _rating_label("misaligned") == "misaligned"
+        assert _rating_label("minimal") == "minimal"
+        assert _rating_label("moderate") == "moderate"
+        assert _rating_label("significant") == "significant"
 
 
 # ---------------------------------------------------------------------------
