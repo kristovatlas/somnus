@@ -16,7 +16,9 @@ the first wave-2 lane per the plan.
 - **#112 honest rolling-window copy**: dashboard copy now states the actual
   window semantics.
 
-Milestone after the wave: 15 closed / 6 open.
+Milestone at wave close: 13 closed / 9 open (the wave closed exactly #17,
+#105, #106, #108, #112; the open count includes #134, filed from this wave's
+review battery and added to the milestone).
 
 ## Decisions
 

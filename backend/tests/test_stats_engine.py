@@ -373,6 +373,14 @@ class TestPrepareAnalysisDataframe:
         df = prepare_analysis_dataframe(db)
         assert df.iloc[0]["stimulating_last_hour"] == pytest.approx(25.0)
 
+    def test_evening_clock_6am_cutoff_boundary(self) -> None:
+        """#134: the wrap cutoff is exactly 6 AM — 5:59 wraps to 29.983…,
+        6:00 stays at 6.0."""
+        from backend.services.stats_engine import _evening_time_to_hour
+
+        assert _evening_time_to_hour(dt.time(5, 59)) == pytest.approx(29.983, abs=0.001)
+        assert _evening_time_to_hour(dt.time(6, 0)) == pytest.approx(6.0)
+
     def test_nap_aggregation(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
         _make_sleep_record(db, d)

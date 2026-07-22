@@ -110,14 +110,18 @@ def _time_to_hour(t: dt.time | None) -> float | None:
 
 
 def _evening_time_to_hour(t: dt.time | None) -> float | None:
-    """Convert an evening event time to the continuous 24+ evening clock.
+    """Convert an event time to the continuous 24+ evening clock.
 
     Same convention as _normalize_bedtime_hour (dashboard_service): hours
     before 6 AM shift to 24+, so 00:30 → 24.5 (later than 23:00), not 0.5
     (which would sort as the earliest event of the day and corrupt
-    correlations — see #134). Used for last_caffeine_hour, last_meal_hour,
-    and stimulating_last_hour; NOT for sunlight_first_hour, which is a
-    genuine morning clock time.
+    correlations — see #134). Applied to ALL meal/caffeine/stimulating
+    times, so the wrap is a heuristic: a genuinely early-morning event
+    (5:30 AM coffee) also wraps to 29.5 and will beat afternoon entries as
+    the day's "last". Tradeoff accepted to fix the far more common
+    after-midnight case; tracked in issue #142. Used for last_caffeine_hour,
+    last_meal_hour, and stimulating_last_hour; NOT for sunlight_first_hour,
+    which is a genuine morning clock time.
     """
     h = _time_to_hour(t)
     if h is not None and h < 6:
