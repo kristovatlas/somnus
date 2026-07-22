@@ -496,6 +496,90 @@ class TestHTMLRendering:
         html = render_weekly_html(report)
         assert "Insufficient data" in html
 
+    def test_weekly_html_factor_slope_phrase(self) -> None:
+        """#17 export parity: factor items carry the compact slope phrase
+        the SPA's TopFactorsCard shows, when an effect exists."""
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {
+                    "label": "Exercise Duration (min)",
+                    "pearson_r": 0.5,
+                    "n_days": 30,
+                    "effect": {
+                        "value": 1.8,
+                        "increment_label": "30 min",
+                        "outcome_unit": "points",
+                    },
+                }
+            ],
+            top_negative_factors=[
+                {
+                    "label": "Bedtime (hour)",
+                    "pearson_r": -0.62,
+                    "n_days": 44,
+                    "effect": {
+                        "value": -2.3,
+                        "increment_label": "hour later",
+                        "outcome_unit": "points",
+                    },
+                }
+            ],
+            factors_total_days=44,
+        )
+        html = render_weekly_html(report)
+        assert "&#8776;1.8 points higher per 30 min" in html
+        assert "&#8776;2.3 points lower per hour later" in html
+        assert "(r=0.50, n=30)" in html
+        assert "(r=-0.62, n=44)" in html
+
+    def test_weekly_html_factor_magnitude_mirrors_spa(self) -> None:
+        """One decimal below 10, integer at/above — same as fmtMagnitude."""
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {
+                    "label": "A",
+                    "pearson_r": 0.5,
+                    "n_days": 30,
+                    "effect": {"value": 2.34, "increment_label": "u", "outcome_unit": "points"},
+                },
+                {
+                    "label": "B",
+                    "pearson_r": 0.4,
+                    "n_days": 30,
+                    "effect": {"value": 12.34, "increment_label": "u", "outcome_unit": "min"},
+                },
+            ],
+            top_negative_factors=[],
+            factors_total_days=40,
+        )
+        html = render_weekly_html(report)
+        assert "&#8776;2.3 points" in html
+        assert "&#8776;12 min" in html
+        assert "2.34" not in html and "12.34" not in html
+
+    def test_weekly_html_factor_phrase_suppressed_below_floor(self) -> None:
+        """Same 0.05 display floor as the SPA: a magnitude that would show as
+        0.0 renders no slope phrase, just the label and stats."""
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {
+                    "label": "Naps",
+                    "pearson_r": 0.12,
+                    "n_days": 30,
+                    "effect": {
+                        "value": 0.04,
+                        "increment_label": "30 min",
+                        "outcome_unit": "points",
+                    },
+                }
+            ],
+            top_negative_factors=[],
+            factors_total_days=30,
+        )
+        html = render_weekly_html(report)
+        assert "&#8776;" not in html
+        assert "<strong>Naps</strong> (r=0.12, n=30)" in html
+
 
 # ---------------------------------------------------------------------------
 # HTML escaping (T-04 — docs/THREAT_MODEL.md)
@@ -589,6 +673,25 @@ class TestHTMLEscaping:
         assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 2
         assert "across all 30 days" in html
 
+    def test_weekly_escapes_factor_effect_fields(self) -> None:
+        """The #17 slope phrase interpolates increment_label and outcome_unit;
+        both are code constants today, but the invariant says every non-numeric
+        hole goes through _esc anyway."""
+        evil_effect = {"value": -2.3, "increment_label": _XSS, "outcome_unit": _XSS}
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {"label": "Exercise", "pearson_r": 0.5, "n_days": 20, "effect": dict(evil_effect)}
+            ],
+            top_negative_factors=[
+                {"label": "Caffeine", "pearson_r": -0.5, "n_days": 20, "effect": dict(evil_effect)}
+            ],
+            factors_total_days=30,
+        )
+        html = render_weekly_html(report)
+        assert _XSS not in html
+        # 2 factors x (increment_label + outcome_unit)
+        assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 4
+
     def test_weekly_escapes_consistency_ratings(self) -> None:
         report = _minimal_weekly_report(
             consistency={
@@ -625,7 +728,13 @@ class TestHTMLEscaping:
 class TestGetTopFactors:
     def _fake_results(self) -> list[dict[str, object]]:
         def corr(pred: str, r: float, n: int = 30) -> dict[str, object]:
-            return {"predictor": pred, "outcome": "sleep_score", "pearson_r": r, "n_days": n}
+            return {
+                "predictor": pred,
+                "outcome": "sleep_score",
+                "pearson_r": r,
+                "n_days": n,
+                "effect": {"value": r * 5, "increment_label": "unit", "outcome_unit": "points"},
+            }
 
         return [
             corr("sunlight_lux", 0.42),
@@ -659,6 +768,8 @@ class TestGetTopFactors:
         assert [f["pearson_r"] for f in pos] == [0.42, 0.31, 0.18]  # capped at 3
         assert [f["pearson_r"] for f in neg] == [-0.32, -0.21]  # floor cuts -0.09
         assert all("n_days" in f and "label" in f for f in pos + neg)
+        # #17: the natural-units effect passes through to the card
+        assert all(f["effect"] is not None for f in pos + neg)
         # the deep_minutes outcome result never leaks into a sleep-score card
         assert not any(f["pearson_r"] == 0.9 for f in pos)
 

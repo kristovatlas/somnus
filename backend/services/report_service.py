@@ -151,6 +151,8 @@ def _get_top_factors(
             "label": VARIABLE_LABELS.get(r["predictor"], r["predictor"]),
             "pearson_r": r["pearson_r"],
             "n_days": r["n_days"],
+            # #17: natural-units slope, shown as the headline beside r
+            "effect": r.get("effect"),
         }
 
     positive = sorted(
@@ -574,6 +576,33 @@ def _esc(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
+def _weekly_factor_item(f: dict[str, Any]) -> str:
+    """One Top Factors item — mirrors the SPA TopFactorsCard's compact slope
+    phrase (#17), e.g. "<strong>Bedtime</strong> ≈2.3 points lower per hour
+    later (r=-0.62, n=44)". The phrase is suppressed below the same 0.05
+    display floor the SPA uses (effectFormat.ts).
+
+    Escape invariant (T-04): label via _esc; numbers via format specs;
+    increment_label/outcome_unit are code constants from stats_engine but
+    are routed through _esc anyway; direction is a code literal.
+    """
+    item = f"<strong>{_esc(f['label'])}</strong>"
+    effect = f.get("effect")
+    if effect and abs(effect["value"]) >= 0.05:
+        direction = "higher" if effect["value"] > 0 else "lower"
+        magnitude = abs(effect["value"])
+        # Mirrors the SPA's fmtMagnitude exactly: one decimal below 10,
+        # integer at or above (PR #132 re-run, Codex P2 / Claude LOW-1).
+        mag_text = f"{magnitude:.0f}" if magnitude >= 10 else f"{magnitude:.1f}"
+        unit_html = _esc(effect["outcome_unit"]) if effect.get("outcome_unit") else ""
+        item += (
+            f" &#8776;{mag_text} {unit_html}{' ' if unit_html else ''}{direction}"
+            f" per {_esc(effect['increment_label'])}"
+        )
+    item += f" (r={f['pearson_r']:.2f}, n={f['n_days']:d})"
+    return item
+
+
 def render_weekly_html(report: dict[str, Any]) -> str:
     """Render a weekly report as a self-contained HTML page."""
     r = report
@@ -585,16 +614,10 @@ def render_weekly_html(report: dict[str, Any]) -> str:
     pos_factors = r.get("top_positive_factors") or []
     neg_factors = r.get("top_negative_factors") or []
     if pos_factors:
-        items = " · ".join(
-            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']:d})"
-            for f in pos_factors
-        )
+        items = " · ".join(_weekly_factor_item(f) for f in pos_factors)
         factors_html += f"<p>Associated with better sleep score: {items}</p>"
     if neg_factors:
-        items = " · ".join(
-            f"<strong>{_esc(f['label'])}</strong> (r={f['pearson_r']:.2f}, n={f['n_days']:d})"
-            for f in neg_factors
-        )
+        items = " · ".join(_weekly_factor_item(f) for f in neg_factors)
         factors_html += f"<p>Associated with worse sleep score: {items}</p>"
     if factors_html and r.get("factors_total_days"):
         factors_html += (

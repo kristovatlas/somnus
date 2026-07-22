@@ -41,10 +41,20 @@ const weeklyData: WeeklyReport = {
     days_counted: 5,
   },
   top_positive_factors: [
-    { label: "Morning Sunlight (min)", pearson_r: 0.45, n_days: 40 },
+    {
+      label: "Morning Sunlight (min)",
+      pearson_r: 0.45,
+      n_days: 40,
+      effect: null,
+    },
   ],
   top_negative_factors: [
-    { label: "Total Caffeine (mg)", pearson_r: -0.32, n_days: 38 },
+    {
+      label: "Total Caffeine (mg)",
+      pearson_r: -0.32,
+      n_days: 38,
+      effect: null,
+    },
   ],
   factors_total_days: 45,
   has_insufficient_data: false,

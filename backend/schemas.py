@@ -520,6 +520,25 @@ class AnalysisStatusResponse(BaseModel):
     variables: list[VariableStatus]
 
 
+class EffectSize(BaseModel):
+    """#17: slope in natural units — '≈{value} {outcome_unit} per {increment_label}'."""
+
+    value: float
+    increment_label: str
+    outcome_unit: str
+
+
+class BinnedContrast(BaseModel):
+    """#17: median-split evidence — outcome means below vs above the cutoff."""
+
+    low_label: str
+    high_label: str
+    low_mean: float
+    high_mean: float
+    n_low: int
+    n_high: int
+
+
 class CorrelationResult(BaseModel):
     predictor: str
     predictor_label: str
@@ -530,6 +549,8 @@ class CorrelationResult(BaseModel):
     p_value: float
     n_days: int
     confidence: str
+    effect: EffectSize | None = None
+    contrast: BinnedContrast | None = None
 
 
 class CorrelationResponse(BaseModel):
@@ -689,6 +710,7 @@ class TopFactor(BaseModel):
     label: str
     pearson_r: float
     n_days: int
+    effect: EffectSize | None = None
 
 
 class WeeklyReportResponse(BaseModel):
