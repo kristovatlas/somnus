@@ -49,7 +49,7 @@ export function CorrelationList({
       <div className="correlation-rows">
         {top.map((r) => {
           const headline = effectHeadline(r.effect, r.outcome_label);
-          const evidence = contrastLine(r.contrast);
+          const evidence = contrastLine(r.contrast, r.outcome);
           return (
             <div
               key={`${r.predictor}-${r.outcome}`}
