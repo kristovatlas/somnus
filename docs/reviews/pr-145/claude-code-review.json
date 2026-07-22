@@ -1,0 +1,27 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "719e87d629f8eb637b4148e9f696610207d37c3dddf608b5efc5b84a2bea6c50",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #145 review (Claude, Fable 5), fix/142-consumption-wrap-window ec31f25 vs origin/dev, scratch worktree, real exit codes: backend pytest 564 exit 0 (coverage 95.52%), ruff 0, mypy 0, frontend cold-cache eslint 0, format:check 0, vitest 319/45 exit 0, build 0; npm ci lockfile unchanged vs dev (no audit trigger). FINDINGS: P3 \u2014 stale boundary claim: test_last_caffeine_hour_daytime_unwrapped docstring said '>= 6 AM stay on the plain clock' (literally true but names the wrong boundary post-#142; a reader hunting the cutoff could patch the wrong constant). NIT \u2014 no aggregation-level test pinned the new raw 4-6 band (unit test covers the function transitively). VERIFIED CLEAN: cutoff change complete \u2014 every surviving 6 AM reference is bedtime-scoped and correct (_normalize_bedtime_hour, ConsistencyMeter typical bedtime, caffeineCalc wrapBedtimeHour used only on bedtimeHour); reference_data copy cutoff-agnostic; PLAN/ARCHITECTURE/ADR/THREAT_MODEL zero cutoff refs; wave docs are dated historical records not current-state claims. Downstream 4:00-5:59 raw band traced through every consumer: per-day max (raw 5.0 correctly loses to afternoon \u2014 the point of the change), _fmt_clock %24 renders 4-6 AM correctly, _binned_contrast median-based no >=6 assumption, _effect_size pure slope, recommender display_avg %24 identity for raw 4-6, science threshold gt 14.0 \u2014 early-riser 5 AM coffee now pulls the average DOWN instead of spuriously up at 29.0; no consumer assumes always->=6 or always-wrapped. #134 regression tests still discriminate (all wrap fixtures < 4 AM: 00:15/00:30/01:00; sign-flip latest 02:45). Explainer copy matches h < 4 exactly; not test-pinned so no drift.\n\n--- Post-review delta ---\nFix round commit 845dbd4: P3 fixed (test docstring now names the 4 AM cutoff: 'Daytime times (>= 4 AM, the #142 cutoff) stay on the plain clock'); nit fixed (new aggregation-level test test_early_riser_coffee_loses_to_afternoon pins 5:00 AM raw + 14:00 -> last_caffeine_hour == 14.0, the pre-#142 spurious 29.0 winner). Delta scope: backend/tests/test_stats_engine.py only, within the lane touch-set. Post-fix verification: backend pytest 565 exit 0, mypy 0, ruff 0.",
+  "findings": [
+    {
+      "id": "P3-1",
+      "summary": "Neighboring test docstring still names 6 AM as the unwrapped boundary",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "docstring now names the 4 AM #142 cutoff (845dbd4)"
+    },
+    {
+      "id": "N1",
+      "summary": "No aggregation-level test pins the raw 4-6 band",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "test_early_riser_coffee_loses_to_afternoon added: 5:00 AM + 14:00 -> 14.0 (845dbd4)"
+    }
+  ]
+}
