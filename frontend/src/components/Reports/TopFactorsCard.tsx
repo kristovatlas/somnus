@@ -2,6 +2,7 @@
  * across ALL data — the caption says so, since per-week correlations at
  * n≤7 would be noise; identical values week-to-week are expected). */
 
+import { effectHeadline } from "../../effectFormat";
 import type { TopFactor } from "../../types";
 
 interface Props {
@@ -13,15 +14,19 @@ interface Props {
 function FactorList({ factors }: { factors: TopFactor[] }) {
   return (
     <>
-      {factors.map((f, i) => (
-        <span key={f.label}>
-          {i > 0 && " · "}
-          <strong>{f.label}</strong>{" "}
-          <span className="report-factor-r">
-            (r={f.pearson_r.toFixed(2)}, n={f.n_days})
+      {factors.map((f, i) => {
+        const phrase = effectHeadline(f.effect);
+        return (
+          <span key={f.label}>
+            {i > 0 && " · "}
+            <strong>{f.label}</strong>
+            {phrase && <> {phrase}</>}{" "}
+            <span className="report-factor-r">
+              (r={f.pearson_r.toFixed(2)}, n={f.n_days})
+            </span>
           </span>
-        </span>
-      ))}
+        );
+      })}
     </>
   );
 }

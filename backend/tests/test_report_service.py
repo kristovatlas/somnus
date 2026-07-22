@@ -625,7 +625,13 @@ class TestHTMLEscaping:
 class TestGetTopFactors:
     def _fake_results(self) -> list[dict[str, object]]:
         def corr(pred: str, r: float, n: int = 30) -> dict[str, object]:
-            return {"predictor": pred, "outcome": "sleep_score", "pearson_r": r, "n_days": n}
+            return {
+                "predictor": pred,
+                "outcome": "sleep_score",
+                "pearson_r": r,
+                "n_days": n,
+                "effect": {"value": r * 5, "increment_label": "unit", "outcome_unit": "points"},
+            }
 
         return [
             corr("sunlight_lux", 0.42),
@@ -659,6 +665,8 @@ class TestGetTopFactors:
         assert [f["pearson_r"] for f in pos] == [0.42, 0.31, 0.18]  # capped at 3
         assert [f["pearson_r"] for f in neg] == [-0.32, -0.21]  # floor cuts -0.09
         assert all("n_days" in f and "label" in f for f in pos + neg)
+        # #17: the natural-units effect passes through to the card
+        assert all(f["effect"] is not None for f in pos + neg)
         # the deep_minutes outcome result never leaks into a sleep-score card
         assert not any(f["pearson_r"] == 0.9 for f in pos)
 

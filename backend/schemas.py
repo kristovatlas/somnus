@@ -710,6 +710,7 @@ class TopFactor(BaseModel):
     label: str
     pearson_r: float
     n_days: int
+    effect: EffectSize | None = None
 
 
 class WeeklyReportResponse(BaseModel):

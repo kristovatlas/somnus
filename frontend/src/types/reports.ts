@@ -17,10 +17,13 @@ export interface TrendArrows {
   rem_minutes: string | null;
 }
 
+import type { EffectSize } from "./analysis";
+
 export interface TopFactor {
   label: string;
   pearson_r: number;
   n_days: number;
+  effect: EffectSize | null;
 }
 
 export interface WeeklyReport {

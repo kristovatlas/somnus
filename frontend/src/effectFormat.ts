@@ -10,16 +10,19 @@ function fmtMagnitude(v: number): string {
   return abs.toFixed(1);
 }
 
-/** "≈2.3 points lower Sleep Score per hour later" — or null when the
+/** "≈2.3 points lower Sleep Score per hour later" — or, with no outcome
+ * label, the compact "≈2.3 points lower per hour later" (used where the
+ * outcome is already stated, e.g. the Top Factors card). Null when the
  * predictor has no meaningful per-unit slope (binary/unmapped). */
 export function effectHeadline(
   effect: EffectSize | null,
-  outcomeLabel: string,
+  outcomeLabel = "",
 ): string | null {
   if (!effect || effect.value === 0) return null;
   const direction = effect.value > 0 ? "higher" : "lower";
   const unit = effect.outcome_unit ? `${effect.outcome_unit} ` : "";
-  return `≈${fmtMagnitude(effect.value)} ${unit}${direction} ${outcomeLabel} per ${effect.increment_label}`;
+  const outcome = outcomeLabel ? `${outcomeLabel} ` : "";
+  return `≈${fmtMagnitude(effect.value)} ${unit}${direction} ${outcome}per ${effect.increment_label}`;
 }
 
 /** "before 11:34 PM: avg 88 · after 11:34 PM: 82 (n=20/24)" */

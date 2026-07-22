@@ -151,6 +151,8 @@ def _get_top_factors(
             "label": VARIABLE_LABELS.get(r["predictor"], r["predictor"]),
             "pearson_r": r["pearson_r"],
             "n_days": r["n_days"],
+            # #17: natural-units slope, shown as the headline beside r
+            "effect": r.get("effect"),
         }
 
     positive = sorted(

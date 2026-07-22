@@ -468,7 +468,7 @@ _CONTRAST_MIN_PER_BIN = 5
 def _fmt_clock(hour: float) -> str:
     """24.5 → "12:30 AM"; 23.25 → "11:15 PM" (evening-clock aware)."""
     h = hour % 24
-    minutes = int(round(h * 60))
+    minutes = round(h * 60)
     hh, mm = divmod(minutes, 60)
     hh %= 24
     suffix = "AM" if hh < 12 else "PM"
@@ -506,9 +506,7 @@ def _effect_size(
     }
 
 
-def _binned_contrast(
-    pred: str, outcome: str, subset: pd.DataFrame
-) -> dict[str, Any] | None:
+def _binned_contrast(pred: str, outcome: str, subset: pd.DataFrame) -> dict[str, Any] | None:
     """Median-split evidence line: outcome means below vs above the cutoff.
 
     None when either bin is under _CONTRAST_MIN_PER_BIN (ties on the median
