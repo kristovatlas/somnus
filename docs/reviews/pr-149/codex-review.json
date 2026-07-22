@@ -1,0 +1,8 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "f4affad340abdc89a3f1d1c237157b231a408482d35c530b566b979b8db308f1",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on docs/v011-acceptance-addendum: 'The documentation-only change consistently records the additional live QA result, explicitly notes the skipped scenario and accepted risk, and removes duplicate entries from the untested-items list. No actionable correctness issue was found.' No findings.\n\n--- Post-review delta ---\nBranch advanced during review (all docs-only, same single file): 3743457 (item 7, Claude leg's reviewed tip) -> cd9d3d8 (items 8 Top Factors verified + floor semantics, 9 venv skipped; Codex security's reviewed tip) -> 78553ec (tie-break finding updated: owner decided sort score/total-sleep/deep/REM, deferred to v0.1.2 as #150). Every delta commit is QA-record narrative in docs/releases/v0.1.1-acceptance.md \u2014 the same content class both legs reviewed; no code, workflow, or gate-script files on the branch at any point.",
+  "findings": []
+}

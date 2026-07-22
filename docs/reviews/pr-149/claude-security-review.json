@@ -1,0 +1,8 @@
+{
+  "leg": "claude-security-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "f4affad340abdc89a3f1d1c237157b231a408482d35c530b566b979b8db308f1",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #149 security review (Claude, Fable 5). NO FINDINGS, all categories explicitly clear: no secrets/tokens (owner quotes and issue refs only; full file scanned); no non-owner-published health data added (pre-existing owner-published QA aggregates unchanged); no .github/workflows or scripts/review_gate.py changes; docs-only \u2014 no trust boundary (B1-B5) touched, no attack surface, no \u00a78 invariant implicated. 'Threat model impact: None' is the correct statement.\n\n--- Post-review delta ---\nBranch advanced during review (all docs-only, same single file): 3743457 (item 7, Claude leg's reviewed tip) -> cd9d3d8 (items 8 Top Factors verified + floor semantics, 9 venv skipped; Codex security's reviewed tip) -> 78553ec (tie-break finding updated: owner decided sort score/total-sleep/deep/REM, deferred to v0.1.2 as #150). Every delta commit is QA-record narrative in docs/releases/v0.1.1-acceptance.md \u2014 the same content class both legs reviewed; no code, workflow, or gate-script files on the branch at any point.",
+  "findings": []
+}
