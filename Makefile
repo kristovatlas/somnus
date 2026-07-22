@@ -41,6 +41,12 @@ setup: setup-backend setup-frontend db-location
 setup-backend:
 ifeq ($(SETUP_PY),$(VENV)/bin/python)
 	# #105: no active venv and not CI — create the repo-local venv once.
+	# Guard BOTH directions (PR #133 review C-1): a stale .venv built by an
+	# old interpreter is recreated (build artifact, safe to drop), and a
+	# too-old python3 (stock macOS CLT ships 3.9) fails loudly with advice
+	# instead of building a venv the locked install will reject.
+	@if [ -x $(SETUP_PY) ] && ! $(SETUP_PY) -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then 		echo "Recreating .venv: its Python is older than 3.11"; rm -rf $(VENV); fi
+	@test -x $(SETUP_PY) || python3 -c 'import sys; ok = sys.version_info >= (3, 11); print("" if ok else "error: python3 is " + sys.version.split()[0] + " but Somnus needs 3.11+ (e.g. brew install python@3.12, then retry)"); raise SystemExit(not ok)'
 	test -x $(SETUP_PY) || python3 -m venv $(VENV)
 endif
 	$(SETUP_PY) -m pip install --quiet uv==$(UV_VERSION)
