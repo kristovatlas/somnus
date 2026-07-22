@@ -1,6 +1,7 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { CaffeineChart } from "./CaffeineChart";
+import { computeDecayCurve, mgAtHour } from "./caffeineCalc";
 
 describe("CaffeineChart", () => {
   it("renders nothing with empty points", () => {
@@ -54,5 +55,41 @@ describe("CaffeineChart", () => {
     const lines = container.querySelectorAll("line");
     // Should have at least 3 lines: axes + threshold + bedtime
     expect(lines.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("labels the bedtime marker with a 12-hour clock time", () => {
+    const points = [{ hour: 8, mg: 100 }];
+    render(<CaffeineChart points={points} bedtimeHour={22.5} />);
+    expect(screen.getByText("Bedtime 10:30 PM")).toBeInTheDocument();
+  });
+
+  it("shows the modeled mg-at-bedtime callout from the decay curve", () => {
+    // 200mg at 14:00, normal half-life (4h) => 8h to a 22:00 bedtime => 50mg.
+    const points = computeDecayCurve(
+      [{ time: "14:00:00", amount_mg: 200 }],
+      "normal",
+    );
+    const expectedMg = Math.round(mgAtHour(points, 22));
+    expect(expectedMg).toBe(50);
+    render(<CaffeineChart points={points} bedtimeHour={22} />);
+    expect(
+      screen.getByText(`≈${expectedMg} mg at bedtime`),
+    ).toBeInTheDocument();
+  });
+
+  it("renders no bedtime label or callout without a bedtime", () => {
+    const points = computeDecayCurve(
+      [{ time: "14:00:00", amount_mg: 200 }],
+      "normal",
+    );
+    render(<CaffeineChart points={points} bedtimeHour={null} />);
+    expect(screen.queryByText(/Bedtime/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/at bedtime/)).not.toBeInTheDocument();
+  });
+
+  it("labels the y-axis floor with 0mg", () => {
+    const points = [{ hour: 8, mg: 100 }];
+    render(<CaffeineChart points={points} bedtimeHour={null} />);
+    expect(screen.getByText("0mg")).toBeInTheDocument();
   });
 });

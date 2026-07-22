@@ -47,3 +47,25 @@ export function computeDecayCurve(
 
   return points;
 }
+
+/**
+ * Modeled caffeine level (mg) at an arbitrary hour, read off an existing
+ * decay curve by linear interpolation between its 15-minute samples.
+ * Clamps to the first/last sample outside the curve's range.
+ * Returns 0 for an empty curve.
+ */
+export function mgAtHour(points: CaffeinePoint[], hour: number): number {
+  if (points.length === 0) return 0;
+  if (hour <= points[0].hour) return points[0].mg;
+  const last = points[points.length - 1];
+  if (hour >= last.hour) return last.mg;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].hour >= hour) {
+      const prev = points[i - 1];
+      const next = points[i];
+      const t = (hour - prev.hour) / (next.hour - prev.hour);
+      return prev.mg + t * (next.mg - prev.mg);
+    }
+  }
+  return last.mg;
+}

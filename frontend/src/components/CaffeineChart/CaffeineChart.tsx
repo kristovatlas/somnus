@@ -1,4 +1,4 @@
-import type { CaffeinePoint } from "./caffeineCalc";
+import { mgAtHour, type CaffeinePoint } from "./caffeineCalc";
 import "./CaffeineChart.css";
 
 interface CaffeineChartProps {
@@ -11,6 +11,16 @@ const HEIGHT = 200;
 const PADDING = { top: 20, right: 20, bottom: 30, left: 50 };
 const CHART_W = WIDTH - PADDING.left - PADDING.right;
 const CHART_H = HEIGHT - PADDING.top - PADDING.bottom;
+
+/** Format a fractional hour (e.g. 22.5) as a 12-hour clock label ("10:30 PM"). */
+function formatClockLabel(hour: number): string {
+  const totalMinutes = Math.round(hour * 60);
+  const h24 = Math.floor(totalMinutes / 60) % 24;
+  const minutes = totalMinutes % 60;
+  const suffix = h24 < 12 ? "AM" : "PM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(minutes).padStart(2, "0")} ${suffix}`;
+}
 
 export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
   if (points.length === 0) return null;
@@ -76,15 +86,26 @@ export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
 
         {/* Bedtime marker */}
         {bedtimeHour != null && (
-          <line
-            x1={x(bedtimeHour)}
-            y1={PADDING.top}
-            x2={x(bedtimeHour)}
-            y2={PADDING.top + CHART_H}
-            stroke="var(--color-error)"
-            strokeWidth="1.5"
-            strokeDasharray="6 3"
-          />
+          <>
+            <line
+              x1={x(bedtimeHour)}
+              y1={PADDING.top}
+              x2={x(bedtimeHour)}
+              y2={PADDING.top + CHART_H}
+              stroke="var(--color-error)"
+              strokeWidth="1.5"
+              strokeDasharray="6 3"
+            />
+            <text
+              x={bedtimeHour > 18 ? x(bedtimeHour) - 4 : x(bedtimeHour) + 4}
+              y={PADDING.top + 10}
+              textAnchor={bedtimeHour > 18 ? "end" : "start"}
+              fill="var(--color-error)"
+              fontSize="10"
+            >
+              {`Bedtime ${formatClockLabel(bedtimeHour)}`}
+            </text>
+          </>
         )}
 
         {/* Decay curve */}
@@ -115,7 +136,7 @@ export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
           </text>
         ))}
 
-        {/* Y-axis label */}
+        {/* Y-axis labels */}
         <text
           x={PADDING.left - 4}
           y={PADDING.top + 4}
@@ -125,7 +146,21 @@ export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
         >
           {Math.round(maxMg)}mg
         </text>
+        <text
+          x={PADDING.left - 4}
+          y={PADDING.top + CHART_H + 4}
+          textAnchor="end"
+          fill="var(--color-text-muted)"
+          fontSize="10"
+        >
+          0mg
+        </text>
       </svg>
+      {bedtimeHour != null && (
+        <p className="caffeine-chart-bedtime-callout">
+          {`≈${Math.round(mgAtHour(points, bedtimeHour))} mg at bedtime`}
+        </p>
+      )}
     </div>
   );
 }
