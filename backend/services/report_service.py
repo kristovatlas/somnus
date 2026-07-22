@@ -590,9 +590,13 @@ def _weekly_factor_item(f: dict[str, Any]) -> str:
     effect = f.get("effect")
     if effect and abs(effect["value"]) >= 0.05:
         direction = "higher" if effect["value"] > 0 else "lower"
-        unit = f"{_esc(effect['outcome_unit'])} " if effect.get("outcome_unit") else ""
+        magnitude = abs(effect["value"])
+        # Mirrors the SPA's fmtMagnitude exactly: one decimal below 10,
+        # integer at or above (PR #132 re-run, Codex P2 / Claude LOW-1).
+        mag_text = f"{magnitude:.0f}" if magnitude >= 10 else f"{magnitude:.1f}"
+        unit_html = _esc(effect["outcome_unit"]) if effect.get("outcome_unit") else ""
         item += (
-            f" &#8776;{abs(effect['value']):g} {unit}{direction}"
+            f" &#8776;{mag_text} {unit_html}{' ' if unit_html else ''}{direction}"
             f" per {_esc(effect['increment_label'])}"
         )
     item += f" (r={f['pearson_r']:.2f}, n={f['n_days']:d})"

@@ -532,6 +532,31 @@ class TestHTMLRendering:
         assert "(r=0.50, n=30)" in html
         assert "(r=-0.62, n=44)" in html
 
+    def test_weekly_html_factor_magnitude_mirrors_spa(self) -> None:
+        """One decimal below 10, integer at/above — same as fmtMagnitude."""
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {
+                    "label": "A",
+                    "pearson_r": 0.5,
+                    "n_days": 30,
+                    "effect": {"value": 2.34, "increment_label": "u", "outcome_unit": "points"},
+                },
+                {
+                    "label": "B",
+                    "pearson_r": 0.4,
+                    "n_days": 30,
+                    "effect": {"value": 12.34, "increment_label": "u", "outcome_unit": "min"},
+                },
+            ],
+            top_negative_factors=[],
+            factors_total_days=40,
+        )
+        html = render_weekly_html(report)
+        assert "&#8776;2.3 points" in html
+        assert "&#8776;12 min" in html
+        assert "2.34" not in html and "12.34" not in html
+
     def test_weekly_html_factor_phrase_suppressed_below_floor(self) -> None:
         """Same 0.05 display floor as the SPA: a magnitude that would show as
         0.0 renders no slope phrase, just the label and stats."""
