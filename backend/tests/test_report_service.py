@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 
 import pytest
 from sqlalchemy.orm import Session
@@ -563,7 +564,7 @@ class TestHTMLRendering:
         report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
         html = render_monthly_html(report)
         assert "Tuesday, 2026-02-10" in html
-        assert "slept 11:42 PM" in html
+        assert "bed 11:42 PM" in html
         assert "7h 38m" in html
         assert "deep 71m" in html
         assert "REM 96m" in html
@@ -579,10 +580,12 @@ class TestHTMLRendering:
         assert "Best Night" in html and "Worst Night" in html
         assert "Sunday, 2026-02-01" in html  # weekday always present
         assert "None" not in html
-        # No detail line at all when nothing beyond date/score was recorded
-        # ("slept" and "HRV " only appear in the night detail line; the
-        # metric tables use bare "HRV" cells).
-        assert "slept" not in html
+        # No detail line at all when nothing beyond date/score was recorded.
+        # The "bed <clock>" label needs a digit-anchored needle: bare "bed"
+        # would false-positive on "Pre-bed ritual" factor tags or "Bedtime"
+        # headings elsewhere in report HTML. "HRV " (trailing space) only
+        # appears in the detail line; metric tables use bare "HRV" cells.
+        assert re.search(r"bed \d", html) is None
         assert "HRV " not in html
 
     def test_weekly_html_factor_slope_phrase(self) -> None:

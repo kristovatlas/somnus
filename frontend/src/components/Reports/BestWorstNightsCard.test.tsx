@@ -1,5 +1,5 @@
 // #113: best/worst night cards carry enough context to reconstruct
-// "what was different about that night" — weekday, sleep start, duration,
+// "what was different about that night" — weekday, bedtime, duration,
 // deep/REM/HRV — with unrecorded fields simply omitted.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -31,11 +31,11 @@ const SPARSE_NIGHT: NightSummary = {
 };
 
 describe("BestWorstNightsCard night context (#113)", () => {
-  it("shows weekday, sleep start, duration, and stage/HRV metrics", () => {
+  it("shows weekday, bedtime, duration, and stage/HRV metrics", () => {
     render(<BestWorstNightsCard best={FULL_NIGHT} worst={null} />);
     expect(
       screen.getByText(
-        "Tue · slept 11:42 PM · 7h 38m · deep 71m · REM 96m · HRV 44",
+        "Tue · bed 11:42 PM · 7h 38m · deep 71m · REM 96m · HRV 44",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("2026-02-10")).toBeInTheDocument();
@@ -48,7 +48,9 @@ describe("BestWorstNightsCard night context (#113)", () => {
     expect(screen.getByText("Score: 62")).toBeInTheDocument();
     const card = screen.getByTestId("best-worst-nights");
     expect(card.textContent).not.toMatch(/null|NaN|undefined/);
-    expect(card.textContent).not.toMatch(/slept|deep|REM|HRV/);
+    // "bed \d" (not bare "bed") so the sentinel can't trip on card copy
+    // like "Best & Worst" or factor tags such as "Pre-bed ritual".
+    expect(card.textContent).not.toMatch(/bed \d|deep|REM|HRV/);
   });
 
   it("renders no details line when a legacy payload has no context fields", () => {

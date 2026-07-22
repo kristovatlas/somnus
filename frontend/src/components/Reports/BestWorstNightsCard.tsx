@@ -8,12 +8,12 @@ interface Props {
 }
 
 /** Compact context line (#113), e.g.
- * "Tue · slept 11:42 PM · 7h 38m · deep 71m · REM 96m · HRV 44".
+ * "Tue · bed 11:42 PM · 7h 38m · deep 71m · REM 96m · HRV 44".
  * Unrecorded fields are simply omitted (NULL = not recorded). */
 function nightDetails(night: NightSummary): string {
   const parts: string[] = [];
   if (night.weekday) parts.push(night.weekday.slice(0, 3));
-  if (night.bedtime) parts.push(`slept ${night.bedtime}`);
+  if (night.bedtime) parts.push(`bed ${night.bedtime}`);
   if (night.total_sleep_minutes != null) {
     const h = Math.floor(night.total_sleep_minutes / 60);
     const m = night.total_sleep_minutes % 60;

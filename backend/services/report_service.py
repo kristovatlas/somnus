@@ -130,7 +130,9 @@ def _fmt_duration(minutes: int) -> str:
 def _night_summary(db: Session, rec: SleepRecord) -> dict[str, Any]:
     """Best/worst night payload (#113): date + score plus enough context to
     reconstruct what was different about that night at a glance. Weekday and
-    bedtime are formatted backend-side so the SPA and the HTML export agree.
+    bedtime are formatted backend-side so the SPA and the HTML export render
+    the same fields (the SPA abbreviates the weekday; rounding of avg_hrv may
+    differ at .5).
     """
     return {
         "date": rec.date,
@@ -715,7 +717,7 @@ def _night_html(heading: str, n: dict[str, Any]) -> str:
     block = f"<h3>{heading}</h3><p>{day}{_esc(n['date'])} — Score: {_esc(n['sleep_score'])}</p>"
     parts: list[str] = []
     if n.get("bedtime"):
-        parts.append(f"slept {_esc(n['bedtime'])}")
+        parts.append(f"bed {_esc(n['bedtime'])}")
     if n.get("total_sleep_minutes") is not None:
         parts.append(_esc(_fmt_duration(n["total_sleep_minutes"])))
     if n.get("deep_minutes") is not None:
