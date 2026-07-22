@@ -1,0 +1,45 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "1f9a24ccf35e0da1fe60a6c94be1d439eb45a8ee39e8eada262f5fe95bf18df0",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #138 review (Claude, Fable 5), feat/36-nav 013b93f vs origin/dev. Verification in scratch worktree, exit codes checked: vitest 314/314, cold-cache lint 0, format:check 0, build 0, playwright 16/16 (one pre-existing router-guard flake passed in isolation + rerun). FINDINGS: C1 MEDIUM \u2014 h1 title aria-label='Dashboard' replaces 'Somnus' as accessible name (WCAG 2.5.3 Label in Name; voice-control 'click Somnus' fails; two header buttons named Dashboard; both test files worked around the ambiguity). C2 LOW \u2014 role=button h1 has tabIndex but no Enter/Space activation (pre-existing, element touched by this PR). C3 LOW \u2014 no :focus-visible style (UA default shows since the themes.css outline reset excludes buttons, but hover has a custom state while keyboard focus has none); labels 0.62rem (~10px) small. C4 INFO \u2014 nav renders on /onboarding and '*' with zero active item; pre-existing structure, guard bounces clicks; zero-active arguably correct. VERIFIED CLEAN: active-route prefix logic safe for the full route table (pathname===path || startsWith(path+'/'), no nav path a slash-prefix of another; exactly one active on every real route, e2e-asserted); design-record fidelity to #36 direction B (order Log/Dashboard/Analysis/Coach/Reports/Settings; pencil/grid/polyline/lightbulb/file-text/gear; curved 22x7 elliptical indicator; title->/dashboard; tooltips+aria); aria-current only on active; SVGs aria-hidden; diff scope exactly 5 files, OuraSyncIndicator untouched; e2e edits sound (no assertion weakened, Recommendations->Coach mirrored, /log coverage kept); ADR 004 palette clean (currentColor + existing vars only); no stale glyph/name references.\n\n--- Post-review delta ---\nFix round commit edc0f0f (reviewed diff now includes it): C1 fixed (title aria-label/title -> 'Somnus \u2014 go to Dashboard', accessible name contains visible text; router test + e2e locators retargeted), C2 fixed (Enter/Space onKeyDown with Space preventDefault + two vitest tests), C3 fixed (:focus-visible outline 2px var(--color-interactive) on nav buttons + title; label font 0.62->0.7rem), Codex P2 fixed (header flex-wrap + <=640px icon-only collapse, tooltips/aria keep every destination named; width budget ~317px at 360px viewport in a CSS comment). Delta scope: Layout.tsx, Layout.css, router.test.tsx, e2e/navigation.spec.ts, e2e/onboarding.spec.ts \u2014 all within the lane touch-set. Post-fix verification: cold-cache eslint 0, format:check 0, vitest 316/316 (44 files), build 0, playwright 16/16 (one unrelated click-flake on first run, 3/3 on rerun + full-suite green).",
+  "findings": [
+    {
+      "id": "C1",
+      "summary": "Title's aria-label 'Dashboard' replaces visible text 'Somnus' as accessible name (WCAG 2.5.3)",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "aria-label and title now 'Somnus \u2014 go to Dashboard'; tests/e2e retargeted (edc0f0f)"
+    },
+    {
+      "id": "C2",
+      "summary": "role=button title has no Enter/Space keyboard activation",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "onKeyDown Enter+Space (Space preventDefault), two vitest tests (edc0f0f)"
+    },
+    {
+      "id": "C3",
+      "summary": "No :focus-visible style; 0.62rem labels",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": ":focus-visible outline var(--color-interactive); label font 0.7rem (edc0f0f)"
+    },
+    {
+      "id": "C4",
+      "summary": "Nav renders on /onboarding and not-found with zero active item (pre-existing)",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "pre-existing structure; onboarding guard bounces clicks; zero-active on those routes is correct (no destination is current)"
+    }
+  ]
+}
