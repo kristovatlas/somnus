@@ -13,19 +13,44 @@
 # exclude-newer-package override in pyproject.toml [tool.uv] and `uv lock`
 # (NOT the UV_EXCLUDE_NEWER env var — see the pyproject comment).
 UV_VERSION := 0.11.26
-UV_PIP := uv pip install $(if $(VIRTUAL_ENV),,--system)
+# #105: pick the Python environment for setup, in precedence order:
+#   1. an active virtualenv (VIRTUAL_ENV set) — install into it, as before;
+#   2. CI (GitHub Actions always exports CI=true) — `--system` install into
+#      the runner's Python, unchanged, so the later bare `pytest`/`ruff`/
+#      `mypy`/`uv` steps keep finding everything;
+#   3. neither (e.g. a stock macOS shell, where the system Python is PEP 668
+#      externally managed and refuses pip installs) — auto-create a
+#      repo-local .venv (gitignored) and drive the whole install through it.
+VENV := .venv
+ifdef VIRTUAL_ENV
+SETUP_PY := python
+UV := uv
+UV_PIP := $(UV) pip install
+else ifdef CI
+SETUP_PY := python
+UV := uv
+UV_PIP := $(UV) pip install --system
+else
+SETUP_PY := $(VENV)/bin/python
+UV := $(VENV)/bin/uv
+UV_PIP := $(UV) pip install --python $(SETUP_PY)
+endif
 
 setup: setup-backend setup-frontend db-location
 
 setup-backend:
-	python -m pip install --quiet uv==$(UV_VERSION)
+ifeq ($(SETUP_PY),$(VENV)/bin/python)
+	# #105: no active venv and not CI — create the repo-local venv once.
+	test -x $(SETUP_PY) || python3 -m venv $(VENV)
+endif
+	$(SETUP_PY) -m pip install --quiet uv==$(UV_VERSION)
 	# T-13 (ADR 014): install exactly the committed uv.lock resolution.
 	# --locked fails loudly if pyproject.toml changed without `uv lock`.
 	# Deliberately not `uv sync`: it only targets a project venv
 	# (.venv/UV_PROJECT_ENVIRONMENT — no --system mode), so it can't serve
-	# the CI/README no-venv flow. (`--inexact` solves package-stripping,
+	# the CI no-venv flow. (`--inexact` solves package-stripping,
 	# not env-targeting.)
-	uv export --locked --quiet --no-emit-project --extra dev -o .uv-export.txt
+	$(UV) export --locked --quiet --no-emit-project --extra dev -o .uv-export.txt
 	# Cooldown off for this line only: these exact pins+hashes were already
 	# vetted at lock time; re-filtering by age here would block installing
 	# a lock that carries a legitimate emergency override.
@@ -39,9 +64,10 @@ setup-frontend:
 # #41 (ADR 015): resolve the DB location. No-ops if already configured
 # (env var or saved choice) or on a non-TTY; otherwise prompts once.
 # Override headlessly with `make db-location ARGS="--path /your/somnus.db"`
-# or the SOMNUS_DB_PATH env var.
+# or the SOMNUS_DB_PATH env var. Runs on the same Python setup-backend
+# installed into ($(SETUP_PY)), so `make setup` works without activation.
 db-location:
-	python -m backend.db_location $(ARGS)
+	$(SETUP_PY) -m backend.db_location $(ARGS)
 
 # --- Development ---
 # #41 (ADR 015): choose the DB location (first-run prompt / env / flag)
