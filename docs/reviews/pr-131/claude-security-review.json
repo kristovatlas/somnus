@@ -1,0 +1,18 @@
+{
+  "leg": "claude-security-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "c611f49b3d0e912b150117a5b040f72f4ce3d799517f220fa3ff30c0ffae3850",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #131 review (Claude, Fable 5). Correctness: repo+tag verified live (v0.2.0 -> 33affa2, = main tip; SKILL.md version matches); install command works verbatim; local install already at exactly v0.2.0; escalation paraphrase faithful one-to-one; preflight bindings match live ruleset 18500043 (review-gate among 6 required checks on dev+main, squash/merge methods match, strict up-to-date on); retired direct-to-dev exception claim true (pull_request rule enforced). P3 (minor): paraphrase lossy in two spots \u2014 drops the skill's 'not bug fixes' carve-out (errs stricter) and compresses the data item to 'non-additive data changes'. Internal consistency: none found; CI Health/PR/Git Workflow sections all compatible; no aspirational claims.\nSecurity: no enforcement weakened; docs-only; documented merge policy is a strict subset of what the ruleset permits. LOW: '(admin bypass exists for the human only)' states policy as enforcement fact \u2014 the bypass actor is the admin role class and the agent's token IS admin; what keeps it human-only is the never-use---admin rule. Suggest rewording.\n\n--- Post-review delta ---\nFix round applied after review: SHA-pin + verify-existing-install line, faithful escalation paraphrase (bug-fix carve-out + full data item), bypass wording (policy vs enforcement). Attested hash covers the fixed text; delta verified same-section.",
+  "findings": [
+    {
+      "id": "S1",
+      "summary": "'Admin bypass for the human only' states policy as an enforcement fact (agent token is admin-class)",
+      "severity_claimed": "low",
+      "validated": true,
+      "severity_validated": "low",
+      "disposition": "fixed",
+      "reason": "Reworded: bypass is a role-class fact; policy (never --admin, never direct push) is what makes it human-only. Converged with Codex Low."
+    }
+  ]
+}
