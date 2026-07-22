@@ -1,0 +1,18 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "1f9a24ccf35e0da1fe60a6c94be1d439eb45a8ee39e8eada262f5fe95bf18df0",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on feat/36-nav 013b93f: 'The navigation behavior is otherwise coherent, but expanding every destination into a labeled button without responsive handling introduces a significant narrow-screen overflow regression. [P2] Add a narrow-screen layout for the expanded navigation \u2014 frontend/src/components/Layout/Layout.css:21-30: On narrow viewports, the six labeled buttons no longer fit beside the title: at 480px the existing #root and header padding leave only 352px, while this nav plus \u201cSomnus\u201d requires over 400px even without the Oura status chip. Because the header and nav neither wrap nor switch to a mobile layout, controls overflow horizontally and can become inaccessible on common phone widths.'\n\n--- Post-review delta ---\nFix round commit edc0f0f (reviewed diff now includes it): C1 fixed (title aria-label/title -> 'Somnus \u2014 go to Dashboard', accessible name contains visible text; router test + e2e locators retargeted), C2 fixed (Enter/Space onKeyDown with Space preventDefault + two vitest tests), C3 fixed (:focus-visible outline 2px var(--color-interactive) on nav buttons + title; label font 0.62->0.7rem), Codex P2 fixed (header flex-wrap + <=640px icon-only collapse, tooltips/aria keep every destination named; width budget ~317px at 360px viewport in a CSS comment). Delta scope: Layout.tsx, Layout.css, router.test.tsx, e2e/navigation.spec.ts, e2e/onboarding.spec.ts \u2014 all within the lane touch-set. Post-fix verification: cold-cache eslint 0, format:check 0, vitest 316/316 (44 files), build 0, playwright 16/16 (one unrelated click-flake on first run, 3/3 on rerun + full-suite green).",
+  "findings": [
+    {
+      "id": "X1",
+      "summary": "Six labeled nav buttons overflow horizontally on narrow viewports (no wrap/mobile layout)",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "header flex-wrap + <=640px icon-only collapse with tighter paddings; tooltips/aria keep names (edc0f0f); converges with Claude C3 sizing note"
+    }
+  ]
+}
