@@ -1,0 +1,8 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "4c06f78af4cce19d4867a52a5b5b8360265e13bbf5a5537b227063cd64030f57",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "- No new sinks or untrusted-content rendering.\n- No new dependencies.\n- No new endpoints or request paths; presets use the existing state/update and `PUT /api/daily-log/{date}` flow.\n- Preset values are fixed numeric constants.\n- New tests pass: 10/10.\n",
+  "findings": []
+}

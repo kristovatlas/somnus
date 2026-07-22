@@ -1,0 +1,27 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "4c06f78af4cce19d4867a52a5b5b8360265e13bbf5a5537b227063cd64030f57",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #136 review (Claude, Fable 5). CORRECTNESS: none blocking. LOW-1 tautological distinct-chips assertion (two different query strings can never return the same node). LOW-2 overcast 5,000 lux is at the high end of classic photometry tables (~1,000-2,000 plain overcast) though circadian-literature cloudy-day figures run 5,000-10,000; values match the issue verbatim and heavy-overcast 1,000 covers the low end \u2014 the issue asked for a literature check, satisfied by this review's own summary. Verified: presets write through the identical updateEntry path (no validation bypass; ADR 003 clear-to-null intact; silent overwrite is per spec); values match issue; .quick-add-btn shared class, palette vars only; a11y sound (typed buttons, self-describing text); tests mutation-verified (wrong-field mutant kills 8/10, wrong-value kills 2/10); full suite 277 green cold-cache; diff exactly two files. SECURITY: none \u2014 UI-only, static literals into JSX text, no dep/endpoint/sink.\n\n--- Post-review delta ---\nBranch updated onto dev after #133's merge (wave plan + Makefile changes; disjoint, clean merge). No code changes in the update.",
+  "findings": [
+    {
+      "id": "L1",
+      "summary": "Distinct-chips test assertion is tautological (cannot fail)",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "Harmless dead weight guarding only against render throws; not worth a fix-round hash cycle."
+    },
+    {
+      "id": "L2",
+      "summary": "Overcast 5,000 lux is at the high end of classic tables; issue asked for a literature check",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "Check performed in review: circadian-literature cloudy figures run 5,000-10,000 and heavy-overcast 1,000 covers the photometric low end; values also match the owner-specified issue verbatim."
+    }
+  ]
+}
