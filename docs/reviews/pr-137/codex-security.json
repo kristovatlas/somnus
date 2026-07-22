@@ -1,0 +1,8 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "354def458d6f69d8a8f418aef0fab321d12ffdb8ad01bc2912dc537e6ab97b9d",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "\nConfirmed display-copy only: static label/subtitle text plus matching test expectations. React escapes the text normally. No sink, dependency, endpoint, security control, or sensitive data-flow changes.\n\n[Full report](/tmp/codex-security-scans/agent-a8e1db6b5514e3d4e/7219a096c99263f0c5b546274907fd1fcb1aad42_20260722T163456Z/report.md) \u2014 scan completed in 6m 31s.\n",
+  "findings": []
+}
