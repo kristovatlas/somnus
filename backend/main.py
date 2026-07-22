@@ -14,7 +14,7 @@ from backend.routers import analysis, daily_log, dashboard, export, oura, recomm
 from backend.routers import settings as settings_router
 from backend.schemas import HealthResponse
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 
 @asynccontextmanager

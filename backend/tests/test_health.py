@@ -14,4 +14,4 @@ def test_health_check(client: TestClient) -> None:
 def test_health_check_returns_version(client: TestClient) -> None:
     response = client.get("/api/health")
     data = response.json()
-    assert data["version"] == "0.1.0"
+    assert data["version"] == "0.1.1"
