@@ -64,4 +64,50 @@ describe("contrastLine", () => {
       "11:34 PM or earlier: avg 88 · after 11:34 PM: 82 (n=20/24)",
     );
   });
+
+  it("renders minute-unit outcome averages as durations (#147)", () => {
+    const contrast: BinnedContrast = {
+      low_label: "12:10 AM or earlier",
+      high_label: "after 12:10 AM",
+      low_mean: 446.9,
+      high_mean: 423.4,
+      n_low: 182,
+      n_high: 179,
+    };
+    expect(contrastLine(contrast, "total_sleep_minutes")).toBe(
+      "12:10 AM or earlier: avg 7h 27m · after 12:10 AM: 7h 3m (n=182/179)",
+    );
+  });
+
+  it("renders sub-hour durations without an hour part", () => {
+    const contrast: BinnedContrast = {
+      low_label: "≤ 100 mg",
+      high_label: "> 100 mg",
+      low_mean: 14.2,
+      high_mean: 59.6,
+      n_low: 10,
+      n_high: 12,
+    };
+    // 59.6 rounds up to the hour boundary: "1h 0m", never "60m".
+    expect(contrastLine(contrast, "onset_latency_minutes")).toBe(
+      "≤ 100 mg: avg 14m · > 100 mg: 1h 0m (n=10/12)",
+    );
+  });
+
+  it("leaves non-minute outcomes untouched", () => {
+    const contrast: BinnedContrast = {
+      low_label: "≤ 100 mg",
+      high_label: "> 100 mg",
+      low_mean: 88.4,
+      high_mean: 82.1,
+      n_low: 20,
+      n_high: 24,
+    };
+    expect(contrastLine(contrast, "sleep_score")).toBe(
+      "≤ 100 mg: avg 88.4 · > 100 mg: 82.1 (n=20/24)",
+    );
+    expect(contrastLine(contrast, "avg_hrv")).toBe(
+      "≤ 100 mg: avg 88.4 · > 100 mg: 82.1 (n=20/24)",
+    );
+  });
 });
