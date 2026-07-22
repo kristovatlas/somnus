@@ -19,7 +19,8 @@ test.describe("Onboarding flow", () => {
 
     // Nav should be visible (Layout is rendering the main app).
     // #36: scope to the nav landmark — the "Somnus" title is also a
-    // button accessibly named "Dashboard".
+    // button whose accessible name ("Somnus — go to Dashboard") contains
+    // "Dashboard" (Playwright name matching is substring by default).
     const nav = page.getByRole("navigation");
     await expect(nav.getByRole("button", { name: "Dashboard" })).toBeVisible();
     await expect(nav.getByRole("button", { name: "Settings" })).toBeVisible();

@@ -34,7 +34,9 @@ test.describe("Page navigation", () => {
 
   test("all nav buttons navigate to correct pages", async ({ page }) => {
     // #36: labeled nav — six destinations; scope to the nav landmark since
-    // the "Somnus" title is also a button accessibly named "Dashboard".
+    // the "Somnus" title is also a button whose accessible name ("Somnus —
+    // go to Dashboard") contains "Dashboard" (Playwright name matching is
+    // substring by default).
     const nav = page.getByRole("navigation");
 
     // Dashboard
@@ -61,8 +63,11 @@ test.describe("Page navigation", () => {
     await nav.getByRole("button", { name: "Daily Log" }).click();
     await expect(page).toHaveURL(/\/log\//);
 
-    // Title click → Dashboard (#36: repointed from /log)
-    await page.getByText("Somnus").first().click();
+    // Title click → Dashboard (#36: repointed from /log; WCAG 2.5.3 name
+    // contains the visible "Somnus")
+    await page
+      .getByRole("button", { name: "Somnus — go to Dashboard" })
+      .click();
     await expect(page).toHaveURL(/\/dashboard/);
   });
 

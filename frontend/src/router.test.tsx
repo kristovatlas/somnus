@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { Layout } from "./components/Layout/Layout";
@@ -187,9 +193,10 @@ describe("Router guard", () => {
     mockOnboardedFetch();
     render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
 
+    // WCAG 2.5.3: the accessible name contains the visible text "Somnus"
     const title = await screen.findByText("Somnus");
-    expect(title).toHaveAttribute("title", "Dashboard");
-    expect(title).toHaveAttribute("aria-label", "Dashboard");
+    expect(title).toHaveAttribute("title", "Somnus — go to Dashboard");
+    expect(title).toHaveAttribute("aria-label", "Somnus — go to Dashboard");
     title.click();
     expect(await screen.findByText("Dashboard stub page")).toBeInTheDocument();
 
@@ -198,6 +205,32 @@ describe("Router guard", () => {
     expect(
       within(nav).getByRole("button", { name: "Dashboard" }).className,
     ).toContain("layout-nav-btn-active");
+  });
+
+  it("the Somnus title activates on Enter (role=button keyboard contract)", async () => {
+    mockOnboardedFetch();
+    render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
+
+    const title = await screen.findByRole("button", {
+      name: "Somnus — go to Dashboard",
+    });
+    // A non-activation key must not navigate
+    fireEvent.keyDown(title, { key: "a" });
+    expect(screen.queryByText("Dashboard stub page")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(title, { key: "Enter" });
+    expect(await screen.findByText("Dashboard stub page")).toBeInTheDocument();
+  });
+
+  it("the Somnus title activates on Space", async () => {
+    mockOnboardedFetch();
+    render(<RouterProvider router={createRouter("/log/2024-01-01")} />);
+
+    const title = await screen.findByRole("button", {
+      name: "Somnus — go to Dashboard",
+    });
+    fireEvent.keyDown(title, { key: " " });
+    expect(await screen.findByText("Dashboard stub page")).toBeInTheDocument();
   });
 
   // --- #51: router hardening ---

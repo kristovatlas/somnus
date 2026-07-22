@@ -174,13 +174,23 @@ export function Layout() {
   return (
     <div className="layout">
       <header className="layout-header">
+        {/* WCAG 2.5.3: the accessible name must contain the visible text
+            ("Somnus"), so the label is "Somnus — go to Dashboard" rather
+            than just "Dashboard". role=button needs keyboard activation
+            too: Enter and Space (Space preventDefaults to avoid scroll). */}
         <h1
           className="layout-title"
           onClick={() => navigate("/dashboard")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              if (e.key === " ") e.preventDefault();
+              navigate("/dashboard");
+            }
+          }}
           role="button"
           tabIndex={0}
-          aria-label="Dashboard"
-          title="Dashboard"
+          aria-label="Somnus — go to Dashboard"
+          title="Somnus — go to Dashboard"
         >
           Somnus
         </h1>
