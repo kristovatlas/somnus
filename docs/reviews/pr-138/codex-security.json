@@ -1,0 +1,8 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "1f9a24ccf35e0da1fe60a6c94be1d439eb45a8ee39e8eada262f5fe95bf18df0",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "Codex security scan of 013b93f vs origin/dev (report: /tmp/codex-security-scans/sleep-optimizer/013b93fb8bbc090a2fc8bb066a66f4f2822bf122_20260722T174933Z/report.md): Reportable findings 0, coverage complete. 'Full-file static diff review with direct supporting route inspection and targeted unit-test execution.' No findings survived the canonical discovery, validation, and reportability gates.\n\n--- Post-review delta ---\nFix round commit edc0f0f (reviewed diff now includes it): C1 fixed (title aria-label/title -> 'Somnus \u2014 go to Dashboard', accessible name contains visible text; router test + e2e locators retargeted), C2 fixed (Enter/Space onKeyDown with Space preventDefault + two vitest tests), C3 fixed (:focus-visible outline 2px var(--color-interactive) on nav buttons + title; label font 0.62->0.7rem), Codex P2 fixed (header flex-wrap + <=640px icon-only collapse, tooltips/aria keep every destination named; width budget ~317px at 360px viewport in a CSS comment). Delta scope: Layout.tsx, Layout.css, router.test.tsx, e2e/navigation.spec.ts, e2e/onboarding.spec.ts \u2014 all within the lane touch-set. Post-fix verification: cold-cache eslint 0, format:check 0, vitest 316/316 (44 files), build 0, playwright 16/16 (one unrelated click-flake on first run, 3/3 on rerun + full-suite green).",
+  "findings": []
+}
