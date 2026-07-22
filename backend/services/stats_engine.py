@@ -421,13 +421,10 @@ def _confidence_level(n: int) -> str:
 # The slope headline reads "≈X <outcome unit> per <label>".
 _EFFECT_INCREMENTS: dict[str, tuple[float, str]] = {
     "total_caffeine_mg": (100, "100 mg"),
-    "last_caffeine_hour": (1, "hour later"),
-    "last_meal_hour": (1, "hour later"),
     "exercise_duration_minutes": (30, "30 min"),
     "stress_level": (1, "point"),
     "room_temp_f": (5, "5°F"),
     "stimulating_minutes": (30, "30 min"),
-    "stimulating_last_hour": (1, "hour later"),
     "nap_total_minutes": (30, "30 min"),
     "nap_count": (1, "nap"),
     "sunlight_morning_minutes": (30, "30 min"),
@@ -452,14 +449,26 @@ _OUTCOME_UNITS: dict[str, str] = {
     "total_sleep_minutes": "min",
 }
 
-# Predictors on the continuous evening clock (see _normalize_bedtime_hour):
-# their bin cutoffs render as clock times, wrapping 24+ back to AM.
+# Clock-time predictors whose scale supports "hour later" slopes and
+# clock-labeled bin cutoffs: bedtime_hour is on the continuous 24+ evening
+# scale (see _normalize_bedtime_hour), and sunlight_first_hour is a genuine
+# morning clock time (0-12) — both are monotonic in "later", so slopes and
+# cutoffs are meaningful and _fmt_clock renders them correctly.
 _HOUR_PREDICTORS = {
     "bedtime_hour",
+    "sunlight_first_hour",
+}
+
+# Evening event-time columns stored on the RAW 0-24 clock (NOT the 24+
+# evening scale bedtime_hour uses): an after-midnight event (e.g. 0.5 =
+# 12:30 AM) sorts *below* an evening one (23.0 = 11:00 PM), so "per hour
+# later" slopes and before/after bins are false for them. Effect and
+# contrast display is suppressed for these until the columns are normalized
+# onto the evening scale — see issue #134.
+_UNNORMALIZED_CLOCK = {
     "last_caffeine_hour",
     "last_meal_hour",
     "stimulating_last_hour",
-    "sunlight_first_hour",
 }
 
 _CONTRAST_MIN_PER_BIN = 5
@@ -487,6 +496,8 @@ def _effect_size(
 ) -> dict[str, Any] | None:
     """Slope in natural units per predictor increment, or None (binary /
     unmapped predictors have no meaningful per-unit slope)."""
+    if pred in _UNNORMALIZED_CLOCK:
+        return None  # raw 0-24 clock — slope is false after midnight (#134)
     inc = _EFFECT_INCREMENTS.get(pred)
     if inc is None:
         return None
@@ -511,6 +522,8 @@ def _binned_contrast(pred: str, outcome: str, subset: pd.DataFrame) -> dict[str,
 
     None when either bin is under _CONTRAST_MIN_PER_BIN (ties on the median
     can empty the high bin — e.g. zero-heavy predictors)."""
+    if pred in _UNNORMALIZED_CLOCK:
+        return None  # raw 0-24 clock — bins misplace after-midnight rows (#134)
     cutoff = float(subset[pred].median())
     low = subset[subset[pred] <= cutoff]
     high = subset[subset[pred] > cutoff]
@@ -523,7 +536,9 @@ def _binned_contrast(pred: str, outcome: str, subset: pd.DataFrame) -> dict[str,
         high_mean *= 100
     label = _cutoff_label(pred, cutoff)
     if pred in _HOUR_PREDICTORS:
-        low_label, high_label = f"before {label}", f"after {label}"
+        # The low bin is <= cutoff, so "before X" would misstate cutoff-equal
+        # rows — say "X or earlier" instead.
+        low_label, high_label = f"{label} or earlier", f"after {label}"
     else:
         low_label, high_label = f"≤ {label}", f"> {label}"
     return {

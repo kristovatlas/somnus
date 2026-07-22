@@ -154,6 +154,26 @@ class TestPrepareAnalysisDataframe:
         df = prepare_analysis_dataframe(db)
         assert df.iloc[0]["bedtime_hour"] == pytest.approx(24.5)
 
+    def test_sigma_7d_is_in_minutes(self, db: Session) -> None:
+        """sigma_7d is bedtime stddev in MINUTES — pins the ×60 in
+        prepare_analysis_dataframe. A 22:00/23:00 alternation over 7 days is
+        ~32 min of spread; without the ×60 it would read ~0.53."""
+        base = dt.date(2025, 1, 1)
+        for i in range(7):
+            d = base + dt.timedelta(days=i)
+            hour = 22 if i % 2 == 0 else 23
+            _make_sleep_record(
+                db,
+                d,
+                bedtime=dt.datetime.combine(d - dt.timedelta(days=1), dt.time(hour, 0)),
+            )
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        sigma = float(df.iloc[-1]["sigma_7d"])
+        # hours [22,23,22,23,22,23,22]: sample std ≈ 0.5345 h → 32.07 min
+        assert sigma == pytest.approx(0.5345 * 60, abs=0.1)
+
     def test_sleep_midpoint_computed(self, db: Session) -> None:
         """Bedtime 10 PM, wake 6 AM → midpoint should be ~2 AM (26.0 in 24+ space)."""
         d = dt.date(2025, 1, 1)
@@ -612,7 +632,8 @@ class TestEffectSizes:
         df = pd.DataFrame({"bedtime_hour": hours, "sleep_score": [float(s) for s in scores]})
         c = _binned_contrast("bedtime_hour", "sleep_score", df)
         assert c is not None
-        assert c["low_label"].startswith("before ")
+        # The low bin is <= cutoff, so the label says "or earlier", not "before".
+        assert c["low_label"].endswith(" or earlier")
         assert c["high_label"].startswith("after ")
         assert c["low_mean"] > c["high_mean"]  # earlier bedtime, better score
         assert c["n_low"] >= 5 and c["n_high"] >= 5
@@ -625,6 +646,23 @@ class TestEffectSizes:
         score = [85.0] * 12
         df = pd.DataFrame({"total_caffeine_mg": vals, "sleep_score": score})
         assert _binned_contrast("total_caffeine_mg", "sleep_score", df) is None
+
+    def test_unnormalized_clock_predictors_suppressed(self) -> None:
+        """last_caffeine_hour / last_meal_hour / stimulating_last_hour are
+        RAW 0-24 clock columns (unlike bedtime_hour's 24+ evening scale), so
+        slopes and before/after bins are false for after-midnight events.
+        Effect and contrast are None even with rich data — until #134
+        normalizes the columns onto the evening scale."""
+        from backend.services.stats_engine import _binned_contrast, _effect_size
+
+        n = 30
+        hours = [12.0 + 0.2 * i for i in range(n)]  # rich, varying data
+        scores = [90.0 - 0.5 * i for i in range(n)]
+        for pred in ("last_caffeine_hour", "last_meal_hour", "stimulating_last_hour"):
+            df = pd.DataFrame({pred: hours, "sleep_score": scores})
+            r = float(df[pred].corr(df["sleep_score"]))
+            assert _effect_size(pred, "sleep_score", df, r) is None
+            assert _binned_contrast(pred, "sleep_score", df) is None
 
     def test_compute_correlations_attaches_effect_and_contrast(self) -> None:
         from backend.services.stats_engine import compute_correlations
