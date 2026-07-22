@@ -68,16 +68,22 @@ export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
         </div>
 
         <TimePicker
-          label="Typical Bedtime"
+          label="Target Bedtime (optional)"
           value={settings.typical_bedtime}
           onChange={(v) => handleChange({ typical_bedtime: v })}
         />
 
         <TimePicker
-          label="Target Wake Time"
+          label="Target Wake Time (optional)"
           value={settings.target_wake_time}
           onChange={(v) => handleChange({ target_wake_time: v })}
         />
+
+        <p className="settings-field-hint">
+          Your bedtime target powers the bedtime countdown, the caffeine chart's
+          bedtime marker, and your consistency stats. Your wake target sets when
+          Auto display mode switches for the day.
+        </p>
 
         <SelectInput
           label="Chronotype"

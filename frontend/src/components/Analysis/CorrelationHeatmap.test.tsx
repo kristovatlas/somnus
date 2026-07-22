@@ -57,14 +57,12 @@ describe("CorrelationHeatmap formatting (#104)", () => {
         results={[
           result({
             predictor: "bedtime_std_7d",
-            predictor_label: "Bedtime Variability (7d σ)",
+            predictor_label: "Bedtime Variability (7d)",
           }),
         ]}
       />,
     );
-    expect(screen.getAllByText("Bedtime Variability (7d σ)")).not.toHaveLength(
-      0,
-    );
+    expect(screen.getAllByText("Bedtime Variability (7d)")).not.toHaveLength(0);
     expect(screen.queryByText(/Bedtime Variabilit\.\.\./)).toBeNull();
   });
 });

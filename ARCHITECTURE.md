@@ -174,7 +174,7 @@ C4Component
             Component(sleep_score_card, "SleepScoreCard", "SVG", "Circular score ring with key metric pills (HRV, HR, efficiency, readiness).")
             Component(stage_bar, "StageBreakdownBar", "SVG", "Horizontal stacked bar for deep/REM/light with age-adjusted target comparison.")
             Component(sparklines, "TrendSparklines + Sparkline", "SVG", "2x2 grid of 7-day trend sparklines. Reusable Sparkline component.")
-            Component(consistency, "ConsistencyMeter", "SVG", "Bedtime dot plot with σ/δ/Δ metric pills. Weekend dots distinguished.")
+            Component(consistency, "ConsistencyMeter", "SVG", "Bedtime dot plot with word-labeled metric pills (variability, bedtime offset, weekend drift). Weekend dots distinguished.")
             Component(streak, "LoggingStreak", "React", "Consecutive logging day count with color coding.")
             Component(red_light, "RedLightSummary", "React", "Weekly session count, dose, on-track badge.")
         }

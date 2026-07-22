@@ -140,7 +140,8 @@
 /* Consistency pills */
 .report-consistency-pills {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
   font-size: 0.85rem;
 }
 

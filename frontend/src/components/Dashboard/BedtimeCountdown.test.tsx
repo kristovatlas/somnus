@@ -8,10 +8,10 @@ function at(h: number, m = 0): Date {
 }
 
 describe("computeBedtimeStatus", () => {
-  it("counts down to a typical bedtime later today", () => {
+  it("counts down to a target bedtime later today", () => {
     const s = computeBedtimeStatus(22.5, null, "typical", at(20, 15));
     expect(s.label).toBe("Bedtime in 2h 15m");
-    expect(s.detail).toBe("typical bedtime 10:30 PM");
+    expect(s.detail).toBe("target bedtime 10:30 PM");
   });
 
   it("announces bedtime at the target minute", () => {
@@ -70,15 +70,15 @@ describe("BedtimeCountdown", () => {
     expect(await screen.findByText(/optimal window/)).toBeInTheDocument();
   });
 
-  it("falls back to typical bedtime when the engine has no window", async () => {
+  it("falls back to the target bedtime when the engine has no window", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(
       async () => new Response(JSON.stringify(timing(null, null))),
     );
     render(<BedtimeCountdown typicalBedtime="21:00:00" />);
-    expect(await screen.findByText(/typical bedtime/)).toBeInTheDocument();
+    expect(await screen.findByText(/target bedtime/)).toBeInTheDocument();
   });
 
-  it("renders nothing with no window and no typical bedtime", async () => {
+  it("renders nothing with no window and no target bedtime", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(
       async () => new Response(JSON.stringify(timing(null, null))),
     );
@@ -91,11 +91,11 @@ describe("BedtimeCountdown", () => {
     ).toBeNull();
   });
 
-  it("timing API failure still falls back to typical bedtime", async () => {
+  it("timing API failure still falls back to the target bedtime", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new TypeError("down");
     });
     render(<BedtimeCountdown typicalBedtime="21:00:00" />);
-    expect(await screen.findByText(/typical bedtime/)).toBeInTheDocument();
+    expect(await screen.findByText(/target bedtime/)).toBeInTheDocument();
   });
 });

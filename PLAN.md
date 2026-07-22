@@ -443,7 +443,7 @@ Simple standard deviation isn't enough. We decompose sleep timing consistency in
 **Dashboard visualization:**
 - "Consistency meter": rolling 7-day view showing nightly bedtime as dots, optimal window as a band, rolling mean as a line
 - Color-coded: green when variance is low AND mean is on target
-- Weekly summary: "This week: σ=22 min (consistent), δ=+35 min (slightly late), Δ=45 min (moderate weekend drift)"
+- Weekly summary: "This week: Variability 22 min (consistent), Bedtime offset 35 min (slightly late), Weekend drift 45 min (moderate)"
 
 ### 13. Caffeine Pharmacokinetics Model
 Core feature — real-time blood caffeine estimation:

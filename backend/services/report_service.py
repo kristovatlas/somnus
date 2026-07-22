@@ -658,17 +658,17 @@ def render_weekly_html(report: dict[str, Any]) -> str:
         <h3>Bedtime Consistency</h3>
         <table>
             <tr><th>Metric</th><th>Value</th><th>Rating</th></tr>
-            <tr><td>Variability (&#963;)</td>
+            <tr><td>Variability</td>
                 <td>{c["sigma_minutes"]:.0f} min</td><td>{_esc(c["sigma_rating"])}</td></tr>
         """
         if c.get("delta_minutes") is not None:
             consistency_html += (
-                f"<tr><td>Offset (&#948;)</td>"
+                f"<tr><td>Bedtime Offset</td>"
                 f"<td>{c['delta_minutes']:.0f} min</td><td>{_esc(c['delta_rating'])}</td></tr>"
             )
         if c.get("weekend_drift_minutes") is not None:
             consistency_html += (
-                f"<tr><td>Weekend Drift (&#916;)</td>"
+                f"<tr><td>Weekend Drift</td>"
                 f"<td>{c['weekend_drift_minutes']:.0f} min</td>"
                 f"<td>{_esc(c['drift_rating'])}</td></tr>"
             )
