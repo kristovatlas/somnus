@@ -206,9 +206,10 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(screen.getByText("On track")).toBeInTheDocument();
     });
+    expect(screen.getByText("Last 7 days")).toBeInTheDocument();
   });
 
-  it("shows sessions recommended when not meeting minimum", async () => {
+  it("shows sessions remaining when not meeting minimum", async () => {
     mockFetchWith({
       ...fullDashboard,
       red_light_summary: {
@@ -220,7 +221,7 @@ describe("DashboardPage", () => {
     renderPage();
     await waitFor(() => {
       expect(
-        screen.getByText(/2 more sessions recommended/),
+        screen.getByText(/2 more sessions to reach 3 in the last 7 days/),
       ).toBeInTheDocument();
     });
   });
