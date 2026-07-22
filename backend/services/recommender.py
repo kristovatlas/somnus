@@ -45,6 +45,11 @@ _EVIDENCE_ADJ: dict[str, int] = {
     "low": 3,
 }
 
+# Columns on the continuous 24+ evening clock (see stats_engine._evening_time_to_hour):
+# their averages can exceed 24, so fold onto the 0-24 clock before rendering
+# "around {avg:.0f}:00" copy (avoids "around 25:00").
+_EVENING_CLOCK_COLUMNS = {"last_caffeine_hour", "last_meal_hour", "stimulating_last_hour"}
+
 
 def _evidence_from_n(n: int) -> str:
     """Map sample size to evidence level."""
@@ -62,6 +67,11 @@ def _make_rec_id(category: str, factor: str, outcome: str | None = None) -> str:
     if outcome:
         parts.append(outcome)
     return ":".join(parts)
+
+
+def _fmt_p(p_value: float) -> str:
+    """#101: p rounds to 0.000 below 0.0005 — print the honest bound instead."""
+    return "p<0.001" if p_value < 0.001 else f"p={p_value:.3f}"
 
 
 def _data_driven_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
@@ -97,14 +107,16 @@ def _data_driven_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
             priority = max(1, _BASE_PRIORITY["data_driven"] + evidence_adj + coef_adj)
 
             body = action_text.format(outcome=outcome_label)
-            body += f" (n={result['n_days']} days, p={coef['p_value']:.3f})."
+            body += f" (n={result['n_days']} days, {_fmt_p(coef['p_value'])})."
 
             recs.append(
                 {
                     "id": _make_rec_id("data_driven", predictor, outcome),
                     "category": "data_driven",
                     "priority": priority,
-                    "title": VARIABLE_LABELS.get(predictor, predictor),
+                    # #101: one rec is emitted per (factor, outcome) pair, so
+                    # the outcome must be in the title or identical titles stack.
+                    "title": f"{VARIABLE_LABELS.get(predictor, predictor)} → {outcome_label}",
                     "body": body,
                     "factor": predictor,
                     "factor_label": VARIABLE_LABELS.get(predictor, predictor),
@@ -155,7 +167,12 @@ def _science_threshold_recs(df: pd.DataFrame) -> list[dict[str, Any]]:
         if not violated:
             continue
 
-        body = thresh.body_template.format(avg=avg, threshold=thresh.threshold_value, n_days=n_days)
+        # Fold 24+ evening-clock averages back onto the 0-24 clock for display
+        # (e.g. 25.0 renders "1:00", not "25:00").
+        display_avg = avg % 24 if thresh.column in _EVENING_CLOCK_COLUMNS else avg
+        body = thresh.body_template.format(
+            avg=display_avg, threshold=thresh.threshold_value, n_days=n_days
+        )
 
         evidence_adj = _EVIDENCE_ADJ.get(thresh.evidence_level, 0)
         priority = max(1, _BASE_PRIORITY["science_threshold"] + evidence_adj)
@@ -320,14 +337,34 @@ def generate_recommendations(db: Session) -> dict[str, Any]:
 
 
 def get_top_recommendations(db: Session, limit: int = 3) -> list[dict[str, str]]:
-    """Lightweight version for the dashboard — top N as {id, title, category}."""
+    """Lightweight version for the dashboard — top N as {id, title, category}.
+
+    Deduped by factor WITHIN data-driven recs (#101): those are emitted per
+    (factor, outcome) pair, so a strong factor affecting several outcomes
+    filled the widget with identical titles. Data-driven entries show the
+    factor label once (the outcome split stays on the full page); other
+    categories keep their actionable titles ("Try tracking morning
+    sunlight") and are never suppressed by a same-factor data-driven rec —
+    their phrasing is visibly distinct, which was never the #101 complaint.
+    """
     result = generate_recommendations(db)
     if not result["has_sufficient_data"]:
         return []
-    return [
-        {"id": r["id"], "title": r["title"], "category": r["category"]}
-        for r in result["recommendations"][:limit]
-    ]
+    top: list[dict[str, str]] = []
+    seen_data_driven_factors: set[str] = set()
+    for r in result["recommendations"]:
+        if r["category"] == "data_driven":
+            factor = r["factor"]
+            if factor in seen_data_driven_factors:
+                continue
+            seen_data_driven_factors.add(factor)
+            title = r["factor_label"]
+        else:
+            title = r["title"]
+        top.append({"id": r["id"], "title": title, "category": r["category"]})
+        if len(top) == limit:
+            break
+    return top
 
 
 def complete_stale_experiments(db: Session) -> None:

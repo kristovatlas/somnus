@@ -93,17 +93,17 @@ export function WeeklyReportView({ year, week, onNavigate }: Props) {
           <h3 className="report-card-title">Bedtime Consistency</h3>
           <div className="report-consistency-pills">
             <span className="report-pill">
-              {"\u03C3"} {data.consistency.sigma_minutes.toFixed(0)} min
+              Variability {data.consistency.sigma_minutes.toFixed(0)} min
             </span>
             {data.consistency.delta_minutes !== null && (
               <span className="report-pill">
-                {"\u03B4"} {data.consistency.delta_minutes.toFixed(0)} min
+                Bedtime offset {data.consistency.delta_minutes.toFixed(0)} min
               </span>
             )}
             {data.consistency.weekend_drift_minutes !== null && (
               <span className="report-pill">
-                {"\u0394"} {data.consistency.weekend_drift_minutes.toFixed(0)}{" "}
-                min
+                Weekend drift{" "}
+                {data.consistency.weekend_drift_minutes.toFixed(0)} min
               </span>
             )}
           </div>
@@ -111,8 +111,9 @@ export function WeeklyReportView({ year, week, onNavigate }: Props) {
       )}
 
       <TopFactorsCard
-        positive={data.top_positive_factor}
-        negative={data.top_negative_factor}
+        positive={data.top_positive_factors}
+        negative={data.top_negative_factors}
+        totalDays={data.factors_total_days}
       />
 
       <div className="report-export">

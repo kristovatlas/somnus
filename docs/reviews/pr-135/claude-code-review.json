@@ -1,0 +1,54 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "41f87a8765f4d50c1bebb58439ecbb1b73ce7d22c0cfb0e1d8533cb4ce92e67a",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #135 round 1 (Claude, Fable 5): C1 MEDIUM->validated P1 jointly with Codex: after-midnight bedtime (00:30 -> 0.5) made the new callout read ~0 mg when the true modeled level is ~59 mg (numerically confirmed) \u2014 false health all-clear for after-midnight-bedtime users. C2 LOW clamp semantics negligible in real range; C3 LOW anchor flips at >18 not >=18; C4 LOW 0mg/100mg label collision >1500mg; C5 clock label edges untested; C6 tests load-bearing (interpolation pinned independently); C7 stale string in frozen acceptance doc. SECURITY: none (SVG/JSX text only, no dep/sink).\nCodex round 1: P1 same after-midnight finding (model past 24:00 or account for rollover). Codex security: pure bounded interpolation, no surface.\n\nFIX ROUND (validated P1): wrapBedtimeHour (<6 -> +24, mirrors backend _normalize_bedtime_hour), curveEndHour = max(24, wrapped+0.5), computeDecayCurve endHour param, hook passes bedtime; pinned physics: 200mg@14:00 normal -> \u224832 mg at 12:30 AM (was \u22480); formatClockLabel moved to caffeineCalc (react-refresh); clock edge tests added (C5).\n\nRE-RUN (full battery on 32ef700, Claude): PASSES \u2014 no blocking findings. Wrap cutoff mutation-probed (<12, <5, <=6 all killed by unit tests); backend consistency byte-identical semantics; domain math verified at extremes (5:59 AM marker in-plot); hook deps correct, no curve/marker drift; no-bedtime/pre-midnight paths identical to previous head. INFO/LOW only: extended-domain visuals compress the day for after-midnight users (accepted trade); NaN bedtime would blank the chart (unreachable via Pydantic time serialization; record-only).",
+  "findings": [
+    {
+      "id": "C1",
+      "summary": "After-midnight bedtime made the mg-at-bedtime callout read ~0 (true ~59mg) \u2014 false health all-clear",
+      "severity_claimed": "P1",
+      "validated": true,
+      "severity_validated": "P1",
+      "disposition": "fixed",
+      "reason": "wrapBedtimeHour/curveEndHour/endHour fix; physics pinned (\u224832mg @ 12:30AM); FULL battery re-run on the fixed head passed with wrap-cutoff mutants killed."
+    },
+    {
+      "id": "C3",
+      "summary": "Label anchor flips at >18 rather than >=18:00; possible curve overlap at y=top+10",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "Cosmetic; wrapped after-midnight bedtimes are >18 so end-anchored; no clipping (verified against viewBox)."
+    },
+    {
+      "id": "C4",
+      "summary": "0mg/100mg axis labels collide above ~1500 mg total",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "Unrealistic input range; analogous top-label collision pre-existing."
+    },
+    {
+      "id": "C5",
+      "summary": "Clock-label midnight/noon edges untested",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "Edge tests added with the fix round (0, 12, 24.5)."
+    },
+    {
+      "id": "C7",
+      "summary": "Stale '+ Add custom entry' string in the frozen v0.1.0 acceptance record",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "Historical point-in-time document, intentionally frozen."
+    }
+  ]
+}

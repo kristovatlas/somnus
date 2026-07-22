@@ -1,0 +1,54 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "fe46686167251185b5f34f97af7d3e4e147e327b72c93a785aad5b7fb6b6724c",
+  "reviewed_at": "2026-07-21",
+  "raw_output": "   The required `review-gate` check runs the PR-controlled copy of the enforcement code. The job checks out `${{ github.event.pull_request.head.sha }}` and then runs `python scripts/review_gate.py` from that same checkout at lines 205-209. A PR can modify the gate script or workflow step to exit 0 while preserving the required job name. Keep `pull_request`, but run a trusted base-branch copy of the gate against the PR checkout as data, or protect workflow/gate changes with a separate trusted required check.\n\n2. **Medium \u2014 [.github/workflows/ci.yml](/workspaces/sleep-optimizer/.github/workflows/ci.yml:193)**  \n   The job executes PR-head code after `actions/checkout` with default credential persistence and no explicit `permissions`. If repo defaults grant write-scoped `GITHUB_TOKEN` for same-repo PRs, modified PR code can use persisted checkout credentials. Add `permissions: contents: read` and `persist-credentials: false` for this job, ideally all non-push CI jobs.\n\n**Explicit Non-Findings**\n\n- `--base` injection: no exploitable shell/subprocess injection in current CI. The script uses fixed argv, and CI supplies `origin/${{ github.base_ref }}` with PR bases limited to `main`/`dev`.\n- Crafted JSON fail-open: none found. Bad JSON fails; malformed types can crash, but Python exits nonzero, so fail-closed.\n- Threat model: no new app/runtime surface. This is existing B5/T-13 CI/supply-chain surface; update process/T-13 docs if the trusted-gate and token-permission controls are added.\n\u001b[90m4:10AM\u001b[0m \u001b[31mWRN\u001b[0m leaks found: 2\n\n\n--- RE-ATTESTATION 2026-07-21 (hash e4bc416b...) ---\nCodex security delta re-run: post-attestation delta (a46ab8e...HEAD) confirmed docs-only (one paragraph, review-gate.md); script reads JSON artifacts, not this markdown; no script/workflow/enforcement/CI/dependency/privilege/attack-surface changes. Findings: none.\n\n--- RE-ATTESTATION 3 2026-07-21 (owner-run Codex pass, 5 findings triaged) ---\nDelta since prior attestation: type-guard fix in review_gate.py (+2 tests), spec residual sharpening (skipped-check success mode + workflows/gate-script escalation rule + up-to-date-branches recommendation + findings[] canonicality), ship-v4 escalation entry (untracked). Full triage in the PR conversation.",
+  "findings": [
+    {
+      "id": "CXS1",
+      "summary": "review-gate job runs the PR-controlled copy of the enforcement script \u2014 a PR can weaken its own gate",
+      "severity_claimed": "high",
+      "validated": true,
+      "severity_validated": "medium",
+      "disposition": "fixed",
+      "reason": "Severity adjusted on validation: deliberate bypass is an accepted-by-design residual (spec: guards forgetting, not deception) and repo has two trusted committers; the accidental self-break class is real. Fixed regardless: CI runs the BASE branch's copy against the PR checkout as data (bootstrap fallback until this PR merges); residual (ci.yml job itself PR-controlled) recorded in spec."
+    },
+    {
+      "id": "CXS2",
+      "summary": "Gate job executes PR-head code with default token permissions and persisted checkout credentials",
+      "severity_claimed": "medium",
+      "validated": true,
+      "severity_validated": "medium",
+      "disposition": "fixed",
+      "reason": "permissions: contents:read + persist-credentials:false added to the job; workflow-wide hardening tracked as #127."
+    },
+    {
+      "id": "CXS3",
+      "summary": "PR can neuter its own gate job via ci.yml; skipped required checks report success (no red flag)",
+      "severity_claimed": "high",
+      "validated": true,
+      "severity_validated": "medium",
+      "disposition": "dismissed",
+      "reason": "First-party-only committers; org required-workflows unavailable on a personal repo. Control adopted: changes to .github/workflows/ or scripts/review_gate.py always escalate to the human (spec + ship-v4 escalation list). Severity per validated threat model: medium residual."
+    },
+    {
+      "id": "CXS4",
+      "summary": "Base-branch advance does not invalidate attestations (three-dot hash stable)",
+      "severity_claimed": "medium",
+      "validated": true,
+      "severity_validated": "medium",
+      "disposition": "dismissed",
+      "reason": "Deliberate stability trade-off. Deterministic jobs already test the prospective merge ref; serial merges + post-merge run compensate. Spec now recommends the 'require branches up to date' ruleset toggle, which mechanically restores staleness on base advance."
+    },
+    {
+      "id": "CXS5",
+      "summary": "raw_output prose can contradict the thresholded findings[] table",
+      "severity_claimed": "medium",
+      "validated": true,
+      "severity_validated": "low",
+      "disposition": "dismissed",
+      "reason": "Sub-case of the accepted genuineness residual: findings[] is canonical by design (now explicit in spec); raw_output exists so human spot-checks catch under-reporting. No trustworthy deterministic prose parser exists."
+    }
+  ]
+}

@@ -17,9 +17,13 @@ export interface TrendArrows {
   rem_minutes: string | null;
 }
 
+import type { EffectSize } from "./analysis";
+
 export interface TopFactor {
   label: string;
   pearson_r: number;
+  n_days: number;
+  effect: EffectSize | null;
 }
 
 export interface WeeklyReport {
@@ -34,14 +38,23 @@ export interface WeeklyReport {
   prior: MetricAverages;
   trends: TrendArrows;
   consistency: ConsistencyMetrics | null;
-  top_positive_factor: TopFactor | null;
-  top_negative_factor: TopFactor | null;
+  top_positive_factors: TopFactor[];
+  top_negative_factors: TopFactor[];
+  factors_total_days: number | null;
   has_insufficient_data: boolean;
 }
 
 export interface NightSummary {
   date: string;
   sleep_score: number;
+  /** #113 context fields — formatted backend-side; optional/nullable
+   * (NULL = not recorded). weekday e.g. "Tuesday", bedtime e.g. "11:42 PM". */
+  weekday?: string | null;
+  bedtime?: string | null;
+  total_sleep_minutes?: number | null;
+  deep_minutes?: number | null;
+  rem_minutes?: number | null;
+  avg_hrv?: number | null;
   contributing_factors: string[];
 }
 

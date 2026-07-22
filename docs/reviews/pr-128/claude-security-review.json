@@ -1,0 +1,36 @@
+{
+  "leg": "claude-security-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "fe46686167251185b5f34f97af7d3e4e147e327b72c93a785aad5b7fb6b6724c",
+  "reviewed_at": "2026-07-21",
+  "raw_output": "PR #128 review (Claude, Fable 5) \u2014 Group 2: Security\n\nLow \u2014 --base option-injection into git argv, no untrusted reach: a value beginning with \"-\" is parsed by git as an option. In CI the value is always prefixed origin/<base_ref> so it cannot start with \"-\"; locally only the operator sets it. Hardening: reject leading \"-\".\n\nLow \u2014 docs/reviews/ is a hash-exempt channel: a PR can rewrite PRIOR PRs' audit records without invalidating any attestation. Nothing under the path is executed or served; spec explicitly accepts non-genuine artifacts as out of scope \u2014 accepted residual.\n\nInfo \u2014 CI event model sound: plain pull_request (not pull_request_target); no secrets in the job; head-sha checkout is ordinary test-the-PR behavior; fork PRs get read-only token. No workflow-level permissions block \u2014 contents:read would be cheap hardening. Inherent limit: on pull_request the workflow file comes from the PR branch, so a PR can gut its own gate job while reporting green \u2014 human review of ci.yml diffs remains the control. Script reads only docs/reviews/pr-<int>/ (argparse type=int blocks traversal), writes nothing, no network.\n\nInfo \u2014 Threat model impact \"none to register\": agree. No app trust boundary (B1-B5) touched. Scope note: S603/S607 ignore is a blanket for all future scripts/** files.\n\n--- RE-ATTESTATION 2026-07-21 (hash e4bc416b...) ---\nDelta since prior attestation: docs/process/review-gate.md paragraph only. The gate script never parses the spec (docstring reference only; reads only docs/reviews/pr-<N>/*.json); CI job references it only in a comment. No enforcement, surface, or privilege change. Findings: none.\n\n--- RE-ATTESTATION 3 2026-07-21 (owner-run Codex pass, 5 findings triaged) ---\nDelta since prior attestation: type-guard fix in review_gate.py (+2 tests), spec residual sharpening (skipped-check success mode + workflows/gate-script escalation rule + up-to-date-branches recommendation + findings[] canonicality), ship-v4 escalation entry (untracked). Full triage in the PR conversation.",
+  "findings": [
+    {
+      "id": "CSR1",
+      "summary": "--base option-injection into git argv (no untrusted reach in CI)",
+      "severity_claimed": "low",
+      "validated": true,
+      "severity_validated": "low",
+      "disposition": "fixed",
+      "reason": "Leading-dash values rejected with SystemExit; test added."
+    },
+    {
+      "id": "CSR2",
+      "summary": "docs/reviews/ is hash-exempt \u2014 prior PRs' audit records rewritable without tripping staleness",
+      "severity_claimed": "low",
+      "validated": true,
+      "severity_validated": "low",
+      "disposition": "dismissed",
+      "reason": "Accepted residual, consistent with the spec's guards-forgetting-not-deception scope; git history + human spot-checks protect audit records. Recorded in spec."
+    },
+    {
+      "id": "CSR3",
+      "summary": "No workflow permissions block; checkout persists credentials",
+      "severity_claimed": "info",
+      "validated": true,
+      "severity_validated": "info",
+      "disposition": "fixed",
+      "reason": "review-gate job now runs contents:read + persist-credentials:false; workflow-wide sweep tracked as #127."
+    }
+  ]
+}

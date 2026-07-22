@@ -1,0 +1,8 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "26a180b8397d2d4b06b0b5511452b3b893ffa453e41d3d8a68537a82fb154478",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on feat/113-monthly-nights 7f332ab: 'All checks passed! The added night context is consistently propagated through the backend schema, monthly report payload, HTML export, and frontend component. Null handling, escaping, formatting, tests, type checks, and lint checks show no actionable regressions.' No findings.\n\n--- Post-review delta ---\nFix round commit 2d32e28: C1 fixed \u2014 label 'slept' -> 'bed' in _night_html and SPA nightDetails (both surfaces read e.g. 'bed 11:42 PM'); C3 fixed \u2014 _night_summary docstring softened to 'render the same fields' (SPA abbreviates weekday; avg_hrv rounding may differ at .5). Test sentinels hardened: null-fields sentinel is now re.search(r'bed \\d', html) is None \u2014 probed against real rendered HTML including the 'Pre-bed ritual' factor tag, which does NOT match, while the real label does. Delta scope: report_service.py, test_report_service.py, BestWorstNightsCard.tsx + test \u2014 all within the lane touch-set (BestWorstNightsCard substitution recorded in the wave plan). Post-fix verification: backend pytest 556 exit 0 (coverage 97.91%), mypy 0, ruff 0; frontend cold-cache lint 0, format:check 0, vitest 314/45 files exit 0, build 0.",
+  "findings": []
+}

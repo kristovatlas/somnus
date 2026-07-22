@@ -132,15 +132,16 @@ export function DailyLogPage() {
       .catch(() => {});
   }, []);
 
-  const caffeinePoints = useCaffeineDecay(
-    formData.caffeine_entries,
-    settings?.caffeine_sensitivity ?? "normal",
-  );
-
   const bedtimeHour = settings?.typical_bedtime
     ? Number(settings.typical_bedtime.split(":")[0]) +
       Number(settings.typical_bedtime.split(":")[1]) / 60
     : null;
+
+  const caffeinePoints = useCaffeineDecay(
+    formData.caffeine_entries,
+    settings?.caffeine_sensitivity ?? "normal",
+    bedtimeHour,
+  );
 
   const update = <K extends keyof DailyLogCreate>(
     key: K,

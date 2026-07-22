@@ -1,0 +1,18 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "0b652204c6a85de0fa25ca2be6e8366d4b2b557e6aac91db98ee577697cc113c",
+  "reviewed_at": "2026-07-21",
+  "raw_output": "The documentation itself is accurate, but the patch does not satisfy the required review gate it documents. Consequently, the PR's required CI check will fail.\n\nReview comment:\n\n- [P1] Add the required review artifacts for this PR \u2014 /workspaces/sleep-optimizer/README.md:52-54\n  This docs-only PR adds no `docs/reviews/pr-<N>/` artifacts relative to the base, so the required `review-gate` job will fail when it looks for the current PR's directory. Commit all four validated artifacts described here before merging.\n\n\n--- Post-review delta note ---\nAfter this leg's review, one wording fix landed (Claude F1/F2: 'required' -> 'enforced by', backticks -> markdown link) within the same 7-line section; attested hash covers the fixed text. Delta verified: same section, claims now accurate against the live ruleset.",
+  "findings": [
+    {
+      "id": "CXR1",
+      "summary": "PR lacks its own docs/reviews/pr-129/ artifacts \u2014 gate fails until they're committed",
+      "severity_claimed": "P1",
+      "validated": true,
+      "severity_validated": "P1",
+      "disposition": "fixed",
+      "reason": "The authoring-order condition every PR passes through; fixed by this artifacts commit (hash-exempt path, so the attestation stays valid)."
+    }
+  ]
+}

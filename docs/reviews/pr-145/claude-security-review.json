@@ -1,0 +1,8 @@
+{
+  "leg": "claude-security-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "719e87d629f8eb637b4148e9f696610207d37c3dddf608b5efc5b84a2bea6c50",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #145 security review (Claude, Fable 5). NO FINDINGS. Diff is computation (wrap constant + comments), one test, static JSX copy, one plan doc. git diff vs .github/scripts/pyproject/package json+lock EMPTY \u2014 no workflow/gate-script change (no auto-escalation), no dependency change (T-13 n/a). No new network reachability/endpoint/trust-boundary contact (B1-B5, T-01/T-02 untouched); Explainer change is static hardcoded JSX, report HTML sink untouched (T-04/T-12); no logging (T-16); no DB-path/token code (T-07/T-08). Threat model correctly unmodified \u2014 statistical semantics only. 'Threat model impact: None' accurate.\n\n--- Post-review delta ---\nFix round commit 845dbd4: P3 fixed (test docstring now names the 4 AM cutoff: 'Daytime times (>= 4 AM, the #142 cutoff) stay on the plain clock'); nit fixed (new aggregation-level test test_early_riser_coffee_loses_to_afternoon pins 5:00 AM raw + 14:00 -> last_caffeine_hour == 14.0, the pre-#142 spurious 29.0 winner). Delta scope: backend/tests/test_stats_engine.py only, within the lane touch-set. Post-fix verification: backend pytest 565 exit 0, mypy 0, ruff 0.",
+  "findings": []
+}

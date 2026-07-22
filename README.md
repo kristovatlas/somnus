@@ -14,7 +14,7 @@ All data stays on your machine. No cloud accounts, no telemetry.
 
 ## Requirements
 
-- Python 3.11+ (with `pip`; `make setup` installs a pinned [uv](https://github.com/astral-sh/uv) for the actual dependency install)
+- Python 3.11+ (no virtualenv needed up front — see the Python environment note below; `make setup` installs a pinned [uv](https://github.com/astral-sh/uv) for the actual dependency install)
 - Node.js **20.19+ (or 22.12+)** with **npm ≥ 11.10** — the frontend enforces both (`engine-strict`; vite requires the Node floor, and older npm silently ignores the supply-chain cooldown below, so the install hard-fails instead of degrading). Upgrade npm with the same pinned version CI uses:
 
   ```bash
@@ -26,9 +26,12 @@ All data stays on your machine. No cloud accounts, no telemetry.
 ```bash
 git clone <repo>
 cd somnus
-make setup    # Install Python + Node dependencies
-make dev      # Backend on :8000, frontend on :5173
+make setup                  # Install Python + Node dependencies
+source .venv/bin/activate   # If make setup created .venv for you (see note below)
+make dev                    # Backend on :8000, frontend on :5173
 ```
+
+**Python environment:** if no virtualenv is active when you run `make setup` (a stock macOS or Linux shell), it automatically creates a repo-local `.venv/` and installs the backend there — no manual `python3 -m venv` step needed. Activate it (`source .venv/bin/activate`) before running `make dev`, `make test`, or other Python-driven targets. If you already have a virtualenv active, it is used instead, exactly as before.
 
 Open http://localhost:5173 in your browser. The onboarding wizard walks you through initial setup. A fresh install needs no migration step — the first backend start creates the database schema and stamps it for future upgrades.
 
@@ -38,7 +41,7 @@ Open http://localhost:5173 in your browser. The onboarding wizard walks you thro
 
 | Command | What it does |
 |---------|-------------|
-| `make setup` | Install all dependencies (pip + npm) |
+| `make setup` | Install all dependencies (pip + npm); auto-creates `.venv/` when no virtualenv is active |
 | `make dev` | Apply pending DB migrations, then run backend + frontend in dev mode |
 | `make test` | Run all tests (pytest + vitest) |
 | `make lint` | Run all linters (ruff, mypy, eslint) |
@@ -46,6 +49,13 @@ Open http://localhost:5173 in your browser. The onboarding wizard walks you thro
 | `make migrate` | Apply pending DB migrations (Alembic) — needed after upgrading Somnus, not on a fresh install |
 | `make audit` | Run pip-audit + npm audit |
 | `make clean` | Remove caches and build artifacts |
+
+## Contributing / pull requests
+
+Every PR — including docs-only changes — must carry validated review
+artifacts under `docs/reviews/pr-<N>/`, enforced by the `review-gate` CI
+check. See [docs/process/review-gate.md](docs/process/review-gate.md) for
+the artifact format, thresholds, and authoring workflow.
 
 ## Stack
 

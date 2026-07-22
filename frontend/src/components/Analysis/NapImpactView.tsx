@@ -27,19 +27,25 @@ export function NapImpactView({ data }: NapImpactViewProps) {
     <div className="analysis-card analysis-card-wide" data-testid="nap-impact">
       <h3 className="analysis-card-title">Nap Impact</h3>
       <p className="analysis-card-subtitle">
-        How naps are associated with next-night sleep onset latency
+        How naps are associated with the following night&apos;s sleep — the
+        baseline is your average on days with no nap
       </p>
 
       <div className="nap-baseline">
-        <span>No-nap baseline ({data.total_no_nap_days} days):</span>
+        <span>
+          No-nap baseline ({data.total_no_nap_days}{" "}
+          {data.total_no_nap_days === 1 ? "day" : "days"}):
+        </span>
         {data.no_nap_baseline.avg_onset_latency != null && (
           <span>
-            onset {data.no_nap_baseline.avg_onset_latency.toFixed(0)} min
+            fell asleep in {data.no_nap_baseline.avg_onset_latency.toFixed(0)}{" "}
+            min
           </span>
         )}
         {data.no_nap_baseline.avg_efficiency != null && (
           <span>
-            eff {(data.no_nap_baseline.avg_efficiency * 100).toFixed(0)}%
+            {(data.no_nap_baseline.avg_efficiency * 100).toFixed(0)}% sleep
+            efficiency
           </span>
         )}
       </div>
@@ -51,7 +57,7 @@ export function NapImpactView({ data }: NapImpactViewProps) {
               <th>Timing</th>
               <th>Duration</th>
               <th>Days</th>
-              <th>Onset Δ</th>
+              <th>Onset change</th>
             </tr>
           </thead>
           <tbody>

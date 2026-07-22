@@ -1,0 +1,8 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "54d4a7f3c02c5abc10eb6c131cd3334d45c7627bd3641046510f618516707be7",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on fix/143-rating-display d74e4b3: 'The display mapping is applied consistently to all weekly consistency ratings while preserving HTML escaping. The focused test suite passed all 62 tests; its command failed only because running one test file did not meet the repository-wide coverage threshold.' No findings (the coverage FAIL is the repo-wide gate tripping on a filtered run; the full suite runs at 98%+).\n\n--- Post-review delta ---\nFix round commit 7fccf6a: P2 fixed \u2014 third mini-report pushes a synthetic underscore value (drift_rating='somewhat_inconsistent'; the renderer doesn't validate vocabulary membership) through the drift cell alone (sigma/delta render 'consistent'/'on target' so the mapped needle can only come from the drift cell). Mutation-verified by the orchestrator: dropping _rating_label at the drift call site now FAILS the test; restored, 3/3 rating tests pass. Nit dispositioned dismissed (order-swap benign: map output introduces no HTML metacharacters, escaped entities contain no underscores). Delta scope: backend/tests/test_report_service.py only. Post-fix verification: full backend pytest exit 0, mypy 0, ruff 0.",
+  "findings": []
+}

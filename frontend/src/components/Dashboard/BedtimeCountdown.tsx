@@ -5,7 +5,7 @@ import { computeBedtimeStatus, parseTime } from "../../bedtime";
 /** #58: bedtime-target countdown (PLAN §6).
  *
  * Target priority: the analysis engine's optimal-bedtime window (≥50 days
- * of data) → the user's typical bedtime → nothing (card hidden). The
+ * of data) → the user's target bedtime → nothing (card hidden). The
  * status line re-computes every 30s while the dashboard is open.
  */
 

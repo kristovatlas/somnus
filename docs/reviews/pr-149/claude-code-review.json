@@ -1,0 +1,18 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "f4affad340abdc89a3f1d1c237157b231a408482d35c530b566b979b8db308f1",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #149 review (Claude, Fable 5), docs/v011-acceptance-addendum 3743457 vs origin/dev. Diff verified docs-only: exactly docs/releases/v0.1.1-acceptance.md. FINDINGS: none at P1/P2/P3; one nit (item 7's skip entry names the #135 wrapBedtimeHour tests without enumerating them \u2014 reference accurate and resolvable, no action). VERIFIED CLEAN: change exactly as described (adds QA item 7; removes the caffeine-labels entry moved to item 7 AND the duplicated target-hints entry \u2014 fixing a pre-existing internal contradiction on dev in the correct direction); no item both verified and not-exercised post-change; numbering sequential; referenced wrapBedtimeHour regression tests exist on dev (caffeineCalc.test.ts:95-104, wrap + no-wrap cases); no unshipped-behavior claims (axis labels shipped via merged #135; tests verified present); issue/PR pairs spot-checked via gh (#106/#135 closed/merged, #143/#146 closed/merged, #102/#125 in dev history, #37+#38/#141 both correct).\n\n--- Post-review delta ---\nBranch advanced during review (all docs-only, same single file): 3743457 (item 7, Claude leg's reviewed tip) -> cd9d3d8 (items 8 Top Factors verified + floor semantics, 9 venv skipped; Codex security's reviewed tip) -> 78553ec (tie-break finding updated: owner decided sort score/total-sleep/deep/REM, deferred to v0.1.2 as #150). Every delta commit is QA-record narrative in docs/releases/v0.1.1-acceptance.md \u2014 the same content class both legs reviewed; no code, workflow, or gate-script files on the branch at any point.",
+  "findings": [
+    {
+      "id": "N1",
+      "summary": "Item 7 references the #135 regression tests without enumerating them (less self-contained than item 3's precedent)",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "reference accurate and resolvable; reviewer's own judgment: no action required"
+    }
+  ]
+}

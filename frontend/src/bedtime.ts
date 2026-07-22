@@ -48,11 +48,14 @@ export function computeBedtimeStatus(
   const sourceLabel =
     source === "optimal"
       ? `optimal window ${fmtClock(startHour)}–${fmtClock(endHour ?? startHour)}`
-      : `typical bedtime ${fmtClock(startHour)}`;
+      : `target bedtime ${fmtClock(startHour)}`;
 
   if (sinceStart <= windowLen) {
     return {
-      label: source === "optimal" ? "Bedtime window is open" : "It's bedtime",
+      label:
+        source === "optimal"
+          ? "You're in your optimal bedtime window"
+          : "It's bedtime",
       detail: sourceLabel,
     };
   }

@@ -1,4 +1,10 @@
-import type { CaffeinePoint } from "./caffeineCalc";
+import {
+  curveEndHour,
+  formatClockLabel,
+  mgAtHour,
+  wrapBedtimeHour,
+  type CaffeinePoint,
+} from "./caffeineCalc";
 import "./CaffeineChart.css";
 
 interface CaffeineChartProps {
@@ -15,9 +21,16 @@ const CHART_H = HEIGHT - PADDING.top - PADDING.bottom;
 export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
   if (points.length === 0) return null;
 
+  // After-midnight bedtimes (e.g. 00:30 → 0.5) live on the evening scale:
+  // wrap to 24+ (mirroring the backend) and extend the x-domain past 24 so
+  // the marker sits inside the plot over a curve that reaches it.
+  const wrappedBedtime =
+    bedtimeHour != null ? wrapBedtimeHour(bedtimeHour) : null;
+  const maxHour = curveEndHour(bedtimeHour);
+
   const maxMg = Math.max(100, ...points.map((p) => p.mg));
 
-  const x = (hour: number) => PADDING.left + (hour / 24) * CHART_W;
+  const x = (hour: number) => PADDING.left + (hour / maxHour) * CHART_W;
   const y = (mg: number) => PADDING.top + CHART_H - (mg / maxMg) * CHART_H;
 
   const polyline = points.map((p) => `${x(p.hour)},${y(p.mg)}`).join(" ");
@@ -75,16 +88,31 @@ export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
         )}
 
         {/* Bedtime marker */}
-        {bedtimeHour != null && (
-          <line
-            x1={x(bedtimeHour)}
-            y1={PADDING.top}
-            x2={x(bedtimeHour)}
-            y2={PADDING.top + CHART_H}
-            stroke="var(--color-error)"
-            strokeWidth="1.5"
-            strokeDasharray="6 3"
-          />
+        {wrappedBedtime != null && (
+          <>
+            <line
+              x1={x(wrappedBedtime)}
+              y1={PADDING.top}
+              x2={x(wrappedBedtime)}
+              y2={PADDING.top + CHART_H}
+              stroke="var(--color-error)"
+              strokeWidth="1.5"
+              strokeDasharray="6 3"
+            />
+            <text
+              x={
+                wrappedBedtime > 18
+                  ? x(wrappedBedtime) - 4
+                  : x(wrappedBedtime) + 4
+              }
+              y={PADDING.top + 10}
+              textAnchor={wrappedBedtime > 18 ? "end" : "start"}
+              fill="var(--color-error)"
+              fontSize="10"
+            >
+              {`Bedtime ${formatClockLabel(wrappedBedtime)}`}
+            </text>
+          </>
         )}
 
         {/* Decay curve */}
@@ -115,7 +143,7 @@ export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
           </text>
         ))}
 
-        {/* Y-axis label */}
+        {/* Y-axis labels */}
         <text
           x={PADDING.left - 4}
           y={PADDING.top + 4}
@@ -125,7 +153,21 @@ export function CaffeineChart({ points, bedtimeHour }: CaffeineChartProps) {
         >
           {Math.round(maxMg)}mg
         </text>
+        <text
+          x={PADDING.left - 4}
+          y={PADDING.top + CHART_H + 4}
+          textAnchor="end"
+          fill="var(--color-text-muted)"
+          fontSize="10"
+        >
+          0mg
+        </text>
       </svg>
+      {wrappedBedtime != null && (
+        <p className="caffeine-chart-bedtime-callout">
+          {`≈${Math.round(mgAtHour(points, wrappedBedtime))} mg at bedtime`}
+        </p>
+      )}
     </div>
   );
 }

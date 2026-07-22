@@ -1,0 +1,54 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "5efbc0b3499d6b23b34d839dc4374a10a001e77c67039eb76f0bcd6862e5eb38",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #140 review (Claude, Fable 5), fix/134-evening-clock df20e41 vs origin/dev. Verification in scratch worktree, exit codes: backend pytest 556 exit 0 (coverage 95.44%), frontend vitest 311/44 files exit 0, build 0, cold-cache eslint 0, format:check 0, ruff 0, mypy 0. FINDINGS: P3-1 \u2014 recommender formats wrapped column means as clock times ('around {avg:.0f}:00' in reference_data for last_caffeine_hour/last_meal_hour via recommender.py:165): after-midnight-heavy users get 'around 25:00'; marginally pre-existing, widened by the wrap (which otherwise IMPROVES threshold logic \u2014 00:30 caffeine now correctly past the 14:00 cutoff). P3-2 \u2014 early-morning misclassification undocumented: 5 AM espresso wraps to 29.0 and beats afternoon entries as the day's 'last'; defensible (matches bedtime convention, after-midnight tail is the common case) but the docstring said 'an evening event time' while applied to all times. P3-3 \u2014 no test pinned the 6 AM boundary (5:59 vs 6:00). P3-4 \u2014 wave-1 report said milestone '15 closed / 6 open'; actual enumeration 13 closed / 9 open. NIT \u2014 cutoff 6 is a magic literal in 4 places (dashboard_service, stats_engine, caffeineCalc.ts, ConsistencyMeter.tsx); consistent today, cross-referenced; shared constant would unify only the 2 Python sites \u2014 acceptable, extract if #117 adds more evening-clock code. VERIFIED CLEAN: wrap-before-max in every branch (caffeine comprehension, is_last_meal direct + fallback max over wrapped, stimulating end_time; no branch compares raw hours; sunlight_first_hour untouched and its <12 morning filter unaffected); regression tests discriminate BY MUTATION (reverting the 4 call sites to _time_to_hour fails all 5 aggregation tests incl. the end-to-end sign-flip; the render-effects unit test discriminates the suppression removal instead \u2014 both halves pinned); _UNNORMALIZED_CLOCK fully removed (zero code refs; remaining hits are historical pr-132 artifacts + plan prose); _fmt_clock handles 24+ (%24, midnight-straddling cutoff label tested); sigma_7d/delta_7d use only bedtime_hour.\n\n--- Post-review delta ---\nFix round commit b2679aa: P3-1 fixed (recommender folds evening-clock column means onto 0-24 via _EVENING_CLOCK_COLUMNS + avg % 24 at the single format site; test pins avg=25.0 -> 'around 1:00', not '25:00'). P3-2 fixed (docstring: input is 'an event time', heuristic caveat for genuine early-morning events, tradeoff tracked in #142). P3-3 fixed (boundary test: 5:59 -> ~29.983, 6:00 -> 6.0). P3-4 fixed (wave-1 report: 'Milestone at wave close: 13 closed / 9 open', recounted via gh, wave closed exactly #17/#105/#106/#108/#112). SCOPE OVERFLOW RECORDED: backend/services/recommender.py + backend/tests/test_recommender.py were not in lane 1's predicted touch-set; touched to fix the 'around 25:00' downstream consumer of the wrapped columns (noted in the commit message per the ship touch-set gate). Post-fix verification: backend pytest 558 passed exit 0 (coverage 98.01%), mypy 0, ruff 0; frontend untouched by the fix round.",
+  "findings": [
+    {
+      "id": "P3-1",
+      "summary": "Recommender renders wrapped averages as bogus clock times ('around 25:00')",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "avg % 24 fold for evening-clock columns at the single format site + regression test (b2679aa); recorded scope overflow"
+    },
+    {
+      "id": "P3-2",
+      "summary": "Early-morning misclassification semantics undocumented; docstring overstated input as 'evening event time'",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "docstring caveat + accurate input description; tradeoff tracked in #142 (b2679aa)"
+    },
+    {
+      "id": "P3-3",
+      "summary": "No test pins the 6 AM wrap boundary",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "boundary test 5:59->29.983 / 6:00->6.0 (b2679aa)"
+    },
+    {
+      "id": "P3-4",
+      "summary": "Wave-1 report milestone count wrong (said 15/6, actual 13/9)",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "recounted via gh and corrected with precise phrasing (b2679aa)"
+    },
+    {
+      "id": "N1",
+      "summary": "Evening-clock cutoff 6 is a magic literal in 4 places (2 Python, 2 TS)",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "all consistent + cross-referenced in docstrings; a shared constant unifies only the Python half; extract when #117 adds more evening-clock code"
+    }
+  ]
+}

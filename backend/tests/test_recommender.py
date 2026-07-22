@@ -1,11 +1,12 @@
 """Tests for the recommendation engine service."""
 
 import datetime as dt
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 from sqlalchemy.orm import Session
 
 from backend.models import (
@@ -249,6 +250,21 @@ class TestScienceThresholdRecs:
 
         caffeine_hour_recs = [r for r in recs if r["factor"] == "last_caffeine_hour"]
         assert len(caffeine_hour_recs) == 0
+
+    def test_evening_clock_avg_folds_onto_24h_clock(self) -> None:
+        """#134 review: a wrapped evening-clock average (25.0 = 1 AM on the
+        24+ clock) renders as "around 1:00" in the rec body, not "around
+        25:00"."""
+        n = 14
+        df = pd.DataFrame({"last_caffeine_hour": [25.0] * n})
+        df.index = pd.date_range("2025-01-01", periods=n)
+        df.index.name = "date"
+
+        recs = _science_threshold_recs(df)
+        caffeine_recs = [r for r in recs if r["factor"] == "last_caffeine_hour"]
+        assert len(caffeine_recs) == 1
+        assert "around 1:00" in caffeine_recs[0]["body"]
+        assert "25:00" not in caffeine_recs[0]["body"]
 
     def test_insufficient_recent_data_skipped(self, db: Session) -> None:
         """Less than 7 recent days should skip the threshold."""
@@ -622,3 +638,80 @@ class TestGetActiveExperiment:
         results = list_experiments(db)
         assert len(results) == 1
         assert results[0]["status"] == ExperimentStatus.COMPLETED
+
+
+# --- #101: p formatting, per-outcome titles, dashboard factor-dedupe ---
+
+
+def test_fmt_p_never_prints_zero() -> None:
+    from backend.services.recommender import _fmt_p
+
+    assert _fmt_p(0.0002) == "p<0.001"
+    assert _fmt_p(0.0009) == "p<0.001"
+    assert _fmt_p(0.001) == "p=0.001"
+    assert _fmt_p(0.012) == "p=0.012"
+
+
+def test_top_recommendations_dedupe_by_factor(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The dashboard widget must not list the same factor twice (#101 —
+    dogfood day 1 showed 'Bedtime (hour)' twice)."""
+    from backend.services import recommender
+
+    fake = {
+        "has_sufficient_data": True,
+        "recommendations": [
+            {
+                "id": "data_driven:bedtime_hour:sleep_score",
+                "title": "Bedtime (hour) → Sleep Score",
+                "factor": "bedtime_hour",
+                "factor_label": "Bedtime (hour)",
+                "category": "data_driven",
+            },
+            {
+                "id": "data_driven:bedtime_hour:rem_minutes",
+                "title": "Bedtime (hour) → REM Sleep (min)",
+                "factor": "bedtime_hour",
+                "factor_label": "Bedtime (hour)",
+                "category": "data_driven",
+            },
+            {
+                "id": "science:morning_sunlight",
+                "title": "Try tracking morning sunlight",
+                "factor": "sunlight_lux",
+                "factor_label": "Morning sunlight",
+                "category": "science",
+            },
+            {
+                "id": "timing:bedtime_hour",
+                "title": "Consistent bedtime",
+                "factor": "bedtime_hour",
+                "factor_label": "Bedtime (hour)",
+                "category": "timing",
+            },
+        ],
+    }
+    monkeypatch.setattr(recommender, "generate_recommendations", lambda db: fake)
+    # generate_recommendations is stubbed, so the session is never touched
+    top = recommender.get_top_recommendations(cast(Session, None), limit=3)
+    # The two data-driven bedtime recs collapse to one factor-labeled entry;
+    # science/timing recs KEEP their actionable titles and are not suppressed
+    # by the same-factor data-driven rec (PR #124 review).
+    assert [r["title"] for r in top] == [
+        "Bedtime (hour)",
+        "Try tracking morning sunlight",
+        "Consistent bedtime",
+    ]
+    assert len({r["id"] for r in top}) == 3
+
+
+def test_data_driven_titles_include_outcome(db: Session) -> None:
+    """Per-outcome recs must be distinguishable on the full page (#101)."""
+    from backend.services.recommender import generate_recommendations
+
+    _seed_full_data(db)
+    result = generate_recommendations(db)
+    dd = [r for r in result["recommendations"] if r["category"] == "data_driven"]
+    assert dd, "seed produced no data-driven recs — test would be vacuous"
+    for rec in dd:
+        assert "→" in rec["title"], rec["title"]
+        assert rec["outcome_label"] in rec["title"]

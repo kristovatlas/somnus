@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 
+import pytest
 from sqlalchemy.orm import Session
 
 from backend.models import (
@@ -21,6 +23,7 @@ from backend.services.report_service import (
     _compute_trend_arrows,
     _get_contributing_factors,
     _month_date_range,
+    _rating_label,
     _week_date_range,
     _weeks_in_month,
     get_month_report,
@@ -453,6 +456,54 @@ class TestMonthlyReport:
         assert report["best_night"] is not None
         assert report["worst_night"] is not None
 
+    def test_best_worst_night_context(self, db: Session) -> None:
+        """#113: best/worst carry weekday, sleep start, duration, deep/REM/HRV."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 2 + i), sleep_score=75))
+        db.add(
+            SleepRecord(
+                date=dt.date(2026, 2, 10),  # a Tuesday
+                sleep_score=95,
+                bedtime=dt.datetime(2026, 2, 9, 23, 42),
+                total_sleep_minutes=458,
+                deep_minutes=71,
+                rem_minutes=96,
+                avg_hrv=44.4,
+            )
+        )
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        best = report["best_night"]
+        assert best["weekday"] == "Tuesday"
+        assert best["bedtime"] == "11:42 PM"
+        assert best["total_sleep_minutes"] == 458
+        assert best["deep_minutes"] == 71
+        assert best["rem_minutes"] == 96
+        assert best["avg_hrv"] == 44.4
+
+    def test_best_worst_night_context_null_fields(self, db: Session) -> None:
+        """#113 + ADR 003: unrecorded metrics stay None, never fabricated."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 1 + i), sleep_score=60 + i))
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        worst = report["worst_night"]
+        assert worst["weekday"] == "Sunday"  # 2026-02-01
+        assert worst["bedtime"] is None
+        assert worst["total_sleep_minutes"] is None
+        assert worst["deep_minutes"] is None
+        assert worst["rem_minutes"] is None
+        assert worst["avg_hrv"] is None
+
+    def test_bedtime_formats_across_midnight_boundaries(self, db: Session) -> None:
+        """12-hour clock edge cases: midnight and noon."""
+        from backend.services.report_service import _fmt_clock_12h
+
+        assert _fmt_clock_12h(dt.datetime(2026, 2, 10, 0, 5)) == "12:05 AM"
+        assert _fmt_clock_12h(dt.datetime(2026, 2, 10, 12, 0)) == "12:00 PM"
+        assert _fmt_clock_12h(dt.datetime(2026, 2, 9, 22, 7)) == "10:07 PM"
+        assert _fmt_clock_12h(None) is None
+
 
 # ---------------------------------------------------------------------------
 # HTML rendering
@@ -494,6 +545,212 @@ class TestHTMLRendering:
         report = get_week_report(db, 2026, 8, today=dt.date(2026, 2, 19))
         html = render_weekly_html(report)
         assert "Insufficient data" in html
+
+    def test_monthly_html_night_context(self, db: Session) -> None:
+        """#113 export parity: the same night enrichment the SPA card shows."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 2 + i), sleep_score=75))
+        db.add(
+            SleepRecord(
+                date=dt.date(2026, 2, 10),
+                sleep_score=95,
+                bedtime=dt.datetime(2026, 2, 9, 23, 42),
+                total_sleep_minutes=458,
+                deep_minutes=71,
+                rem_minutes=96,
+                avg_hrv=44.4,
+            )
+        )
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        html = render_monthly_html(report)
+        assert "Tuesday, 2026-02-10" in html
+        assert "bed 11:42 PM" in html
+        assert "7h 38m" in html
+        assert "deep 71m" in html
+        assert "REM 96m" in html
+        assert "HRV 44" in html
+
+    def test_monthly_html_night_context_null_fields_graceful(self, db: Session) -> None:
+        """A night with no bedtime/stages/HRV renders without 'None' leakage."""
+        for i in range(4):
+            db.add(SleepRecord(date=dt.date(2026, 2, 1 + i), sleep_score=60 + i))
+        db.commit()
+        report = get_month_report(db, 2026, 2, today=dt.date(2026, 2, 19))
+        html = render_monthly_html(report)
+        assert "Best Night" in html and "Worst Night" in html
+        assert "Sunday, 2026-02-01" in html  # weekday always present
+        assert "None" not in html
+        # No detail line at all when nothing beyond date/score was recorded.
+        # The "bed <clock>" label needs a digit-anchored needle: bare "bed"
+        # would false-positive on "Pre-bed ritual" factor tags or "Bedtime"
+        # headings elsewhere in report HTML. "HRV " (trailing space) only
+        # appears in the detail line; metric tables use bare "HRV" cells.
+        assert re.search(r"bed \d", html) is None
+        assert "HRV " not in html
+
+    def test_weekly_html_factor_slope_phrase(self) -> None:
+        """#17 export parity: factor items carry the compact slope phrase
+        the SPA's TopFactorsCard shows, when an effect exists."""
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {
+                    "label": "Exercise Duration (min)",
+                    "pearson_r": 0.5,
+                    "n_days": 30,
+                    "effect": {
+                        "value": 1.8,
+                        "increment_label": "30 min",
+                        "outcome_unit": "points",
+                    },
+                }
+            ],
+            top_negative_factors=[
+                {
+                    "label": "Bedtime (hour)",
+                    "pearson_r": -0.62,
+                    "n_days": 44,
+                    "effect": {
+                        "value": -2.3,
+                        "increment_label": "hour later",
+                        "outcome_unit": "points",
+                    },
+                }
+            ],
+            factors_total_days=44,
+        )
+        html = render_weekly_html(report)
+        assert "&#8776;1.8 points higher per 30 min" in html
+        assert "&#8776;2.3 points lower per hour later" in html
+        assert "(r=0.50, n=30)" in html
+        assert "(r=-0.62, n=44)" in html
+
+    def test_weekly_html_factor_magnitude_mirrors_spa(self) -> None:
+        """One decimal below 10, integer at/above — same as fmtMagnitude."""
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {
+                    "label": "A",
+                    "pearson_r": 0.5,
+                    "n_days": 30,
+                    "effect": {"value": 2.34, "increment_label": "u", "outcome_unit": "points"},
+                },
+                {
+                    "label": "B",
+                    "pearson_r": 0.4,
+                    "n_days": 30,
+                    "effect": {"value": 12.34, "increment_label": "u", "outcome_unit": "min"},
+                },
+            ],
+            top_negative_factors=[],
+            factors_total_days=40,
+        )
+        html = render_weekly_html(report)
+        assert "&#8776;2.3 points" in html
+        assert "&#8776;12 min" in html
+        assert "2.34" not in html and "12.34" not in html
+
+    def test_weekly_html_factor_phrase_suppressed_below_floor(self) -> None:
+        """Same 0.05 display floor as the SPA: a magnitude that would show as
+        0.0 renders no slope phrase, just the label and stats."""
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {
+                    "label": "Naps",
+                    "pearson_r": 0.12,
+                    "n_days": 30,
+                    "effect": {
+                        "value": 0.04,
+                        "increment_label": "30 min",
+                        "outcome_unit": "points",
+                    },
+                }
+            ],
+            top_negative_factors=[],
+            factors_total_days=30,
+        )
+        html = render_weekly_html(report)
+        assert "&#8776;" not in html
+        assert "<strong>Naps</strong> (r=0.12, n=30)" in html
+
+    def test_weekly_html_rating_column_display_maps_band_values(self) -> None:
+        """#143: the Rating column shows display labels, never raw enum values.
+
+        Underscores become spaces; ``drifting`` renders as "off target"
+        (owner's word pick) so "drift" stays reserved for the Weekend Drift
+        row. Needles are anchored on the rendered ``<td>…</td>`` cell so a
+        substring elsewhere in the page can't false-positive.
+        """
+        report = _minimal_weekly_report(
+            consistency={
+                "sigma_minutes": 45.0,
+                "sigma_rating": "somewhat_inconsistent",
+                "delta_minutes": 20.0,
+                "delta_rating": "on_target",
+                "weekend_drift_minutes": 5.0,
+                "drift_rating": "minimal",
+            }
+        )
+        html = render_weekly_html(report)
+        assert "<td>somewhat inconsistent</td>" in html
+        assert "<td>on target</td>" in html
+        assert "<td>minimal</td>" in html
+        assert "somewhat_inconsistent" not in html
+        assert "on_target" not in html
+
+        report = _minimal_weekly_report(
+            consistency={
+                "sigma_minutes": 20.0,
+                "sigma_rating": "consistent",
+                "delta_minutes": 45.0,
+                "delta_rating": "drifting",
+                "weekend_drift_minutes": 35.0,
+                "drift_rating": "moderate",
+            }
+        )
+        html = render_weekly_html(report)
+        assert "<td>off target</td>" in html
+        assert "<td>drifting</td>" not in html
+        # "drifting" never renders as a cell; the Weekend Drift row label is
+        # the only legitimate "drift" text left on the page.
+        assert "drifting" not in html
+        assert "Weekend Drift" in html
+
+        # Discriminate the DRIFT cell specifically (PR #146 review, P2):
+        # every real drift band value (minimal/moderate/significant) is
+        # identity under the map, so the two reports above cannot detect a
+        # dropped _rating_label at that one call site. The renderer doesn't
+        # validate vocabulary membership, so push a synthetic underscore
+        # value through the drift cell alone — sigma/delta here render
+        # "consistent"/"on target", so the mapped needle can only come from
+        # the drift cell.
+        report = _minimal_weekly_report(
+            consistency={
+                "sigma_minutes": 20.0,
+                "sigma_rating": "consistent",
+                "delta_minutes": 20.0,
+                "delta_rating": "on_target",
+                "weekend_drift_minutes": 35.0,
+                "drift_rating": "somewhat_inconsistent",
+            }
+        )
+        html = render_weekly_html(report)
+        assert "<td>somewhat inconsistent</td>" in html
+        assert "somewhat_inconsistent" not in html
+
+    def test_rating_label_covers_every_band_value(self) -> None:
+        """#143: every value rate_sigma/rate_delta/rate_drift can emit maps
+        sensibly — only ``drifting`` gets a word swap, the rest are
+        underscore→space (identity for single words)."""
+        assert _rating_label("consistent") == "consistent"
+        assert _rating_label("somewhat_inconsistent") == "somewhat inconsistent"
+        assert _rating_label("erratic") == "erratic"
+        assert _rating_label("on_target") == "on target"
+        assert _rating_label("drifting") == "off target"
+        assert _rating_label("misaligned") == "misaligned"
+        assert _rating_label("minimal") == "minimal"
+        assert _rating_label("moderate") == "moderate"
+        assert _rating_label("significant") == "significant"
 
 
 # ---------------------------------------------------------------------------
@@ -577,14 +834,57 @@ class TestHTMLEscaping:
         assert _XSS not in html
         assert "&lt;script&gt;" in html
 
+    def test_monthly_escapes_night_context_fields(self) -> None:
+        """#113 added weekday/bedtime string holes; both are backend-generated
+        today, but the invariant says every non-numeric hole goes through
+        _esc anyway."""
+        report = _minimal_monthly_report(
+            best_night={
+                "date": dt.date(2026, 2, 3),
+                "sleep_score": 90,
+                "weekday": _XSS,
+                "bedtime": _XSS,
+                "total_sleep_minutes": 458,
+                "deep_minutes": 71,
+                "rem_minutes": 96,
+                "avg_hrv": 44.4,
+                "contributing_factors": [],
+            }
+        )
+        html = render_monthly_html(report)
+        assert _XSS not in html
+        # weekday + bedtime
+        assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 2
+
     def test_weekly_escapes_factor_label(self) -> None:
         report = _minimal_weekly_report(
-            top_positive_factor={"label": _XSS, "pearson_r": 0.5},
-            top_negative_factor={"label": _XSS, "pearson_r": -0.5},
+            top_positive_factors=[{"label": _XSS, "pearson_r": 0.5, "n_days": 20}],
+            top_negative_factors=[{"label": _XSS, "pearson_r": -0.5, "n_days": 20}],
+            factors_total_days=30,
         )
         html = render_weekly_html(report)
         assert _XSS not in html
         assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 2
+        assert "across all 30 days" in html
+
+    def test_weekly_escapes_factor_effect_fields(self) -> None:
+        """The #17 slope phrase interpolates increment_label and outcome_unit;
+        both are code constants today, but the invariant says every non-numeric
+        hole goes through _esc anyway."""
+        evil_effect = {"value": -2.3, "increment_label": _XSS, "outcome_unit": _XSS}
+        report = _minimal_weekly_report(
+            top_positive_factors=[
+                {"label": "Exercise", "pearson_r": 0.5, "n_days": 20, "effect": dict(evil_effect)}
+            ],
+            top_negative_factors=[
+                {"label": "Caffeine", "pearson_r": -0.5, "n_days": 20, "effect": dict(evil_effect)}
+            ],
+            factors_total_days=30,
+        )
+        html = render_weekly_html(report)
+        assert _XSS not in html
+        # 2 factors x (increment_label + outcome_unit)
+        assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;") == 4
 
     def test_weekly_escapes_consistency_ratings(self) -> None:
         report = _minimal_weekly_report(
@@ -612,3 +912,68 @@ class TestHTMLEscaping:
         html = render_monthly_html(report)
         assert "Caffeine (mg)" in html
         assert "Less caffeine → deeper sleep &amp; higher HRV" in html
+
+
+# ---------------------------------------------------------------------------
+# #102: top factors — top-3 per direction, noise floor, all-time caption data
+# ---------------------------------------------------------------------------
+
+
+class TestGetTopFactors:
+    def _fake_results(self) -> list[dict[str, object]]:
+        def corr(pred: str, r: float, n: int = 30) -> dict[str, object]:
+            return {
+                "predictor": pred,
+                "outcome": "sleep_score",
+                "pearson_r": r,
+                "n_days": n,
+                "effect": {"value": r * 5, "increment_label": "unit", "outcome_unit": "points"},
+            }
+
+        return [
+            corr("sunlight_lux", 0.42),
+            corr("exercise_minutes", 0.31),
+            corr("sauna_minutes", 0.18),
+            corr("warm_shower", 0.12),  # 4th positive — must be cut at 3
+            corr("meals_count", 0.04),  # below the 0.1 noise floor
+            corr("bedtime_hour", -0.32),
+            corr("alcohol_drinks", -0.21),
+            corr("caffeine_mg", -0.09),  # below the noise floor
+            {"predictor": "x", "outcome": "deep_minutes", "pearson_r": 0.9, "n_days": 30},
+        ]
+
+    def test_top3_noise_filtered_with_total(
+        self, db: Session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import pandas as pd
+
+        from backend.services import report_service
+
+        monkeypatch.setattr(
+            "backend.services.stats_engine.prepare_analysis_dataframe",
+            lambda _db: pd.DataFrame({"sleep_score": range(45)}),
+        )
+        monkeypatch.setattr(
+            "backend.services.stats_engine.compute_correlations",
+            lambda _df: (self._fake_results(), 0),
+        )
+        pos, neg, total = report_service._get_top_factors(db)
+        assert total == 45
+        assert [f["pearson_r"] for f in pos] == [0.42, 0.31, 0.18]  # capped at 3
+        assert [f["pearson_r"] for f in neg] == [-0.32, -0.21]  # floor cuts -0.09
+        assert all("n_days" in f and "label" in f for f in pos + neg)
+        # #17: the natural-units effect passes through to the card
+        assert all(f["effect"] is not None for f in pos + neg)
+        # the deep_minutes outcome result never leaks into a sleep-score card
+        assert not any(f["pearson_r"] == 0.9 for f in pos)
+
+    def test_empty_dataframe(self, db: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+        import pandas as pd
+
+        monkeypatch.setattr(
+            "backend.services.stats_engine.prepare_analysis_dataframe",
+            lambda _db: pd.DataFrame(),
+        )
+        from backend.services import report_service
+
+        assert report_service._get_top_factors(db) == ([], [], 0)

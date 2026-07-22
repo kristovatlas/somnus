@@ -1,0 +1,8 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "354def458d6f69d8a8f418aef0fab321d12ffdb8ad01bc2912dc537e6ab97b9d",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "}\nfrontend/src/components/Recommendations/RecommendationsPage.test.tsx:39:      body: \"Your average last caffeine intake is around 16:00, which is after the commonly recommended 2 PM cutoff.\",\n\ncodex\nThe copy changes are consistent with the underlying bedtime and seven-day red-light calculations. Updated tests pass, and the frontend production build succeeds.\nThe copy changes are consistent with the underlying bedtime and seven-day red-light calculations. Updated tests pass, and the frontend production build succeeds.\n",
+  "findings": []
+}

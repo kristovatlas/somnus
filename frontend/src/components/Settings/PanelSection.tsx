@@ -5,6 +5,7 @@ import type {
   RedLightPanelCreate,
 } from "../../api/redLightPanels";
 import { fetchVoid } from "../../api/client";
+import { blurOnWheel } from "../../wheelGuard";
 import "./PanelSection.css";
 
 interface FormState {
@@ -109,6 +110,7 @@ export function PanelSection() {
         placeholder="Wavelength (nm)"
         value={form.wavelength}
         onChange={set("wavelength")}
+        onWheel={blurOnWheel}
         min={600}
         max={900}
       />
@@ -117,6 +119,7 @@ export function PanelSection() {
         placeholder="Irradiance (mW/cm²)"
         value={form.irradiance}
         onChange={set("irradiance")}
+        onWheel={blurOnWheel}
         min={0}
         step={0.1}
       />
@@ -125,6 +128,7 @@ export function PanelSection() {
         placeholder="Distance (inches)"
         value={form.distance}
         onChange={set("distance")}
+        onWheel={blurOnWheel}
         min={0}
         step={0.5}
       />

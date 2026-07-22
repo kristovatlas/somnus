@@ -1,5 +1,6 @@
 /** Ranked list of correlations sorted by strength. */
 
+import { contrastLine, effectHeadline } from "../../effectFormat";
 import type { CorrelationResult } from "../../types";
 
 interface CorrelationListProps {
@@ -46,31 +47,50 @@ export function CorrelationList({
       )}
 
       <div className="correlation-rows">
-        {top.map((r) => (
-          <div key={`${r.predictor}-${r.outcome}`} className="correlation-row">
-            <div className="correlation-labels">
-              <span className="correlation-predictor">{r.predictor_label}</span>
-              <span className="correlation-arrow">→</span>
-              <span className="correlation-outcome">{r.outcome_label}</span>
+        {top.map((r) => {
+          const headline = effectHeadline(r.effect, r.outcome_label);
+          const evidence = contrastLine(r.contrast, r.outcome);
+          return (
+            <div
+              key={`${r.predictor}-${r.outcome}`}
+              className="correlation-row"
+            >
+              <div className="correlation-labels">
+                <span className="correlation-predictor">
+                  {r.predictor_label}
+                </span>
+                <span className="correlation-arrow">→</span>
+                <span className="correlation-outcome">{r.outcome_label}</span>
+              </div>
+              {/* #17: slope headline + median-split evidence lead; r is
+                  demoted to the stats line below. */}
+              {headline && (
+                <div
+                  className="correlation-headline"
+                  style={{ color: rColor(r.pearson_r) }}
+                >
+                  {headline}
+                </div>
+              )}
+              {evidence && (
+                <div className="correlation-evidence">{evidence}</div>
+              )}
+              <div className="correlation-stats">
+                <span className="correlation-r">
+                  r = {r.pearson_r > 0 ? "+" : ""}
+                  {r.pearson_r.toFixed(2)}
+                </span>
+                <span className="correlation-n">n={r.n_days}</span>
+                <span
+                  className="correlation-confidence"
+                  style={{ color: confBadge(r.confidence) }}
+                >
+                  {r.confidence}
+                </span>
+              </div>
             </div>
-            <div className="correlation-stats">
-              <span
-                className="correlation-r"
-                style={{ color: rColor(r.pearson_r) }}
-              >
-                r = {r.pearson_r > 0 ? "+" : ""}
-                {r.pearson_r.toFixed(2)}
-              </span>
-              <span className="correlation-n">n={r.n_days}</span>
-              <span
-                className="correlation-confidence"
-                style={{ color: confBadge(r.confidence) }}
-              >
-                {r.confidence}
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

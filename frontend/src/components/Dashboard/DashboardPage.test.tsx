@@ -206,9 +206,10 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(screen.getByText("On track")).toBeInTheDocument();
     });
+    expect(screen.getByText("Last 7 days")).toBeInTheDocument();
   });
 
-  it("shows sessions recommended when not meeting minimum", async () => {
+  it("shows sessions remaining when not meeting minimum", async () => {
     mockFetchWith({
       ...fullDashboard,
       red_light_summary: {
@@ -220,7 +221,7 @@ describe("DashboardPage", () => {
     renderPage();
     await waitFor(() => {
       expect(
-        screen.getByText(/2 more sessions recommended/),
+        screen.getByText(/2 more sessions to reach 3 in the last 7 days/),
       ).toBeInTheDocument();
     });
   });
@@ -352,39 +353,39 @@ describe("DashboardPage", () => {
     expect(sparklines.getByText(/7d range: 40–42ms/)).toBeInTheDocument();
   });
 
-  it("explains the greek letters on consistency pills (issue #14)", async () => {
+  it("labels consistency pills with words, not greek letters (issues #14, #37)", async () => {
     mockFetchWith(fullDashboard);
     renderPage();
     await waitFor(() => {
       expect(screen.getByTestId("consistency-meter")).toBeInTheDocument();
     });
-    expect(screen.getByTitle(/Variability \(σ\)/)).toBeInTheDocument();
-    expect(screen.getByTitle(/Offset \(δ\)/)).toBeInTheDocument();
-    // Δ is |weekend − weekday| on the backend — no direction claim allowed
-    expect(
-      screen.getByTitle(/Weekend drift \(Δ\).*either direction/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /σ variability · δ vs typical bedtime · Δ weekend drift/,
-      ),
-    ).toBeInTheDocument();
-    // Delta is an absolute offset (backend takes mean of |bedtime - typical|),
-    // so it must render unsigned — no direction claim
-    expect(screen.getByText(/δ 15m/)).toBeInTheDocument();
+    // Word labels on the pills. Delta is an absolute offset (backend takes
+    // mean of |bedtime - target|), so it must render unsigned — no
+    // direction claim.
+    expect(screen.getByText(/Variability \d+m/)).toBeInTheDocument();
+    expect(screen.getByText(/Bedtime offset 15m/)).toBeInTheDocument();
+    expect(screen.getByText(/Weekend drift \d+m/)).toBeInTheDocument();
+    const meter = screen.getByTestId("consistency-meter");
+    // No Greek anywhere on the card (issue #37)
+    expect(meter.textContent).not.toMatch(/[σδΔ]/);
+    // Hover tooltips dropped — the expander is the single explain mechanism
+    expect(meter.querySelectorAll("[title]")).toHaveLength(0);
   });
 
-  it("makes σ/δ/Δ threshold guidance reachable without hover", async () => {
-    // title tooltips never fire on touch; the disclosure must carry the
-    // same guidance for keyboard/touch users (bedside tablet case)
+  it("makes threshold guidance reachable without hover", async () => {
+    // The disclosure carries the guidance for keyboard/touch users
+    // (bedside tablet case) — no title tooltips exist anymore.
     const user = userEvent.setup();
     mockFetchWith(fullDashboard);
     renderPage();
     await waitFor(() => {
       expect(screen.getByTestId("consistency-meter")).toBeInTheDocument();
     });
-    await user.click(screen.getByText(/what do these mean\?/));
+    await user.click(screen.getByText(/what do these mean\?/i));
     expect(screen.getByText(/Under 30 min is consistent/)).toBeVisible();
-    expect(screen.getByText(/social jet lag/)).toBeVisible();
+    // Δ is |weekend − weekday| on the backend — no direction claim allowed
+    expect(
+      screen.getByText(/either direction \(social jet lag\)/),
+    ).toBeVisible();
   });
 });

@@ -1,0 +1,8 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "4c06f78af4cce19d4867a52a5b5b8360265e13bbf5a5537b227063cd64030f57",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "      {open && <div className=\"section-content\">{children}</div>}\n    </section>\n  );\n}\n\ncodex\nThe preset buttons update only the intended sunlight entry while preserving its other fields, and the manual lux input remains editable. The production build and lint checks pass, with no substantive regressions found in the diff.\nThe preset buttons update only the intended sunlight entry while preserving its other fields, and the manual lux input remains editable. The production build and lint checks pass, with no substantive regressions found in the diff.\n",
+  "findings": []
+}

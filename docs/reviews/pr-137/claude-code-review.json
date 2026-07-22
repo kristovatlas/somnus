@@ -1,0 +1,27 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "354def458d6f69d8a8f418aef0fab321d12ffdb8ad01bc2912dc537e6ab97b9d",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #137 review (Claude, Fable 5). CORRECTNESS: no blocking findings. Verified: badge string accurate for all reachable N vs the backend rolling last-7-days/>=3-sessions semantics (0-more unreachable; N=3 shows On track, pinned); new label scoped to source==='optimal' only, typical fallback untouched and still pinned; no other surface pins old strings (one frozen v0.1.0 acceptance-record hit, intentionally historical); .dashboard-card-subtitle exists, --color-text-muted, ADR 004 compliant; tests load-bearing (reverting either string fails them). Full suite 267 green cold-cache in scratch worktree. Notes (non-blocking): threshold 3 now hardcoded in copy+frontend+backend (pre-existing coupling, more visible; constant if ever configurable); frozen acceptance doc retains old wording. SECURITY: none \u2014 exactly 4 files, static literals into JSX text, no sink/dep/endpoint.\n\n--- Post-review delta ---\nBranch updated onto dev after #133/#136 merges (disjoint; clean merge). No code changes in the update.",
+  "findings": [
+    {
+      "id": "N1",
+      "summary": "Red-light threshold 3 hardcoded in copy + frontend + backend (pre-existing coupling, now more visible)",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "Pre-existing; worth a shared constant only if the threshold ever becomes configurable."
+    },
+    {
+      "id": "N2",
+      "summary": "Frozen v0.1.0 acceptance record retains the superseded badge wording",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "Historical point-in-time record, intentionally frozen."
+    }
+  ]
+}

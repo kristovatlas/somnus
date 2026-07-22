@@ -1,0 +1,8 @@
+{
+  "leg": "claude-security-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "55767731569916223eb86cb9c3c6ed09b4d58e5162b0979128b0bad150716b32",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #133 review (Claude, Fable 5). CORRECTNESS: C-1 MEDIUM stock macOS CLT python3=3.9 builds a broken venv the existence-guard traps forever; C-2 LOW flow half-converted (README activation step is the documented story); C-3 LOW mode-3 has no CI coverage (parity step would edit workflows -> escalation); C-4 NIT byte-for-byte is argv-identical; C-5 LOW plan-doc dangling preflight ref + SupplementSection name. Verified sound: else-ifdef OK on GNU Make 3.81 (checked 3.81 NEWS + read.c primary sources); ifdef empty-string semantics; mode-3 ordering coherent; CI/venv modes argv-identical (rendered and diffed both branches); README accurate; .venv gitignored. SECURITY: none \u2014 diff exactly Makefile/README/plan-doc; escalation rule not tripped; T-13 verbatim; no dependency change; observation: Makefile is escalation-adjacent (executed by CI) \u2014 mitigated by argv-identical verification.\n\n--- Post-review deltas ---\nFix round 1: C-1 fixed (version guard both directions: stale .venv recreated, too-old python3 refused with brew advice); C-5 fixed (preflight inlined, name corrected); C-4 PR body wording fixed. C-2 dispositioned documented-by-README; C-3 dispositioned escalation-adjacent, covered by owner verification ask.\nFix round 2 (codex P2s): CI flag value-tested (ifeq true); ensure-python prerequisite shared with db-location. All three make -n modes re-verified against the final head.",
+  "findings": []
+}

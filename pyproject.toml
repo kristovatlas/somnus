@@ -1,6 +1,6 @@
 [project]
 name = "somnus"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local sleep optimization app combining Oura Ring data with habit tracking and statistical analysis"
 requires-python = ">=3.11"
 dependencies = [
@@ -84,6 +84,8 @@ ignore = [
 "backend/routers/**" = ["B008"]
 # db_location is a terminal launcher (#41, ADR 015); print IS its interface.
 "backend/db_location.py" = ["T201"]
+# CI gate scripts: print is the interface; subprocess runs fixed git argv.
+"scripts/**" = ["T201", "S603", "S607"]
 
 [tool.mypy]
 # No python_version pin: numpy 2.5+ (which resolves on Python 3.12+)

@@ -520,6 +520,25 @@ class AnalysisStatusResponse(BaseModel):
     variables: list[VariableStatus]
 
 
+class EffectSize(BaseModel):
+    """#17: slope in natural units — '≈{value} {outcome_unit} per {increment_label}'."""
+
+    value: float
+    increment_label: str
+    outcome_unit: str
+
+
+class BinnedContrast(BaseModel):
+    """#17: median-split evidence — outcome means below vs above the cutoff."""
+
+    low_label: str
+    high_label: str
+    low_mean: float
+    high_mean: float
+    n_low: int
+    n_high: int
+
+
 class CorrelationResult(BaseModel):
     predictor: str
     predictor_label: str
@@ -530,6 +549,8 @@ class CorrelationResult(BaseModel):
     p_value: float
     n_days: int
     confidence: str
+    effect: EffectSize | None = None
+    contrast: BinnedContrast | None = None
 
 
 class CorrelationResponse(BaseModel):
@@ -688,6 +709,8 @@ class TrendArrows(BaseModel):
 class TopFactor(BaseModel):
     label: str
     pearson_r: float
+    n_days: int
+    effect: EffectSize | None = None
 
 
 class WeeklyReportResponse(BaseModel):
@@ -702,14 +725,28 @@ class WeeklyReportResponse(BaseModel):
     prior: MetricAverages
     trends: TrendArrows
     consistency: ConsistencyMetrics | None = None
-    top_positive_factor: TopFactor | None = None
-    top_negative_factor: TopFactor | None = None
+    # #102: top-3 per direction from FULL-dataset correlations (per-week
+    # windows at n≤7 are statistically meaningless) — factors_total_days
+    # feeds the "across all N days" caption so the card can say so.
+    top_positive_factors: list[TopFactor] = []
+    top_negative_factors: list[TopFactor] = []
+    factors_total_days: int | None = None
     has_insufficient_data: bool
 
 
 class NightSummary(BaseModel):
     date: dt.date
     sleep_score: int
+    # #113: context so a best/worst night is interpretable at a glance.
+    # All additive and optional (NULL = not recorded, ADR 003). weekday and
+    # bedtime are formatted backend-side ("Tuesday", "11:42 PM") so the SPA
+    # and the HTML export render identically.
+    weekday: str | None = None
+    bedtime: str | None = None
+    total_sleep_minutes: int | None = None
+    deep_minutes: int | None = None
+    rem_minutes: int | None = None
+    avg_hrv: float | None = None
     contributing_factors: list[str] = []
 
 

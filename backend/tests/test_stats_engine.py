@@ -13,8 +13,11 @@ from backend.models import (
     DailyLog,
     HabitEntry,
     HabitType,
+    MealEntry,
     NapEntry,
     SleepRecord,
+    StimulatingActivityEntry,
+    StimulatingActivityType,
     SunlightEntry,
 )
 from backend.services.stats_engine import (
@@ -154,6 +157,26 @@ class TestPrepareAnalysisDataframe:
         df = prepare_analysis_dataframe(db)
         assert df.iloc[0]["bedtime_hour"] == pytest.approx(24.5)
 
+    def test_sigma_7d_is_in_minutes(self, db: Session) -> None:
+        """sigma_7d is bedtime stddev in MINUTES — pins the ×60 in
+        prepare_analysis_dataframe. A 22:00/23:00 alternation over 7 days is
+        ~32 min of spread; without the ×60 it would read ~0.53."""
+        base = dt.date(2025, 1, 1)
+        for i in range(7):
+            d = base + dt.timedelta(days=i)
+            hour = 22 if i % 2 == 0 else 23
+            _make_sleep_record(
+                db,
+                d,
+                bedtime=dt.datetime.combine(d - dt.timedelta(days=1), dt.time(hour, 0)),
+            )
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        sigma = float(df.iloc[-1]["sigma_7d"])
+        # hours [22,23,22,23,22,23,22]: sample std ≈ 0.5345 h → 32.07 min
+        assert sigma == pytest.approx(0.5345 * 60, abs=0.1)
+
     def test_sleep_midpoint_computed(self, db: Session) -> None:
         """Bedtime 10 PM, wake 6 AM → midpoint should be ~2 AM (26.0 in 24+ space)."""
         d = dt.date(2025, 1, 1)
@@ -272,6 +295,108 @@ class TestPrepareAnalysisDataframe:
         df = prepare_analysis_dataframe(db)
         assert df.iloc[0]["sunlight_morning_minutes"] == 20
         assert df.iloc[0]["sunlight_first_hour"] == pytest.approx(7.5)
+
+    def test_last_caffeine_hour_after_midnight_evening_clock(self, db: Session) -> None:
+        """#134: an after-midnight caffeine entry is on the 24+ evening clock
+        (00:30 → 24.5) and beats an 11 PM entry as the day's last."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(db, d)
+        _make_daily_log(db, d)
+        db.add(CaffeineEntry(date=d, time=dt.time(23, 0), amount_mg=50, source="tea"))
+        db.add(CaffeineEntry(date=d, time=dt.time(0, 30), amount_mg=50, source="tea"))
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        assert df.iloc[0]["last_caffeine_hour"] == pytest.approx(24.5)
+
+    def test_last_caffeine_hour_daytime_unwrapped(self, db: Session) -> None:
+        """Daytime times (>= 4 AM, the #142 cutoff) stay on the plain clock."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(db, d)
+        _make_daily_log(db, d)
+        db.add(CaffeineEntry(date=d, time=dt.time(8, 0), amount_mg=100, source="drip_coffee"))
+        db.add(CaffeineEntry(date=d, time=dt.time(14, 30), amount_mg=50, source="tea"))
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        assert df.iloc[0]["last_caffeine_hour"] == pytest.approx(14.5)
+
+    def test_last_meal_hour_after_midnight_evening_clock(self, db: Session) -> None:
+        """#134: a flagged is_last_meal at 00:30 → 24.5, not 0.5."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(db, d)
+        _make_daily_log(db, d)
+        db.add(MealEntry(date=d, time=dt.time(19, 0)))
+        db.add(MealEntry(date=d, time=dt.time(0, 30), is_last_meal=True))
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        assert df.iloc[0]["last_meal_hour"] == pytest.approx(24.5)
+
+    def test_last_meal_hour_max_after_wrap(self, db: Session) -> None:
+        """#134: without an is_last_meal flag, the max is taken AFTER the
+        evening-clock wrap — 00:15 (24.25) beats 20:00."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(db, d)
+        _make_daily_log(db, d)
+        db.add(MealEntry(date=d, time=dt.time(20, 0)))
+        db.add(MealEntry(date=d, time=dt.time(0, 15)))
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        assert df.iloc[0]["last_meal_hour"] == pytest.approx(24.25)
+
+    def test_stimulating_last_hour_after_midnight_evening_clock(self, db: Session) -> None:
+        """#134: a stimulating activity ending at 01:00 → 25.0, later than
+        one ending at 10 PM."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(db, d)
+        _make_daily_log(db, d)
+        db.add(
+            StimulatingActivityEntry(
+                date=d,
+                end_time=dt.time(22, 0),
+                activity_type=StimulatingActivityType.TV_MOVIES,
+                duration_minutes=60,
+            )
+        )
+        db.add(
+            StimulatingActivityEntry(
+                date=d,
+                end_time=dt.time(1, 0),
+                activity_type=StimulatingActivityType.VIDEO_GAMES,
+                duration_minutes=30,
+            )
+        )
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        assert df.iloc[0]["stimulating_last_hour"] == pytest.approx(25.0)
+
+    def test_evening_clock_4am_cutoff_boundary(self) -> None:
+        """#142 (owner-decided): consumption events wrap below exactly 4 AM —
+        3:59 wraps to 27.983…, 4:00 stays at 4.0. Bedtime's cutoff stays 6 AM
+        (see _normalize_bedtime_hour); a 5:30 AM coffee is morning, not
+        post-midnight."""
+        from backend.services.stats_engine import _evening_time_to_hour
+
+        assert _evening_time_to_hour(dt.time(3, 59)) == pytest.approx(27.983, abs=0.001)
+        assert _evening_time_to_hour(dt.time(4, 0)) == pytest.approx(4.0)
+        assert _evening_time_to_hour(dt.time(5, 30)) == pytest.approx(5.5)
+
+    def test_early_riser_coffee_loses_to_afternoon(self, db: Session) -> None:
+        """#142 aggregation-level pin: a raw 5:00 AM entry stays morning and
+        loses the per-day max to a 14:00 entry (pre-#142 it wrapped to 29.0
+        and spuriously won as the day's 'last')."""
+        d = dt.date(2025, 1, 1)
+        _make_sleep_record(db, d)
+        _make_daily_log(db, d)
+        db.add(CaffeineEntry(date=d, time=dt.time(5, 0), amount_mg=100, source="drip_coffee"))
+        db.add(CaffeineEntry(date=d, time=dt.time(14, 0), amount_mg=50, source="tea"))
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        assert df.iloc[0]["last_caffeine_hour"] == pytest.approx(14.0)
 
     def test_nap_aggregation(self, db: Session) -> None:
         d = dt.date(2025, 1, 1)
@@ -529,3 +654,171 @@ class TestVariableLabels:
     def test_all_columns_have_labels(self) -> None:
         for col in OUTCOME_COLUMNS + PREDICTOR_COLUMNS:
             assert col in VARIABLE_LABELS, f"Missing label for {col}"
+
+
+# ---------------------------------------------------------------------------
+# #17: effect sizes — slope headline + binned contrast + clock labels
+# ---------------------------------------------------------------------------
+
+
+class TestEffectSizes:
+    def test_fmt_clock_evening_and_after_midnight(self) -> None:
+        from backend.services.stats_engine import _fmt_clock
+
+        assert _fmt_clock(23.5) == "11:30 PM"
+        assert _fmt_clock(24.5) == "12:30 AM"  # 00:30 on the 24+ evening scale
+        assert _fmt_clock(23.25) == "11:15 PM"
+        assert _fmt_clock(12.0) == "12:00 PM"
+        assert _fmt_clock(0.0) == "12:00 AM"
+
+    def test_cutoff_label_hour_vs_plain(self) -> None:
+        from backend.services.stats_engine import _cutoff_label
+
+        assert _cutoff_label("bedtime_hour", 24.5) == "12:30 AM"  # hour predictor
+        assert _cutoff_label("total_caffeine_mg", 150.0) == "150"  # plain number
+
+    def test_effect_size_slope_natural_units(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        # Construct data with a known slope: score drops ~3 pts per bedtime hour.
+        hours = [23.0, 23.5, 24.0, 24.5, 25.0, 25.5]
+        scores = [90.0, 88.5, 87.0, 85.5, 84.0, 82.5]  # exactly -3/hour
+        df = pd.DataFrame({"bedtime_hour": hours, "sleep_score": scores})
+        r = float(df["bedtime_hour"].corr(df["sleep_score"]))  # -1.0 here
+        eff = _effect_size("bedtime_hour", "sleep_score", df, r)
+        assert eff is not None
+        assert eff["increment_label"] == "hour later"
+        assert eff["outcome_unit"] == "points"
+        assert eff["value"] == pytest.approx(-3.0, abs=0.05)
+
+    def test_effect_size_per_100mg_increment(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        mg = [0.0, 100.0, 200.0, 300.0, 400.0]
+        score = [88.0, 86.0, 84.0, 82.0, 80.0]  # -2 pts per 100mg
+        df = pd.DataFrame({"total_caffeine_mg": mg, "sleep_score": score})
+        r = float(df["total_caffeine_mg"].corr(df["sleep_score"]))
+        eff = _effect_size("total_caffeine_mg", "sleep_score", df, r)
+        assert eff is not None
+        assert eff["increment_label"] == "100 mg"
+        assert eff["value"] == pytest.approx(-2.0, abs=0.05)
+
+    def test_effect_size_efficiency_scaled_to_pct_points(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        mg = [0.0, 100.0, 200.0, 300.0]
+        eff_frac = [0.95, 0.93, 0.91, 0.89]  # -0.02/100mg = -2 pct pts
+        df = pd.DataFrame({"total_caffeine_mg": mg, "sleep_efficiency": eff_frac})
+        r = float(df["total_caffeine_mg"].corr(df["sleep_efficiency"]))
+        result = _effect_size("total_caffeine_mg", "sleep_efficiency", df, r)
+        assert result is not None
+        assert result["outcome_unit"] == "% pts"
+        assert result["value"] == pytest.approx(-2.0, abs=0.05)
+
+    def test_effect_size_none_for_unmapped_or_binary(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        df = pd.DataFrame({"alcohol": [1.0, 1.0, 0.0], "sleep_score": [80.0, 82.0, 88.0]})
+        # alcohol is not in _EFFECT_INCREMENTS (binary) → no per-unit slope
+        assert _effect_size("alcohol", "sleep_score", df, -0.5) is None
+
+    def test_effect_size_none_on_zero_variance(self) -> None:
+        from backend.services.stats_engine import _effect_size
+
+        df = pd.DataFrame({"bedtime_hour": [24.0, 24.0, 24.0], "sleep_score": [80.0, 85.0, 90.0]})
+        assert _effect_size("bedtime_hour", "sleep_score", df, 0.0) is None
+
+    def test_binned_contrast_hour_labels_and_means(self) -> None:
+        from backend.services.stats_engine import _binned_contrast
+
+        # 6 early (before midnight, good) + 6 late (after, worse); median splits them
+        hours = [23.0, 23.2, 23.4, 23.6, 23.8, 23.9, 24.2, 24.4, 24.6, 24.8, 25.0, 25.2]
+        scores = [88, 89, 90, 87, 88, 89, 82, 81, 80, 83, 79, 82]
+        df = pd.DataFrame({"bedtime_hour": hours, "sleep_score": [float(s) for s in scores]})
+        c = _binned_contrast("bedtime_hour", "sleep_score", df)
+        assert c is not None
+        # The low bin is <= cutoff, so the label says "or earlier", not "before".
+        assert c["low_label"].endswith(" or earlier")
+        assert c["high_label"].startswith("after ")
+        assert c["low_mean"] > c["high_mean"]  # earlier bedtime, better score
+        assert c["n_low"] >= 5 and c["n_high"] >= 5
+
+    def test_binned_contrast_none_when_a_bin_too_small(self) -> None:
+        from backend.services.stats_engine import _binned_contrast
+
+        # zero-heavy: median is 0, so the high bin (>0) has too few rows
+        vals = [0.0] * 10 + [50.0, 60.0]
+        score = [85.0] * 12
+        df = pd.DataFrame({"total_caffeine_mg": vals, "sleep_score": score})
+        assert _binned_contrast("total_caffeine_mg", "sleep_score", df) is None
+
+    def test_evening_clock_predictors_render_effects(self) -> None:
+        """#134: last_caffeine_hour / last_meal_hour / stimulating_last_hour
+        are now aggregated onto the 24+ evening clock (00:30 → 24.5), so the
+        #132 display suppression is lifted: slopes render in "hour later"
+        units and bins get clock-formatted cutoff labels straddling midnight
+        (e.g. "12:15 AM or earlier")."""
+        from backend.services.stats_engine import _binned_contrast, _effect_size
+
+        # Evening-clock hours crossing midnight; median = (24.0+24.5)/2 = 24.25
+        hours = [22.0, 22.5, 23.0, 23.25, 23.5, 24.0, 24.5, 24.75, 25.0, 25.25, 25.5, 26.0]
+        scores = [90.0 - 2.0 * (h - 22.0) for h in hours]  # exactly -2 pts/hour
+        for pred in ("last_caffeine_hour", "last_meal_hour", "stimulating_last_hour"):
+            df = pd.DataFrame({pred: hours, "sleep_score": scores})
+            r = float(df[pred].corr(df["sleep_score"]))  # -1.0
+            eff = _effect_size(pred, "sleep_score", df, r)
+            assert eff is not None
+            assert eff["increment_label"] == "hour later"
+            assert eff["value"] == pytest.approx(-2.0, abs=0.05)
+            c = _binned_contrast(pred, "sleep_score", df)
+            assert c is not None
+            assert c["low_label"] == "12:15 AM or earlier"
+            assert c["high_label"] == "after 12:15 AM"
+            assert c["low_mean"] > c["high_mean"]
+            assert c["n_low"] >= 5 and c["n_high"] >= 5
+
+    def test_after_midnight_events_correlate_sanely_end_to_end(self, db: Session) -> None:
+        """#134 regression: seed days whose last caffeine drifts from 10 PM
+        past midnight while scores fall. On the raw 0-24 clock the
+        after-midnight days would sort as the EARLIEST and flip the sign;
+        on the evening clock the correlation is strongly negative with a
+        sane slope and clock-labeled bins."""
+        base_date = dt.date(2025, 1, 1)
+        n = 20
+        for i in range(n):
+            d = base_date + dt.timedelta(days=i)
+            hour = 22.0 + 0.25 * i  # 22.0 → 26.75, crossing midnight at i=8
+            minutes = round((hour % 24) * 60)
+            t = dt.time(minutes // 60, minutes % 60)
+            _make_sleep_record(db, d, sleep_score=round(90 - 2 * (hour - 22.0)))
+            _make_daily_log(db, d)
+            db.add(CaffeineEntry(date=d, time=t, amount_mg=80, source="tea"))
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        results, _ = compute_correlations(df, min_days=14)
+        row = next(
+            r
+            for r in results
+            if r["predictor"] == "last_caffeine_hour" and r["outcome"] == "sleep_score"
+        )
+        assert row["pearson_r"] < -0.9  # raw clock would have flipped this
+        assert row["effect"] is not None
+        assert row["effect"]["increment_label"] == "hour later"
+        assert row["effect"]["value"] == pytest.approx(-2.0, abs=0.1)
+        assert row["contrast"] is not None
+        # cutoff label is a clock time, not a bare number
+        assert "AM" in row["contrast"]["low_label"] or "PM" in row["contrast"]["low_label"]
+
+    def test_compute_correlations_attaches_effect_and_contrast(self) -> None:
+        from backend.services.stats_engine import compute_correlations
+
+        n = 30
+        hours = [23.0 + 0.1 * i for i in range(n)]
+        scores = [90.0 - 0.6 * i for i in range(n)]
+        df = pd.DataFrame({"bedtime_hour": hours, "sleep_score": scores})
+        results, _ = compute_correlations(df, min_days=14)
+        row = next(r for r in results if r["predictor"] == "bedtime_hour")
+        assert row["effect"] is not None
+        assert row["effect"]["increment_label"] == "hour later"
+        assert row["contrast"] is not None

@@ -1,0 +1,18 @@
+{
+  "leg": "claude-security-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "e61406862f7a9799cf2aa062fd042a585440dfe054c2fd5e51e5052d29d08e1b",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #148 security review (Claude, Fable 5). NO FINDINGS; one info item verified acceptable: the doc's 'avg 446.9' and test fixtures reuse the owner's real sleep aggregates, but they are exactly the values the owner himself posted in public issue #147 (confirmed via gh issue view) \u2014 coarse, owner-published, no exposure expansion. Verified against docs/THREAT_MODEL.md: no HTML sink (evidence renders as JSX text, CorrelationList.tsx; no dangerouslySetInnerHTML; report HTML path untouched \u2014 T-04/T-12); no backend changes at all (T-01/T-02); no new dependency (package.json untouched, T-13), no logging (T-16), no token/DB-path handling (T-07/T-08); no .github/workflows or scripts/review_gate.py changes; acceptance doc has no secrets/PII beyond owner-published quotes; trust boundaries touched: none (B2 payload shape unchanged \u2014 outcome field pre-existing).\n\n--- Post-review delta ---\nBranch advanced during/after review: 70e2621 (reviewed initial tip) -> 4144ebe (docs-only: acceptance QA item 4; leg diffed the delta and re-confirmed) -> f5b365b (docs-only: acceptance QA items 5+6, owner-reported live results incl. the best-night tie-break finding) -> 3c3fb30 (fix round: comment wording nit fixed; acceptance-doc issues-vs-PRs phrasing nit fixed; #142/#143 milestone-tagged on GitHub resolving the bookkeeping half). Negative-input hardening nit dismissed (unreachable: bin means of Oura-sourced non-negative duration columns, no manual-entry path). Post-fix verification: prettier clean, effectFormat tests 10/10; full suite 322/45 green at the reviewed tip; delta commits are docs/comment-only.",
+  "findings": [
+    {
+      "id": "S-I1",
+      "summary": "Owner's real sleep aggregates appear in committed doc + test fixtures",
+      "severity_claimed": "info",
+      "validated": true,
+      "severity_validated": "info",
+      "disposition": "dismissed",
+      "reason": "exactly the values the owner himself posted in public issue #147; coarse aggregates; no exposure expansion"
+    }
+  ]
+}

@@ -18,12 +18,17 @@ export function DashboardPage() {
 
   const caffeineEntries = data?.today_caffeine_entries ?? [];
   const sensitivity = data?.caffeine_sensitivity ?? "normal";
-  const caffeinePoints = useCaffeineDecay(caffeineEntries, sensitivity);
 
   const bedtimeHour = data?.typical_bedtime
     ? Number(data.typical_bedtime.split(":")[0]) +
       Number(data.typical_bedtime.split(":")[1]) / 60
     : null;
+
+  const caffeinePoints = useCaffeineDecay(
+    caffeineEntries,
+    sensitivity,
+    bedtimeHour,
+  );
 
   if (loading) {
     return <div className="dashboard-empty">Loading dashboard...</div>;

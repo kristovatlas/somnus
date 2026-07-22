@@ -1,0 +1,72 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "95cbeb6e9ed4b81355335351d62c117a5dec2d2e40a7af114b6c9ce309e14b96",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #141 review (Claude, Fable 5), fix/37-38-renames aa052b3 vs origin/dev. Verification in scratch worktree, exit codes: backend pytest 550 exit 0 (coverage 95.23%), frontend vitest 311/44 exit 0, cold-cache eslint 0, prettier 0, build 0. FINDINGS: C1 MED \u2014 .consistency-pills non-wrapping flex; renamed labels ~3x longer squeeze/wrap-inside at ~641-880px viewports (two-column grid holds to 640px); same for report pills. C2 MED-LOW \u2014 'Bedtime Offset' names two quantities: dashboard delta = |bedtime - target| (glossary DELTA_HELP describes this), analysis delta_7d = |bedtime - 7d rolling mean| now labeled 'Bedtime Offset (7d)' with matching rec copy; the one expander definition users find does not describe the analysis metric (collision moved from 'Drift', not created). C3 LOW \u2014 why-we-ask hint attributes countdown/caffeine-marker/consistency to both targets; true only for bedtime; target_wake_time's only functional consumer is the Auto display-mode schedule (theme.ts). C4 LOW \u2014 export Rating column renders raw enum 'drifting' (via _esc(c['delta_rating'])) directly above 'Weekend Drift'; also pre-existing raw underscores (on_target etc.). C5 LOW \u2014 doc remnants: PLAN.md:446 user-facing weekly-summary example still Greek; ARCHITECTURE.md sigma/delta/Delta mentions are internal-metric naming (arguably fine). C6 INFO \u2014 .consistency-pill keeps cursor:help but its title tooltips were removed this PR. C7 INFO \u2014 hint added only to SleepProfileStep; lane spec listed ProfileSection too. VERIFIED CLEAN: full sweep \u2014 no surviving user-visible sigma/delta/Delta (unicode, escapes, entities) in frontend src, backend strings, or e2e; no user-visible 'typical bedtime'; heatmap gutter fits the new labels (#104 no-truncation test passes; CoefficientChart truncation pre-existing, improved for one label); glossary strings preserve old tooltip bodies verbatim (typical->target only), tests pin zero [title] attrs; predictor_label consumers display-only, recommendation IDs derive from internal keys so dismissal state survives; schemas validate keys not labels.\n\n--- Post-review delta ---\nFix round commit 7a77334: C1/Codex-P2 fixed (flex-wrap + row-gap on .consistency-pills and .report-consistency-pills); C2 fixed (analysis delta_7d label -> 'Bedtime Offset (7d avg)', rec copy aligned to 'your recent (7-day) average bedtime'; no tests pinned old strings \u2014 grepped); C3 fixed (hint now attributes correctly: bedtime target -> countdown/caffeine marker/consistency stats; wake target -> Auto display-mode schedule); C7 fixed (same corrected hint added to Settings ProfileSection with a .settings-field-hint class matching the Settings hint idiom); C6 fixed (cursor:help removed); C5 partially fixed (PLAN.md:446 user-facing copy example de-Greeked; internal Greek framing left). TOUCH-SET OVERFLOW RECORDED (ship Phase 3 gate): plan predicted frontend-only (ConsistencyMeter, SleepProfileStep, ProfileSection, weekly consistency card, tests); actual lane also touched backend stats_engine VARIABLE_LABELS + reference_data rec copy (the renames genuinely live there \u2014 plan's 'ONLY if frontend-side' assumption was wrong), report_service export template, PLAN.md/ARCHITECTURE.md lines, DashboardPage/ReportsPage/SettingsPage CSS. Recorded in the wave-2 report. Post-review commits also include: merge of origin/dev (clean; the shared-file composition with #140's stats_engine edits and #139's report_service edits is exercised by this PR's own CI at the attested hash) and docs/waves/2026-07-22-wave-2-report.md (ship Phase 5: the wave report rides the wave's final PR before attestation; by design it is not itself leg-reviewed). Post-fix verification: backend pytest 550 exit 0 (coverage 97.88%), mypy 0, ruff 0; frontend cold-cache lint 0, format:check 0, vitest 311/44 exit 0, build 0.\n\n--- Post-review delta 2 ---\nReport-only commit: milestone count corrected to 18 closed / 4 open (wave 2 closes #36/#134/#113/#37/#38 from the 13/9 wave-1 baseline). No code changed; hash re-attested at 95cbeb6e9ed4b81355335351d62c117a5dec2d2e40a7af114b6c9ce309e14b96.",
+  "findings": [
+    {
+      "id": "C1",
+      "summary": "Consistency pills (dashboard + report) don't wrap; 3x-longer labels overflow mid-width cards",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "flex-wrap + row-gap on both pill rows (7a77334); convergent with Codex P2"
+    },
+    {
+      "id": "C2",
+      "summary": "'Bedtime Offset' names offset-from-target (dashboard) and offset-from-7d-mean (analysis)",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "analysis label -> 'Bedtime Offset (7d avg)' + rec copy aligned (7a77334)"
+    },
+    {
+      "id": "C3",
+      "summary": "Target hint mis-attributes bedtime-target uses to the wake target",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "hint rewritten to attribute each target correctly (7a77334)"
+    },
+    {
+      "id": "C4",
+      "summary": "Export Rating column renders raw enum values; 'drifting' adjacent to 'Weekend Drift'",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "pre-existing, not introduced by the renames; rating band values are shared vocabulary (API/tests) \u2014 tracked as issue #143 with a display-mapping fix sketch"
+    },
+    {
+      "id": "C5",
+      "summary": "Doc remnants: PLAN.md user-facing copy example still Greek",
+      "severity_claimed": "P3",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "fixed",
+      "reason": "PLAN.md:446 example de-Greeked to match real report wording; internal Greek framing intentionally left (7a77334)"
+    },
+    {
+      "id": "C6",
+      "summary": "Stale cursor:help on pills whose tooltips were removed",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "removed (7a77334)"
+    },
+    {
+      "id": "C7",
+      "summary": "Why-we-ask hint missing from Settings ProfileSection (spec listed it)",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "corrected hint added with matching Settings idiom (7a77334)"
+    }
+  ]
+}
