@@ -75,8 +75,10 @@ setup-backend: ensure-python
 setup-frontend:
 	cd frontend && npm install
 
-# #41 (ADR 015): resolve the DB location. No-ops if already configured
-# (env var or saved choice) or on a non-TTY; otherwise prompts once.
+# #41 (ADR 015): resolve the DB location. When already configured (env var
+# or saved choice) it reports the current location and exits; unconfigured
+# on a non-TTY it prints a fallback notice and uses the default; otherwise
+# it prompts once.
 # Override headlessly with `make db-location ARGS="--path /your/somnus.db"`
 # or the SOMNUS_DB_PATH env var. Runs on the same Python setup-backend
 # installed into ($(SETUP_PY)), so `make setup` works without activation.
