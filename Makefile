@@ -1,4 +1,4 @@
-.PHONY: setup setup-backend setup-frontend db-location dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate audit clean
+.PHONY: setup setup-backend setup-frontend ensure-python db-location dev dev-backend dev-frontend test test-backend test-frontend test-e2e test-all lint lint-backend lint-frontend format migrate audit clean
 
 # `dev` relies on serial prerequisite order (db-location before migrate);
 # don't run it under `make -j` (parallel) — NOTPARALLEL keeps prereqs ordered.
@@ -26,7 +26,9 @@ ifdef VIRTUAL_ENV
 SETUP_PY := python
 UV := uv
 UV_PIP := $(UV) pip install
-else ifdef CI
+# Value-tested, not ifdef: CI=false in a local shell must NOT get the
+# --system path (PR #133 review, Codex P2).
+else ifeq ($(CI),true)
 SETUP_PY := python
 UV := uv
 UV_PIP := $(UV) pip install --system
@@ -38,7 +40,11 @@ endif
 
 setup: setup-backend setup-frontend db-location
 
-setup-backend:
+# #105: ensure the selected interpreter exists — no-op under CI or an
+# active venv. Split out so the standalone `make db-location ARGS=...`
+# documented in README and the unmounted-volume guard also works on a
+# clean checkout (PR #133 review, Codex P2).
+ensure-python:
 ifeq ($(SETUP_PY),$(VENV)/bin/python)
 	# #105: no active venv and not CI — create the repo-local venv once.
 	# Guard BOTH directions (PR #133 review C-1): a stale .venv built by an
@@ -49,6 +55,8 @@ ifeq ($(SETUP_PY),$(VENV)/bin/python)
 	@test -x $(SETUP_PY) || python3 -c 'import sys; ok = sys.version_info >= (3, 11); print("" if ok else "error: python3 is " + sys.version.split()[0] + " but Somnus needs 3.11+ (e.g. brew install python@3.12, then retry)"); raise SystemExit(not ok)'
 	test -x $(SETUP_PY) || python3 -m venv $(VENV)
 endif
+
+setup-backend: ensure-python
 	$(SETUP_PY) -m pip install --quiet uv==$(UV_VERSION)
 	# T-13 (ADR 014): install exactly the committed uv.lock resolution.
 	# --locked fails loudly if pyproject.toml changed without `uv lock`.
@@ -72,7 +80,7 @@ setup-frontend:
 # Override headlessly with `make db-location ARGS="--path /your/somnus.db"`
 # or the SOMNUS_DB_PATH env var. Runs on the same Python setup-backend
 # installed into ($(SETUP_PY)), so `make setup` works without activation.
-db-location:
+db-location: ensure-python
 	$(SETUP_PY) -m backend.db_location $(ARGS)
 
 # --- Development ---
