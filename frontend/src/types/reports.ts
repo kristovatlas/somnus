@@ -47,6 +47,14 @@ export interface WeeklyReport {
 export interface NightSummary {
   date: string;
   sleep_score: number;
+  /** #113 context fields — formatted backend-side; optional/nullable
+   * (NULL = not recorded). weekday e.g. "Tuesday", bedtime e.g. "11:42 PM". */
+  weekday?: string | null;
+  bedtime?: string | null;
+  total_sleep_minutes?: number | null;
+  deep_minutes?: number | null;
+  rem_minutes?: number | null;
+  avg_hrv?: number | null;
   contributing_factors: string[];
 }
 

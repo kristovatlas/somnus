@@ -113,6 +113,40 @@ def _metric_rows_html(cur: dict[str, Any], pri: dict[str, Any], trends: dict[str
     return "\n".join(rows)
 
 
+def _fmt_clock_12h(value: dt.datetime | None) -> str | None:
+    """Format a bedtime as a 12-hour clock string, e.g. "11:42 PM"."""
+    if value is None:
+        return None
+    hour12 = value.hour % 12 or 12
+    ampm = "AM" if value.hour < 12 else "PM"
+    return f"{hour12}:{value.minute:02d} {ampm}"
+
+
+def _fmt_duration(minutes: int) -> str:
+    """Format a minute count as e.g. "7h 38m"."""
+    return f"{minutes // 60}h {minutes % 60}m"
+
+
+def _night_summary(db: Session, rec: SleepRecord) -> dict[str, Any]:
+    """Best/worst night payload (#113): date + score plus enough context to
+    reconstruct what was different about that night at a glance. Weekday and
+    bedtime are formatted backend-side so the SPA and the HTML export render
+    the same fields (the SPA abbreviates the weekday; rounding of avg_hrv may
+    differ at .5).
+    """
+    return {
+        "date": rec.date,
+        "sleep_score": rec.sleep_score,
+        "weekday": rec.date.strftime("%A"),
+        "bedtime": _fmt_clock_12h(rec.bedtime),
+        "total_sleep_minutes": rec.total_sleep_minutes,
+        "deep_minutes": rec.deep_minutes,
+        "rem_minutes": rec.rem_minutes,
+        "avg_hrv": rec.avg_hrv,
+        "contributing_factors": _get_contributing_factors(db, rec.date),
+    }
+
+
 # #102: |r| below this is indistinguishable from noise at dogfood-scale n —
 # don't pad the Top Factors card with r=0.0x entries just to reach three.
 _TOP_FACTOR_MIN_R = 0.1
@@ -450,16 +484,8 @@ def get_month_report(
     if scored:
         best = max(scored, key=lambda r: r.sleep_score or 0)
         worst = min(scored, key=lambda r: r.sleep_score or 0)
-        best_night = {
-            "date": best.date,
-            "sleep_score": best.sleep_score,
-            "contributing_factors": _get_contributing_factors(db, best.date),
-        }
-        worst_night = {
-            "date": worst.date,
-            "sleep_score": worst.sleep_score,
-            "contributing_factors": _get_contributing_factors(db, worst.date),
-        }
+        best_night = _night_summary(db, best)
+        worst_night = _night_summary(db, worst)
 
     # Stage compliance
     settings = db.get(UserSettings, 1)
@@ -679,6 +705,35 @@ def render_weekly_html(report: dict[str, Any]) -> str:
 </html>"""
 
 
+def _night_html(heading: str, n: dict[str, Any]) -> str:
+    """One best/worst night block for the monthly export (#113).
+
+    Escape invariant (T-04): weekday and bedtime are backend-generated
+    strings but are routed through ``_esc`` anyway; stage minutes and HRV
+    use numeric format specs; factor names via ``_esc``; ``heading`` is a
+    code literal.
+    """
+    day = f"{_esc(n['weekday'])}, " if n.get("weekday") else ""
+    block = f"<h3>{heading}</h3><p>{day}{_esc(n['date'])} — Score: {_esc(n['sleep_score'])}</p>"
+    parts: list[str] = []
+    if n.get("bedtime"):
+        parts.append(f"bed {_esc(n['bedtime'])}")
+    if n.get("total_sleep_minutes") is not None:
+        parts.append(_esc(_fmt_duration(n["total_sleep_minutes"])))
+    if n.get("deep_minutes") is not None:
+        parts.append(f"deep {n['deep_minutes']:d}m")
+    if n.get("rem_minutes") is not None:
+        parts.append(f"REM {n['rem_minutes']:d}m")
+    if n.get("avg_hrv") is not None:
+        parts.append(f"HRV {n['avg_hrv']:.0f}")
+    if parts:
+        block += f'<p class="muted">{" &#183; ".join(parts)}</p>'
+    tags = "".join(
+        f'<span class="factor-tag">{_esc(f)}</span>' for f in n.get("contributing_factors", [])
+    )
+    return block + tags
+
+
 def render_monthly_html(report: dict[str, Any]) -> str:
     """Render a monthly report as a self-contained HTML page."""
     r = report
@@ -688,21 +743,9 @@ def render_monthly_html(report: dict[str, Any]) -> str:
 
     best_worst_html = ""
     if r.get("best_night"):
-        b = r["best_night"]
-        tags = "".join(
-            f'<span class="factor-tag">{_esc(f)}</span>' for f in b.get("contributing_factors", [])
-        )
-        best_worst_html += (
-            f"<h3>Best Night</h3><p>{_esc(b['date'])} — Score: {_esc(b['sleep_score'])}</p>{tags}"
-        )
+        best_worst_html += _night_html("Best Night", r["best_night"])
     if r.get("worst_night"):
-        w = r["worst_night"]
-        tags = "".join(
-            f'<span class="factor-tag">{_esc(f)}</span>' for f in w.get("contributing_factors", [])
-        )
-        best_worst_html += (
-            f"<h3>Worst Night</h3><p>{_esc(w['date'])} — Score: {_esc(w['sleep_score'])}</p>{tags}"
-        )
+        best_worst_html += _night_html("Worst Night", r["worst_night"])
 
     compliance_html = ""
     if r.get("stage_compliance"):

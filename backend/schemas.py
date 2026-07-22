@@ -737,6 +737,16 @@ class WeeklyReportResponse(BaseModel):
 class NightSummary(BaseModel):
     date: dt.date
     sleep_score: int
+    # #113: context so a best/worst night is interpretable at a glance.
+    # All additive and optional (NULL = not recorded, ADR 003). weekday and
+    # bedtime are formatted backend-side ("Tuesday", "11:42 PM") so the SPA
+    # and the HTML export render identically.
+    weekday: str | None = None
+    bedtime: str | None = None
+    total_sleep_minutes: int | None = None
+    deep_minutes: int | None = None
+    rem_minutes: int | None = None
+    avg_hrv: float | None = None
     contributing_factors: list[str] = []
 
 
