@@ -1,0 +1,27 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "55767731569916223eb86cb9c3c6ed09b4d58e5162b0979128b0bad150716b32",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "\nFull review comments:\n\n- [P2] Treat only an enabled CI flag as CI \u2014 /workspaces/sleep-optimizer/.claude/worktrees/agent-a3d13ccdbf912cf26/Makefile:29-29\n  When a local environment exports `CI=false`, GNU Make's `ifdef CI` still selects this branch, so setup uses the system interpreter and `--system` instead of creating `.venv`. On a PEP 668-managed macOS/Linux Python this reproduces the installation failure this patch is intended to fix; test the flag's value or use the GitHub-specific environment marker instead.\n\n- [P2] Keep the standalone DB-location target runnable \u2014 /workspaces/sleep-optimizer/.claude/worktrees/agent-a3d13ccdbf912cf26/Makefile:69-70\n  When no virtualenv is active and `.venv` has not been created, the documented standalone `make db-location ARGS=\"--path \u2026\"` command now immediately fails because `.venv/bin/python` does not exist. This affects clean checkouts and users upgrading from the previous system-install workflow; either make this target ensure the selected environment exists or retain a usable interpreter fallback.\n",
+  "findings": [
+    {
+      "id": "CXR1",
+      "summary": "ifdef CI treats CI=false as CI \u2014 local shells exporting CI=false get --system installs",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "Value-tested: ifeq ($(CI),true). Verified CI=false now creates the venv."
+    },
+    {
+      "id": "CXR2",
+      "summary": "Standalone make db-location fails on a clean checkout before the venv exists",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "Env creation extracted to ensure-python, shared prerequisite of setup-backend and db-location; CI argv unchanged."
+    }
+  ]
+}
