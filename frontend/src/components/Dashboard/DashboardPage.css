@@ -171,7 +171,8 @@
 
 .consistency-pills {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 500;
 }
@@ -180,7 +181,6 @@
   padding: 0.15rem 0.4rem;
   background: var(--color-bg-elevated);
   border-radius: 4px;
-  cursor: help;
 }
 
 .consistency-details {

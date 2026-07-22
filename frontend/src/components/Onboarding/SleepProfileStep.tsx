@@ -61,8 +61,9 @@ export function SleepProfileStep({
         />
         <p style={hintStyle}>
           These are your intentions, not measurements — Oura tracks what
-          actually happens. Targets power the bedtime countdown, the caffeine
-          chart's bedtime marker, and your consistency stats.
+          actually happens. Your bedtime target powers the bedtime countdown,
+          the caffeine chart's bedtime marker, and your consistency stats. Your
+          wake target sets when Auto display mode switches for the day.
         </p>
         <SelectInput
           label="Caffeine Sensitivity"

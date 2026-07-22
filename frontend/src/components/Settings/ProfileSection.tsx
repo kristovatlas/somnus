@@ -79,6 +79,12 @@ export function ProfileSection({ settings, onUpdate }: ProfileSectionProps) {
           onChange={(v) => handleChange({ target_wake_time: v })}
         />
 
+        <p className="settings-field-hint">
+          Your bedtime target powers the bedtime countdown, the caffeine chart's
+          bedtime marker, and your consistency stats. Your wake target sets when
+          Auto display mode switches for the day.
+        </p>
+
         <SelectInput
           label="Chronotype"
           value={settings.chronotype ?? CHRONOTYPE_UNKNOWN}
