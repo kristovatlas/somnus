@@ -1,0 +1,27 @@
+{
+  "leg": "codex-security",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "c611f49b3d0e912b150117a5b040f72f4ce3d799517f220fa3ff30c0ffae3850",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "33,787\n- **Medium \u2014 mutable, unsigned external skill pin.** [CLAUDE.md:53](/workspaces/sleep-optimizer/CLAUDE.md:53) checks out tag `v0.2.0`, which the upstream owner can move. The tag is also unsigned. Because this skill directs autonomous merges, pin commit `33affa20e5456342ed3a1904bf862616dbf5c42e` and verify `HEAD` after cloning. Current tagged contents contain no executable files or submodules, so the present snapshot shows no direct code-execution concern.\n\n- **Low \u2014 bypass description is inaccurate.** [CLAUDE.md:62](/workspaces/sleep-optimizer/CLAUDE.md:62) says the admin bypass is \u201cfor the human only,\u201d while the active ruleset grants an always-on bypass to repository role ID 5\u2014an admin-role class, not a named identity. Existing [CLAUDE.md:42](/workspaces/sleep-optimizer/CLAUDE.md:42) still forbids agents from using admin merge, limiting practical impact.\n\nNo documented enforcement weakening otherwise. The active ruleset requires PRs, resolved threads, strict/up-to-date status checks, and all six named checks including `review-gate`; approving-review count was already zero. Retiring the CLAUDE.md direct-push exception strengthens the written policy.\n\n\n--- Post-review delta ---\nFix round applied after review: SHA-pin + verify-existing-install line, faithful escalation paraphrase (bug-fix carve-out + full data item), bypass wording (policy vs enforcement). Attested hash covers the fixed text; delta verified same-section.",
+  "findings": [
+    {
+      "id": "CXS1",
+      "summary": "Skill pinned by mutable, unsigned tag while directing autonomous merges",
+      "severity_claimed": "medium",
+      "validated": true,
+      "severity_validated": "medium",
+      "disposition": "fixed",
+      "reason": "Pin is now the commit SHA 33affa2 (independently verified against the tag object and local install); version bumps only via PR editing the pin."
+    },
+    {
+      "id": "CXS2",
+      "summary": "Bypass description inaccurate (role class, not a named identity)",
+      "severity_claimed": "low",
+      "validated": true,
+      "severity_validated": "low",
+      "disposition": "fixed",
+      "reason": "Reworded; converged with the Claude security LOW."
+    }
+  ]
+}

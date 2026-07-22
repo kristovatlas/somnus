@@ -1,0 +1,27 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (xhigh)",
+  "reviewed_diff_sha256": "c611f49b3d0e912b150117a5b040f72f4ce3d799517f220fa3ff30c0ffae3850",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "\n- [P1] Add the required review artifacts for this PR \u2014 /workspaces/sleep-optimizer/CLAUDE.md:51-52\n  This PR adds no `docs/reviews/pr-<N>/` artifacts, so the required `review-gate` check will fail when it looks for the current PR's four attestation files. Commit the complete, validated artifact set before merging, including for this documentation-only change.\n\n- [P2] Enforce the pinned ship version for existing installations \u2014 /workspaces/sleep-optimizer/CLAUDE.md:53-53\n  If a machine already has `~/.claude/skills/ship/` checked out at an older or incompatible revision, this condition skips the `v0.2.0` checkout and the agent follows a different merge and escalation protocol than the one adopted here. Keep cloning conditional, but verify or select the pinned tag whenever the directory already exists as well.\n\n\n--- Post-review delta ---\nFix round applied after review: SHA-pin + verify-existing-install line, faithful escalation paraphrase (bug-fix carve-out + full data item), bypass wording (policy vs enforcement). Attested hash covers the fixed text; delta verified same-section.",
+  "findings": [
+    {
+      "id": "CXR1",
+      "summary": "PR lacks its own review artifacts \u2014 gate fails until committed",
+      "severity_claimed": "P1",
+      "validated": true,
+      "severity_validated": "P1",
+      "disposition": "fixed",
+      "reason": "The authoring-order condition; fixed by this commit (hash-exempt path)."
+    },
+    {
+      "id": "CXR2",
+      "summary": "Self-install line skips version verification when the skill directory already exists",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "fixed",
+      "reason": "Install line now verifies HEAD == pinned SHA at session start and re-checkouts on any mismatch."
+    }
+  ]
+}
