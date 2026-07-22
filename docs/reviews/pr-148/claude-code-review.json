@@ -1,0 +1,36 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "e61406862f7a9799cf2aa062fd042a585440dfe054c2fd5e51e5052d29d08e1b",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "PR #148 review (Claude, Fable 5), fix/147-contrast-duration vs origin/dev, detached scratch worktree, real exit codes: cold-cache eslint 0, format:check 0, full vitest 322/45 exit 0, build 0; backend untouched (file list verified). FINDINGS (all nit): N1 comment overstates match to backend _fmt_duration (which always renders the hour part; new helper drops it sub-hour, deliberately per issue spec). N2 acceptance doc counted 4 process PRs in an 'issues' sentence; #142/#143 closed but not milestone-tagged on GitHub while the doc places them in the release. N3 fmtMinutesAsDuration renders <=-60 inputs wrongly \u2014 unreachable (bin means of Oura-sourced non-negative durations; no manual-entry path; backend rounds means). VERIFIED CLEAN: isMinuteOutcome rule exactly matches _OUTCOME_UNITS=='min' ({deep,rem,onset_latency,total_sleep}_minutes; sleep_score/avg_hrv/sleep_efficiency correctly excluded; efficiency x100 scaling stays numeric); predictor leakage impossible (single non-test caller passes r.outcome; default '' preserves old behavior); edges 59.6->'1h 0m', 0->'0m', owner's exact example 446.9->'7h 27m'/423.4->'7h 3m' test-covered; no other surface renders contrast bin means (TopFactorsCard=headline only, backend HTML=slope phrase only, heatmap untouched) so no SPA/export inconsistency; non-minute path byte-identical to prior rendering; acceptance-doc facts spot-checked (min_days=14, variance requirement, descoped issues open on v0.1.2, #147 closes via this PR so 'shipped in this release' is made true by the same PR per the docs-never-lead-code rule, all four claimed regression tests exist).\n\n--- Post-review delta ---\nBranch advanced during/after review: 70e2621 (reviewed initial tip) -> 4144ebe (docs-only: acceptance QA item 4; leg diffed the delta and re-confirmed) -> f5b365b (docs-only: acceptance QA items 5+6, owner-reported live results incl. the best-night tie-break finding) -> 3c3fb30 (fix round: comment wording nit fixed; acceptance-doc issues-vs-PRs phrasing nit fixed; #142/#143 milestone-tagged on GitHub resolving the bookkeeping half). Negative-input hardening nit dismissed (unreachable: bin means of Oura-sourced non-negative duration columns, no manual-entry path). Post-fix verification: prettier clean, effectFormat tests 10/10; full suite 322/45 green at the reviewed tip; delta commits are docs/comment-only.",
+  "findings": [
+    {
+      "id": "N1",
+      "summary": "Comment overstates match to backend _fmt_duration (sub-hour divergence is deliberate)",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "comment now states the divergence and cites the issue spec (3c3fb30)"
+    },
+    {
+      "id": "N2",
+      "summary": "Acceptance doc mixed PR numbers into an issues count; #142/#143 lacked milestone tags",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "doc rephrased (issues + process PRs separated); #142/#143 milestone-tagged v0.1.1 on GitHub (3c3fb30)"
+    },
+    {
+      "id": "N3",
+      "summary": "fmtMinutesAsDuration mishandles <=-60 inputs",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "unreachable: contrast bin means of Oura-sourced non-negative duration columns; verified no manual-entry path"
+    }
+  ]
+}

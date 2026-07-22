@@ -1,0 +1,8 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "e61406862f7a9799cf2aa062fd042a585440dfe054c2fd5e51e5052d29d08e1b",
+  "reviewed_at": "2026-07-22",
+  "raw_output": "codex exec review --base origin/dev on fix/147-contrast-duration: 'The change correctly formats minute-based correlation outcomes as durations while preserving existing formatting for other outcomes. Added tests pass, and the frontend build and lint checks succeed.' No findings.\n\n--- Post-review delta ---\nBranch advanced during/after review: 70e2621 (reviewed initial tip) -> 4144ebe (docs-only: acceptance QA item 4; leg diffed the delta and re-confirmed) -> f5b365b (docs-only: acceptance QA items 5+6, owner-reported live results incl. the best-night tie-break finding) -> 3c3fb30 (fix round: comment wording nit fixed; acceptance-doc issues-vs-PRs phrasing nit fixed; #142/#143 milestone-tagged on GitHub resolving the bookkeeping half). Negative-input hardening nit dismissed (unreachable: bin means of Oura-sourced non-negative duration columns, no manual-entry path). Post-fix verification: prettier clean, effectFormat tests 10/10; full suite 322/45 green at the reviewed tip; delta commits are docs/comment-only.",
+  "findings": []
+}
