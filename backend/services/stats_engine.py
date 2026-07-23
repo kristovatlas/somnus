@@ -132,6 +132,101 @@ def _evening_time_to_hour(t: dt.time | None) -> float | None:
     return h
 
 
+# ---------------------------------------------------------------------------
+# #159: explicit section absence — the third data state.
+#
+# A SectionAbsence row means the user explicitly marked a log section as "did
+# NOT do it" for a date (recorded negative data), distinct from a blank
+# (NULL = not recorded, excluded from analysis — see ADR 003). Aggregation
+# maps an absent section to its explicit zero: binary habit columns → 0.0,
+# continuous total/count/minutes columns → 0. This gives the 8 all-1.0-or-NULL
+# binary habits the variance they need to become correlatable.
+#
+# Clock / "last-hour" / "first-hour" columns (last_caffeine_hour,
+# last_meal_hour, stimulating_last_hour, sunlight_first_hour) are DELIBERATELY
+# omitted from these maps: there is no clock time for an event that did not
+# happen, and forcing 0 would corrupt the evening-clock analysis (see
+# _evening_time_to_hour / #134). They stay NULL.
+_ABSENCE_BINARY_COLUMNS: dict[str, tuple[str, ...]] = {
+    "alcohol": ("alcohol",),
+    "exercise": ("exercise_done",),
+    "blue_blockers": ("blue_blockers",),
+    "screens_off": ("screens_off",),
+    "sauna": ("sauna",),
+    "warm_shower": ("warm_shower",),
+    "red_light": ("red_light_done",),
+    "nsdr": ("nsdr_done",),
+    "ritual": ("ritual_done",),
+}
+
+_ABSENCE_CONTINUOUS_COLUMNS: dict[str, tuple[str, ...]] = {
+    "caffeine": ("total_caffeine_mg",),
+    "exercise": ("exercise_duration_minutes",),
+    "red_light": ("red_light_dose_j_cm2",),
+    "nsdr": ("nsdr_total_minutes",),
+    "ritual": ("ritual_total_minutes",),
+    "nap": ("nap_total_minutes", "nap_count"),
+    "stimulating": ("stimulating_minutes",),
+    "sunlight": ("sunlight_morning_minutes",),
+    # "meal" has only a clock column (last_meal_hour), which stays NULL — a
+    # meal-absent day therefore contributes no numeric zero, by design.
+}
+
+# Section key → predicate for "this section has real entries this day". Real
+# entries always win over an absence row: if a day somehow has both, the
+# entries stand and the absence is ignored (no assert/log — just prefer data).
+_ABSENCE_PRESENCE: dict[str, Any] = {
+    "caffeine": lambda log: bool(log.caffeine_entries),
+    "meal": lambda log: bool(log.meal_entries),
+    "exercise": lambda log: any(e.habit_type == HabitType.EXERCISE for e in log.habit_entries),
+    "alcohol": lambda log: any(e.habit_type == HabitType.ALCOHOL for e in log.habit_entries),
+    "blue_blockers": lambda log: any(
+        e.habit_type == HabitType.BLUE_BLOCKERS_ON for e in log.habit_entries
+    ),
+    "screens_off": lambda log: any(
+        e.habit_type == HabitType.SCREENS_OFF for e in log.habit_entries
+    ),
+    "sauna": lambda log: any(e.habit_type == HabitType.SAUNA for e in log.habit_entries),
+    "warm_shower": lambda log: any(
+        e.habit_type == HabitType.WARM_SHOWER for e in log.habit_entries
+    ),
+    "stimulating": lambda log: bool(log.stimulating_activity_entries),
+    "nap": lambda log: bool(log.nap_entries),
+    "sunlight": lambda log: bool(log.sunlight_entries),
+    "red_light": lambda log: bool(log.red_light_entries),
+    "nsdr": lambda log: bool(log.nsdr_entries),
+    "ritual": lambda log: bool(log.pre_bed_ritual_entries),
+}
+
+
+def _section_has_entries(log: DailyLog, section_key: str) -> bool:
+    """True if the section has any real logged entries for the day.
+
+    Unknown section keys (e.g. Lane 2's ``supplement:<name>``) return False —
+    they have no entry relationship here, so an absence for them simply has no
+    column to zero in this lane.
+    """
+    predicate = _ABSENCE_PRESENCE.get(section_key)
+    return bool(predicate(log)) if predicate is not None else False
+
+
+def _apply_section_absences(log: DailyLog, row: dict[str, Any]) -> None:
+    """Map each explicit SectionAbsence to its zero column(s) (#159).
+
+    Only applies the zero when the section has NO real entries that day (real
+    entries win). Clock columns are left untouched (NULL) by construction —
+    they are absent from the column maps above.
+    """
+    for absence in log.section_absences:
+        section_key = absence.section_key
+        if _section_has_entries(log, section_key):
+            continue
+        for col in _ABSENCE_BINARY_COLUMNS.get(section_key, ()):
+            row[col] = 0.0
+        for col in _ABSENCE_CONTINUOUS_COLUMNS.get(section_key, ()):
+            row[col] = 0
+
+
 def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     """Aggregate all sub-entries of a DailyLog into flat numeric features."""
     row: dict[str, Any] = {"is_sick": True if log.is_sick else None}
@@ -279,6 +374,10 @@ def _aggregate_daily_log(log: DailyLog) -> dict[str, Any]:
     # Sexual activity
     row["sexual_activity"] = 1.0 if log.sexual_activity_entry is not None else None
 
+    # #159: fold in explicitly-recorded section absences (recorded 0/False),
+    # after all real entries are aggregated so real data wins over an absence.
+    _apply_section_absences(log, row)
+
     return row
 
 
@@ -351,6 +450,7 @@ def prepare_analysis_dataframe(db: Session) -> pd.DataFrame:
             joinedload(DailyLog.sunlight_entries),
             joinedload(DailyLog.red_light_entries),
             joinedload(DailyLog.nsdr_entries),
+            joinedload(DailyLog.section_absences),
         )
         .order_by(DailyLog.date)
         .all()
