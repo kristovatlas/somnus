@@ -43,7 +43,7 @@ Specifically:
 ## Amendment (2026-07-23, #159): the third data state — explicit absence
 
 ### Context
-The original decision recognized two states: a recorded value ("did it") and a blank/NULL ("not recorded"). That last "acceptable trade-off" above — being unable to tell "didn't do X" from "forgot to log X" — turned out to have real analytical cost. Eight binary habits (alcohol, exercise, blue blockers, screens off, sauna, warm shower, red light, NSDR, pre-bed ritual) are only ever recorded as "done" (a 1.0) or left blank (NULL). With no way to record an off-day, every one of these columns is all-1.0-or-NULL: after `dropna()` it has zero variance and the correlation engine skips it. These habits were permanently uncorrelatable, no matter how long the user logged.
+The original decision recognized two states: a recorded value ("did it") and a blank/NULL ("not recorded"). That last "acceptable trade-off" above — being unable to tell "didn't do X" from "forgot to log X" — turned out to have real analytical cost. Nine binary habits (alcohol, exercise, blue blockers, screens off, sauna, warm shower, red light, NSDR, pre-bed ritual) are only ever recorded as "done" (a 1.0) or left blank (NULL). With no way to record an off-day, every one of these columns is all-1.0-or-NULL: after `dropna()` it has zero variance and the correlation engine skips it. These habits were permanently uncorrelatable, no matter how long the user logged.
 
 ### Decision
 Introduce a **third data state**, so a variable can now be in exactly one of:

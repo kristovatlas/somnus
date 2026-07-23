@@ -58,15 +58,38 @@ each regularly-taken supplement a did-vs-didn't predictor.
 - Touch-set: `backend/services/stats_engine.py`, `backend/schemas.py`,
   `backend/tests/*`.
 
-## Lane 3 — Daily Log UX + input speed (frontend, off Lane 2)
+## Lane 3 — Daily Log write-path + UX + input speed (backend + frontend, off Lane 2)
 **UX mockup → owner sign-off before build.**
+
+**BLOCKING write-path requirements (Codex P1/P2 on Lane 1, validated real —
+these MUST land atomically with the absence write-API so dev never has a
+state where absences can be created but a save destroys them):**
+- Expose `section_absences` in `DailyLogCreate` / `DailyLogOut` (Pydantic).
+- `save_daily_log` uses delete-the-log-and-recreate (`daily_log_service.py:95`)
+  with `cascade="all, delete-orphan"` → it currently WIPES absences on every
+  save. The write-API PR must recreate/replace absences from the payload in
+  `_create_sub_entries` (same lifecycle as other sub-entries), not leave them
+  orphan-deleted. Regression test: create log + absence → save (editing an
+  unrelated field) → absence survives.
+- `copy_day` (`daily_log_service.py:118`) iterates `ENTRY_TYPE_MAP`, which
+  omits absences → copy drops them. Add absences to the copy. Regression test.
+- **Exports (Codex P2):** JSON export serializes `DailyLogOut` (add the field)
+  and the CSV archive must emit `section_absences.csv`; import/restore must
+  round-trip them, or an export silently converts every explicit negative back
+  to "unknown" and changes correlations. Round-trip test. (If export lives in
+  its own module, this facet may split into its own PR in the chain — but it is
+  NOT optional and is tracked here.)
+
+**UX:**
 - Generic **"None today"** affordance per log section (distinct visual state
   from blank), and per-supplement "didn't take it" marking.
 - **#110:** "same as yesterday" quick-add + common-dose prefill chips.
-- **#160:** supplement name autocomplete / canonical picker (recent + common)
-  so repeat logs group into one predictor.
-- Touch-set: `frontend/src/components/DailyLog/*`, new components, `api/`,
-  `types/`, `frontend/src/**/*.test.tsx`.
+- **#160 / #161:** supplement **library** pick (brand + form + dose; each entry
+  a distinct predictor — Glycinate ≠ L-Threonate), seeded with a common list;
+  add inline + in settings; onboarding seed step. NOT fuzzy name-canonicalize.
+- Touch-set: `backend/schemas.py`, `backend/services/daily_log_service.py`,
+  `backend/services/export*`, `frontend/src/components/DailyLog/*`,
+  onboarding + settings surfaces, new components, `api/`, `types/`, tests.
 
 ## Lane 4 — #158 coverage / countdown (backend + frontend, off Lane 3)
 - Backend: per-predictor coverage in the analysis response — co-logged non-
