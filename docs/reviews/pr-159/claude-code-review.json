@@ -1,0 +1,27 @@
+{
+  "leg": "claude-code-review",
+  "model": "claude-fable-5",
+  "reviewed_diff_sha256": "6006d821d031dc3cc9c3fcdbeab2500903b9f5a547c2c2c8a52789380d5a8594",
+  "reviewed_at": "2026-07-23",
+  "raw_output": "Lane 1 review (Claude, Fable 5), feat/159-absence-core vs origin/dev, scratch worktree, real exit codes: backend pytest 575 passed (coverage 95.56%), mypy 0 (56 files), ruff 0, ruff format --check 0; frontend untouched (7-file diff). NO P1/P2/P3. nit (fixed): ADR amendment said 'Eight' binary habits but lists nine -> corrected to 'Nine' in dc46c80. info (dismissed): absence sets continuous columns to int 0 vs float; pandas coerces, 0==0.0, harmless. VERIFIED CLEAN: backward-compat is a pure no-op with zero absence rows (proven 3 ways incl. source mutation neutralizing the loop -> only the 2 new tests fail, nothing else); section->columns map complete (9 binary->0.0, 8 continuous->0, clock/last-hour/first-hour deliberately stay NULL because forcing 0 injects a fake midnight into _evening_time_to_hour); 'real entries win' checks the relationship not row columns (afternoon-only sunlight entry still blocks a sunlight absence); unknown supplement:* keys no-op this lane; migration 004 additive, chains off 003, unique constraint present, upgrade/downgrade round-trip verified in a worktree DB (downgrade drops only section_absences); end-to-end unlock test discriminates (source-mutated to confirm); joinedload added so no N+1; ADR/never-lag compliant (defers write-API + supplement keys explicitly).\n\n--- Post-review delta ---\nBoth Codex legs reviewed ebc26cf; after their read a docs-only commit dc46c80 landed: ADR 003 amendment binary-habit count 'Eight'->'Nine' (Claude nit), and the plan's Lane 3 section gained the blocking write-path requirements distilled from Codex's P1/P2. No source change since the reviewed head \u2014 the delta is prose only, immaterial to every leg's conclusions.",
+  "findings": [
+    {
+      "id": "N1",
+      "summary": "ADR amendment miscounts binary habits (Eight vs nine listed)",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "fixed",
+      "reason": "corrected to 'Nine' in dc46c80"
+    },
+    {
+      "id": "N2",
+      "summary": "Absence sets continuous columns to int 0, not float 0.0",
+      "severity_claimed": "nit",
+      "validated": true,
+      "severity_validated": "nit",
+      "disposition": "dismissed",
+      "reason": "harmless: pandas coerces column to float64, 0==0.0; binary columns correctly use 0.0; not worth touching aggregation for cosmetics"
+    }
+  ]
+}
