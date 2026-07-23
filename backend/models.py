@@ -192,6 +192,9 @@ class DailyLog(Base):
     nsdr_entries: Mapped[list["NSDREntry"]] = relationship(
         back_populates="daily_log", cascade="all, delete-orphan"
     )
+    section_absences: Mapped[list["SectionAbsence"]] = relationship(
+        back_populates="daily_log", cascade="all, delete-orphan"
+    )
 
 
 class CaffeineEntry(Base):
@@ -390,6 +393,32 @@ class NSDREntry(Base):
     )
 
     daily_log: Mapped[DailyLog] = relationship(back_populates="nsdr_entries")
+
+
+class SectionAbsence(Base):
+    """An explicit "did NOT do X" record for a log section on a given day (#159).
+
+    This is the third data state alongside a recorded value ("did it") and a
+    blank/NULL ("not recorded"). A row here means the user explicitly marked a
+    section as not done for the date — real negative data, distinct from a
+    blank, which stays unknown/excluded from analysis. See ADR 003.
+
+    ``section_key`` is a log-section id (e.g. ``caffeine``, ``alcohol``,
+    ``nsdr``, ``sauna``) or a namespaced per-supplement key
+    (``supplement:<canonical name>``, used by a later lane). It is stored as a
+    free string — no enum — so new sections/supplements need no schema change.
+    Purely additive: existing daily logs with no rows here keep their current
+    semantics unchanged.
+    """
+
+    __tablename__ = "section_absences"
+    __table_args__ = (UniqueConstraint("date", "section_key", name="uq_section_absence"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    date: Mapped[dt.date] = mapped_column(Date, ForeignKey("daily_logs.date"), nullable=False)
+    section_key: Mapped[str] = mapped_column(String(150), nullable=False)
+
+    daily_log: Mapped[DailyLog] = relationship(back_populates="section_absences")
 
 
 class Experiment(Base):

@@ -15,6 +15,7 @@ from backend.models import (
     HabitType,
     MealEntry,
     NapEntry,
+    SectionAbsence,
     SleepRecord,
     StimulatingActivityEntry,
     StimulatingActivityType,
@@ -822,3 +823,120 @@ class TestEffectSizes:
         assert row["effect"] is not None
         assert row["effect"]["increment_label"] == "hour later"
         assert row["contrast"] is not None
+
+
+# --- #159: explicit section absence (the third data state) ---
+
+
+def _agg_row(db: Session, date: dt.date) -> dict[str, Any]:
+    """Aggregate a single day's log through the real aggregation path."""
+    from backend.services.stats_engine import _aggregate_daily_log
+
+    log = db.query(DailyLog).filter(DailyLog.date == date).one()
+    return _aggregate_daily_log(log)
+
+
+class TestSectionAbsenceAggregation:
+    def test_binary_habit_absence_records_explicit_zero(self, db: Session) -> None:
+        """alcohol marked absent, no alcohol entry → 0.0 (not None)."""
+        d = dt.date(2025, 3, 1)
+        _make_daily_log(db, d)
+        db.add(SectionAbsence(date=d, section_key="alcohol"))
+        db.commit()
+
+        row = _agg_row(db, d)
+        assert row["alcohol"] == 0.0
+
+    def test_blank_day_stays_null(self, db: Session) -> None:
+        """No entry and no absence → still None (unknown), unchanged."""
+        d = dt.date(2025, 3, 2)
+        _make_daily_log(db, d)
+        db.commit()
+
+        row = _agg_row(db, d)
+        assert row["alcohol"] is None
+
+    def test_caffeine_absence_zeroes_total_but_keeps_clock_null(self, db: Session) -> None:
+        """Caffeine absent → total_caffeine_mg == 0, but last_caffeine_hour
+        stays NULL — there is no clock time for a caffeine event that never
+        happened."""
+        d = dt.date(2025, 3, 3)
+        _make_daily_log(db, d)
+        db.add(SectionAbsence(date=d, section_key="caffeine"))
+        db.commit()
+
+        row = _agg_row(db, d)
+        assert row["total_caffeine_mg"] == 0
+        assert row["last_caffeine_hour"] is None
+
+    def test_nap_absence_zeroes_minutes_and_count(self, db: Session) -> None:
+        d = dt.date(2025, 3, 4)
+        _make_daily_log(db, d)
+        db.add(SectionAbsence(date=d, section_key="nap"))
+        db.commit()
+
+        row = _agg_row(db, d)
+        assert row["nap_total_minutes"] == 0
+        assert row["nap_count"] == 0
+
+    def test_exercise_absence_zeroes_done_and_duration(self, db: Session) -> None:
+        d = dt.date(2025, 3, 5)
+        _make_daily_log(db, d)
+        db.add(SectionAbsence(date=d, section_key="exercise"))
+        db.commit()
+
+        row = _agg_row(db, d)
+        assert row["exercise_done"] == 0.0
+        assert row["exercise_duration_minutes"] == 0
+
+    def test_real_entry_wins_over_absence(self, db: Session) -> None:
+        """If a day carries both a real entry and an absence for the same
+        section, the entry stands and the absence is ignored."""
+        d = dt.date(2025, 3, 6)
+        _make_daily_log(db, d)
+        db.add(HabitEntry(date=d, habit_type=HabitType.SAUNA))
+        db.add(SectionAbsence(date=d, section_key="sauna"))
+        db.commit()
+
+        row = _agg_row(db, d)
+        assert row["sauna"] == 1.0
+
+    def test_absence_unlocks_binary_habit_correlation_end_to_end(self, db: Session) -> None:
+        """The whole point of #159: a binary habit with ~8 "did it" days and
+        ~8 "explicitly did not" days becomes correlatable. Without the absence
+        rows those 8 off-days are NULL, the column is all-1.0, std==0, and the
+        predictor is silently skipped — the mutation at the end proves it."""
+        base = dt.date(2025, 4, 1)
+        # 8 "did it" days (sauna entry) with high sleep scores.
+        for i in range(8):
+            d = base + dt.timedelta(days=i)
+            _make_sleep_record(db, d, sleep_score=88 + i)
+            _make_daily_log(db, d)
+            db.add(HabitEntry(date=d, habit_type=HabitType.SAUNA))
+        # 8 "explicitly did not" days (SectionAbsence) with low sleep scores.
+        for i in range(8):
+            d = base + dt.timedelta(days=8 + i)
+            _make_sleep_record(db, d, sleep_score=60 + i)
+            _make_daily_log(db, d)
+            db.add(SectionAbsence(date=d, section_key="sauna"))
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        # Off-days recorded as explicit 0.0, on-days as 1.0 → real variance.
+        assert set(df["sauna"].dropna().unique()) == {0.0, 1.0}
+
+        results, _ = compute_correlations(df, min_days=14)
+        sauna_rows = [r for r in results if r["predictor"] == "sauna"]
+        assert sauna_rows, "sauna correlation should now be produced"
+        assert sauna_rows[0]["n_days"] == 16
+
+        # Mutation: drop the absence rows. The off-days revert to NULL, the
+        # column is all-1.0 (zero variance), and the predictor disappears.
+        for absence in db.query(SectionAbsence).all():
+            db.delete(absence)
+        db.commit()
+
+        df2 = prepare_analysis_dataframe(db)
+        assert set(df2["sauna"].dropna().unique()) == {1.0}
+        results2, _ = compute_correlations(df2, min_days=14)
+        assert not any(r["predictor"] == "sauna" for r in results2)

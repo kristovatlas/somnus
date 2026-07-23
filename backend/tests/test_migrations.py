@@ -302,3 +302,23 @@ def test_migration_003_adds_redlight_distance(tmp_path: Path) -> None:
     finally:
         eng.dispose()
     assert "distance_inches" in cols
+
+
+def test_migration_004_adds_section_absences(tmp_path: Path) -> None:
+    """#159: the 004 migration creates section_absences (the explicit-absence
+    table) with its (date, section_key) unique constraint, and the chain still
+    reaches head cleanly. ALL_MODEL_TABLES is derived from the models, so the
+    parity tests above also assert migrate-up lands on exactly this table set."""
+    db_path = tmp_path / "m004.db"
+    command.upgrade(_cfg(db_path), "head")
+    eng = database.create_db_engine(str(db_path))
+    try:
+        insp = inspect(eng)
+        assert "section_absences" in set(insp.get_table_names())
+        cols = {c["name"] for c in insp.get_columns("section_absences")}
+        uniques = {uc["name"] for uc in insp.get_unique_constraints("section_absences")}
+    finally:
+        eng.dispose()
+    assert {"id", "date", "section_key"} <= cols
+    assert "uq_section_absence" in uniques
+    assert "section_absences" in ALL_MODEL_TABLES  # model registers the table

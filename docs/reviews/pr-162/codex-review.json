@@ -1,0 +1,27 @@
+{
+  "leg": "codex-review",
+  "model": "gpt-5.5 (reasoning effort xhigh)",
+  "reviewed_diff_sha256": "6006d821d031dc3cc9c3fcdbeab2500903b9f5a547c2c2c8a52789380d5a8594",
+  "reviewed_at": "2026-07-23",
+  "raw_output": "codex exec review --base origin/dev on feat/159-absence-core. Two findings, both about wiring absences through CRUD/export \u2014 validated real but scoped to the write-path lane (Lane 3), not Lane-1 defects (Lane 1 ships no absence-creation path, so nothing can be created, lost, or exported yet). P1 (claimed): save_daily_log (daily_log_service.py:95) deletes-and-recreates the DailyLog; with cascade all,delete-orphan on the section_absences relationship Lane 1 adds, a save would wipe absences, and _create_sub_entries/copy_day don't recreate them. VALIDATED the mechanism is real (Lane 1 introduces the cascade). Severity downgraded P1->P3 FOR THIS DIFF: the data-loss defect is unreachable in Lane 1 (no code path creates an absence). Re-classified as a BLOCKING requirement on Lane 3 (write-API must recreate absences in save+copy atomically; regression tests) \u2014 tracked on issue #159 + the plan's Lane 3 section. P2: exports omit absences (JSON DailyLogOut has no field; CSV archive emits no section_absences.csv) -> export/restore would convert explicit negatives back to unknown. Real but nothing to export in Lane 1; deferred to the export facet of the write-path work, tracked.\n\n--- Post-review delta ---\nBoth Codex legs reviewed ebc26cf; after their read a docs-only commit dc46c80 landed: ADR 003 amendment binary-habit count 'Eight'->'Nine' (Claude nit), and the plan's Lane 3 section gained the blocking write-path requirements distilled from Codex's P1/P2. No source change since the reviewed head \u2014 the delta is prose only, immaterial to every leg's conclusions.",
+  "findings": [
+    {
+      "id": "X1",
+      "summary": "save_daily_log delete-recreate + delete-orphan cascade would wipe absences; copy_day drops them",
+      "severity_claimed": "P1",
+      "validated": true,
+      "severity_validated": "P3",
+      "disposition": "dismissed",
+      "reason": "Mechanism real (Lane 1 adds the cascade), but the data-loss defect is UNREACHABLE in Lane 1 \u2014 no code path creates a SectionAbsence (write-API is Lane 3). Re-classified as a blocking P1 requirement on Lane 3 (save+copy must recreate absences atomically with the write-API; regression tests save-preserves-absence + copy-carries-absence), recorded on #159 and the plan. Correct save semantics depend on Lane 3's write-API design, so implementing them here would be aspirational."
+    },
+    {
+      "id": "X2",
+      "summary": "JSON + CSV exports omit section_absences (export/restore loses explicit negatives)",
+      "severity_claimed": "P2",
+      "validated": true,
+      "severity_validated": "P2",
+      "disposition": "dismissed",
+      "reason": "Real integration requirement but nothing to export in Lane 1 (no absences can exist). Deferred to the export facet of the write-path work; add field to DailyLogOut + section_absences.csv + import round-trip test. Tracked on #159 + plan. P2 is non-blocking regardless."
+    }
+  ]
+}
