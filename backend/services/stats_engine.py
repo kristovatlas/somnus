@@ -109,6 +109,18 @@ def _time_to_hour(t: dt.time | None) -> float | None:
     return t.hour + t.minute / 60
 
 
+def _bedtime_clock_hour(t: dt.time | None) -> float | None:
+    """Time on the BEDTIME clock (wrap < 6 → 24+), matching
+    _normalize_bedtime_hour. Used only for supplement timing-before-bed, which
+    is subtracted from bedtime_hour, so both sides must share the < 6 cutoff.
+    Distinct from _evening_time_to_hour (< 4, for caffeine/meal consumption).
+    """
+    h = _time_to_hour(t)
+    if h is not None and h < 6:
+        h += 24
+    return h
+
+
 def _evening_time_to_hour(t: dt.time | None) -> float | None:
     """Convert an event time to the continuous 24+ evening clock.
 
@@ -247,7 +259,12 @@ def _aggregate_supplements(log: DailyLog, row: dict[str, Any]) -> None:
         # would let a dose-less log masquerade as a skip and corrupt the dose
         # correlation (ADR 003: unknown ≠ zero). Codex P2, Lane 2 review.
         row[f"{_SUPP_DOSE_PREFIX}{pid}"] = float(sum(doses)) if doses else None
-        taken_hours = [h for e in entries if (h := _evening_time_to_hour(e.time)) is not None]
+        # Timing is measured against bedtime (hbb = bedtime_hour - taken_hour),
+        # so the taken-hour MUST use bedtime's clock (wrap < 6, matching
+        # _normalize_bedtime_hour) — NOT _evening_time_to_hour's < 4 consumption
+        # cutoff. Otherwise a 4:30 AM dose before a 5 AM (wrapped 29.0) bedtime
+        # would read 29.0 - 4.5 = 24.5 h instead of 0.5 (Codex P2, Lane 2 re-run).
+        taken_hours = [h for e in entries if (h := _bedtime_clock_hour(e.time)) is not None]
         row[f"{_SUPP_TAKEN_HOUR_PREFIX}{pid}"] = max(taken_hours) if taken_hours else None
 
 

@@ -1148,6 +1148,27 @@ class TestSupplementPredictors:
         df = prepare_analysis_dataframe(db)
         assert df.loc[d][hbb_col] == pytest.approx(0.5)
 
+    def test_timing_predictor_late_sleeper_4_to_6am(self, db: Session) -> None:
+        """Late-sleeper clock alignment (Codex P2, Lane 2 re-run): bedtime wraps
+        at < 6 but supplement consumption times use a < 4 cutoff, so a 4:30 AM
+        dose (in the 4–6 AM no-wrap gap) before a 5 AM bedtime must still use
+        the BEDTIME clock for timing: hbb = 29.0 - 28.5 = 0.5, NOT 24.5."""
+        melatonin = _make_product(db, "Melatonin")
+        pid = melatonin.id
+        hbb_col = f"supplement_hbb_{pid}"
+        d = dt.date(2025, 9, 1)
+        _make_sleep_record(db, d, bedtime=dt.datetime.combine(d, dt.time(5, 0)))
+        _make_daily_log(db, d)
+        db.add(
+            SupplementEntry(
+                date=d, name="Melatonin", dose_mg=3.0, time=dt.time(4, 30), product_id=pid
+            )
+        )
+        db.commit()
+
+        df = prepare_analysis_dataframe(db)
+        assert df.loc[d][hbb_col] == pytest.approx(0.5)
+
     def test_decimal_dose_round_trips_with_unit_on_product(self, db: Session) -> None:
         """Decimal doses (0.5 mg melatonin) survive aggregation; the unit lives
         on the product, the value on the entry's dose_mg."""
