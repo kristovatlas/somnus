@@ -241,7 +241,12 @@ def _aggregate_supplements(log: DailyLog, row: dict[str, Any]) -> None:
 
     for pid, entries in by_product.items():
         doses = [e.dose_mg for e in entries if e.dose_mg is not None]
-        row[f"{_SUPP_DOSE_PREFIX}{pid}"] = float(sum(doses)) if doses else 0.0
+        # Entries present but NO recorded dose → NULL (took it, dose unknown),
+        # NOT 0.0. Zero is reserved for an explicit `supplement:<pid>` absence
+        # ("none today", set in _apply_section_absences) — conflating the two
+        # would let a dose-less log masquerade as a skip and corrupt the dose
+        # correlation (ADR 003: unknown ≠ zero). Codex P2, Lane 2 review.
+        row[f"{_SUPP_DOSE_PREFIX}{pid}"] = float(sum(doses)) if doses else None
         taken_hours = [h for e in entries if (h := _evening_time_to_hour(e.time)) is not None]
         row[f"{_SUPP_TAKEN_HOUR_PREFIX}{pid}"] = max(taken_hours) if taken_hours else None
 
@@ -533,8 +538,18 @@ def prepare_analysis_dataframe(db: Session) -> pd.DataFrame:
                 pid = product.id
                 dose_col = f"{_SUPP_DOSE_PREFIX}{pid}"
                 hbb_col = f"{_SUPP_HBB_PREFIX}{pid}"
-                supplement_labels[dose_col] = f"{product.name} (dose)"
-                supplement_labels[hbb_col] = f"{product.name} — timing before bed"
+                # Product-level distinction is the point (#161): two products
+                # sharing a name but differing by brand/form must get DISTINCT
+                # labels, or a correlation can't tell the user which one it is
+                # (Codex P2, Lane 2 review). Include brand + form when present.
+                _parts = [product.name]
+                if product.brand:
+                    _parts.append(product.brand)
+                if product.form:
+                    _parts.append(product.form)
+                _base = " · ".join(_parts)
+                supplement_labels[dose_col] = f"{_base} (dose)"
+                supplement_labels[hbb_col] = f"{_base} — timing before bed"
                 supplement_increments[dose_col] = (1.0, f"1 {product.unit}")
                 supplement_increments[hbb_col] = (1.0, "hour earlier")
 

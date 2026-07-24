@@ -41,8 +41,9 @@ def upgrade() -> None:
     # SQLite cannot ALTER-ADD a foreign key, so adding product_id + its FK uses
     # batch mode (copy-and-move table rebuild). The FK is left unnamed to match
     # Base.metadata (the create_all parity test). The T-09 foreign_keys=ON
-    # listener would fail the copy, so it is disabled around the rebuild (see
-    # alembic/env.py) and restored after.
+    # listener would fail the copy, so THIS migration issues PRAGMA
+    # foreign_keys=OFF around the rebuild and restores it after — alembic/env.py
+    # documents that migrations must do this themselves (it does not disable it).
     op.execute("PRAGMA foreign_keys=OFF")
     with op.batch_alter_table("supplement_entries", schema=None) as batch_op:
         batch_op.add_column(sa.Column("product_id", sa.Integer(), nullable=True))
